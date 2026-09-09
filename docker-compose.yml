@@ -62,7 +62,7 @@ services:
           echo "[cron] AUTOMATION_CRON_SECRET is not set — see docs/automations-and-cron.md. Sleeping instead of polling." >&2
           sleep infinity
         fi
-        echo "[cron] starting, polling every 5 minutes"
+        echo "[cron] starting, polling every 10 seconds" # TEMP: local test interval, revert to 300s (5 min) before deploying
         while true; do
           ts=$$(date -u +%Y-%m-%dT%H:%M:%SZ)
           for path in /api/automations/cron /api/flows/cron; do
@@ -71,5 +71,5 @@ services:
               "http://app:3000$$path")
             echo "[cron] $$ts $$path -> $$code"
           done
-          sleep 300
+          sleep 10 # TEMP: local test interval, revert to 300s (5 min) before deploying
         done
