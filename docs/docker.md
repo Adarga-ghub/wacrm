@@ -66,9 +66,12 @@ docker run -d --env-file .env.local -e PORT=3000 -p 3000:3000 wacrm
   Attachment Storage; attachments received while it's off become
   unviewable once Meta drops them. Files over 16 MB (the bucket's
   limit) are never copied.
-- Nothing inside the container is scheduled. If you use automation
-  Wait steps or flows, point an external scheduler at
-  `GET /api/automations/cron` and `GET /api/flows/cron` on this
-  deployment, sending the shared secret in the `x-cron-secret` header
-  (`AUTOMATION_CRON_SECRET`, see `.env.local.example`). Both return
-  503 until that variable is set.
+- The `app` container itself schedules nothing. Compose ships a
+  second `cron` service alongside it — a tiny sidecar with no
+  dependencies of its own — that polls `GET /api/automations/cron`
+  and `GET /api/flows/cron` every 5 minutes over the internal Compose
+  network. It needs `AUTOMATION_CRON_SECRET` set in `.env.local` (see
+  `.env.local.example`); both endpoints return 503 until that
+  variable is set, and the sidecar logs a warning and idles instead of
+  polling if it's missing. See `docs/automations-and-cron.md` for what
+  this drives and how to verify it's running.

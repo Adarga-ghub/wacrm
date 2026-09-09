@@ -38,3 +38,38 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  # Drives the time-based automation pieces (Wait steps, flow-timeout
+  # sweep) that the `app` container never schedules on its own — see
+  # docs/automations-and-cron.md. Polls the two cron endpoints over the
+  # internal Compose network every 5 minutes; no ports are published and
+  # no docker.sock access is needed, so it runs unmodified under
+  # EasyPanel's Compose service type.
+  cron:
+    image: curlimages/curl:8.12.1
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    # Reuses AUTOMATION_CRON_SECRET (and nothing else) from the same
+    # runtime env file as `app`, so the two never drift out of sync.
+    env_file:
+      - .env.local
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        if [ -z "$$AUTOMATION_CRON_SECRET" ]; then
+          echo "[cron] AUTOMATION_CRON_SECRET is not set — see docs/automations-and-cron.md. Sleeping instead of polling." >&2
+          sleep infinity
+        fi
+        echo "[cron] starting, polling every 5 minutes"
+        while true; do
+          ts=$$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          for path in /api/automations/cron /api/flows/cron; do
+            code=$$(curl -sS -o /dev/null -w '%{http_code}' \
+              -H "x-cron-secret: $$AUTOMATION_CRON_SECRET" \
+              "http://app:3000$$path")
+            echo "[cron] $$ts $$path -> $$code"
+          done
+          sleep 300
+        done
