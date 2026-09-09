@@ -1,0 +1,41 @@
+name: Automation cron sweep
+
+# Drives the time-based automation pieces (Wait steps, flow-timeout
+# sweep) that the app never schedules on its own — see
+# docs/automations-and-cron.md. This deployment runs as an EasyPanel
+# single-container "App" service, so the docker-compose `cron` sidecar
+# described in that doc is never started; this workflow is the
+# external-pinger alternative it documents instead.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  sweep:
+    name: Poll automation + flow cron endpoints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/automations/cron and /api/flows/cron
+        env:
+          SITE_URL: https://whatsapp-api-despliegue-wacrm.39k6q6.easypanel.host
+          CRON_SECRET: ${{ secrets.AUTOMATION_CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::AUTOMATION_CRON_SECRET repository secret is not set"
+            exit 1
+          fi
+
+          status=0
+          for path in /api/automations/cron /api/flows/cron; do
+            code=$(curl -sS -o /tmp/body.txt -w '%{http_code}' \
+              -H "x-cron-secret: $CRON_SECRET" \
+              "$SITE_URL$path")
+            echo "$path -> $code"
+            if [ "$code" != "200" ]; then
+              echo "::error::$path returned $code"
+              cat /tmp/body.txt
+              status=1
+            fi
+          done
+          exit $status
