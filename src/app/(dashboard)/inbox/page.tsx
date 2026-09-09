@@ -400,6 +400,17 @@ function InboxPageInner() {
     setResyncToken((n) => n + 1);
   }, []);
 
+  /**
+   * The header's quick tag picker (in MessageThread) and the contact
+   * sidebar's tag list each fetch the active contact's tags independently
+   * — they're separate components. Bumping this after a tag add/remove
+   * tells the sidebar to refetch so it doesn't show a stale list.
+   */
+  const [contactTagsRefreshToken, setContactTagsRefreshToken] = useState(0);
+  const handleTagsChange = useCallback(() => {
+    setContactTagsRefreshToken((n) => n + 1);
+  }, []);
+
   const handleConversationsLoaded = useCallback(
     (loaded: Conversation[]) => {
       setConversations(loaded);
@@ -623,6 +634,7 @@ function InboxPageInner() {
             onRefresh={handleManualRefresh}
             contactPanelOpen={contactPanelOpen}
             onToggleContactPanel={handleToggleContactPanel}
+            onTagsChange={handleTagsChange}
           />
         </div>
 
@@ -632,7 +644,10 @@ function InboxPageInner() {
             toggle — which is itself desktop-only — never affects it. */}
         {contactPanelOpen && (
           <div className="hidden lg:block">
-            <ContactSidebar contact={activeContact} />
+            <ContactSidebar
+              contact={activeContact}
+              tagsRefreshToken={contactTagsRefreshToken}
+            />
           </div>
         )}
       </div>

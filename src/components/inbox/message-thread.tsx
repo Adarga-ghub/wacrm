@@ -15,6 +15,7 @@ import type {
   ConversationStatus,
   MessageTemplate,
   Profile,
+  Tag,
   InteractiveMessagePayload,
 } from "@/types";
 import {
@@ -27,17 +28,20 @@ import {
   RefreshCw,
   PanelRightOpen,
   PanelRightClose,
+  Tag as TagIcon,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInHours } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { addContactTag, deleteContactTag } from "@/lib/contacts/tag-api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
 import { MessageActions } from "./message-actions";
@@ -105,6 +109,14 @@ interface MessageThreadProps {
    */
   contactPanelOpen?: boolean;
   onToggleContactPanel?: () => void;
+  /**
+   * Fired after a tag is added to or removed from the active contact via
+   * the header's quick tag picker. The contact sidebar keeps its own copy
+   * of the contact's tags (fetched independently), so the page uses this
+   * to bump a refresh token and keep both views in sync. Optional so
+   * existing callers keep working.
+   */
+  onTagsChange?: () => void;
 }
 
 function formatDateSeparator(dateStr: string, t: ReturnType<typeof useTranslations>): string {
@@ -163,6 +175,7 @@ export function MessageThread({
   onRefresh,
   contactPanelOpen,
   onToggleContactPanel,
+  onTagsChange,
 }: MessageThreadProps) {
   const t = useTranslations("Inbox.messageThread");
   const tTimer = useTranslations("Inbox.sessionTimer");
@@ -230,6 +243,67 @@ export function MessageThread({
       cancelled = true;
     };
   }, []);
+
+  // Tag picker state for the header's quick tag selector. `allTags` is
+  // every tag defined for the account (for the dropdown list);
+  // `contactTagIds` are the ones currently applied to the active
+  // contact. Both refetch whenever the active contact changes — mirrors
+  // the contact sidebar's own tag fetch, which is intentionally kept
+  // separate (they're different components, synced via `onTagsChange`).
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [contactTagIds, setContactTagIds] = useState<string[]>([]);
+  const contactId = contact?.id;
+  useEffect(() => {
+    if (!contactId) {
+      setContactTagIds([]);
+      return;
+    }
+    let cancelled = false;
+    const supabase = createClient();
+    (async () => {
+      const [tagsRes, contactTagsRes] = await Promise.all([
+        supabase.from("tags").select("*").order("name"),
+        supabase.from("contact_tags").select("tag_id").eq("contact_id", contactId),
+      ]);
+      if (cancelled) return;
+      if (tagsRes.data) setAllTags(tagsRes.data as Tag[]);
+      if (contactTagsRes.data) {
+        setContactTagIds(contactTagsRes.data.map((ct) => ct.tag_id as string));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [contactId]);
+
+  const handleToggleContactTag = useCallback(
+    async (tagId: string) => {
+      if (!contactId) return;
+      const isSelected = contactTagIds.includes(tagId);
+
+      // Optimistic update — the picker should feel instant.
+      setContactTagIds((prev) =>
+        isSelected ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+      );
+
+      try {
+        if (isSelected) {
+          await deleteContactTag(contactId, tagId);
+        } else {
+          await addContactTag(contactId, tagId);
+        }
+        onTagsChange?.();
+      } catch (err) {
+        // Roll back on failure.
+        setContactTagIds((prev) =>
+          isSelected ? [...prev, tagId] : prev.filter((id) => id !== tagId)
+        );
+        const reason = err instanceof Error ? err.message : "unknown error";
+        toast.error(`Failed to update tags: ${reason}`);
+      }
+    },
+    [contactId, contactTagIds, onTagsChange],
+  );
 
   // 24-hour session timer
   const sessionInfo = useMemo(() => {
@@ -986,6 +1060,55 @@ export function MessageThread({
               />
             </button>
           )}
+
+          {/* Tags dropdown — quick add/remove without leaving the chat
+              (issue: tagging previously required opening the contact
+              record from Contacts). Mirrors the contact sidebar's tag
+              list and the conversation list's tag-filter picker. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                contactTagIds.length > 0 ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              <TagIcon className="h-3 w-3" />
+              <span className="hidden sm:inline">{t("tags")}</span>
+              {contactTagIds.length > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                  {contactTagIds.length}
+                </span>
+              )}
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="max-h-64 w-56 border-border bg-popover"
+            >
+              {allTags.length === 0 ? (
+                <DropdownMenuItem disabled className="text-sm text-muted-foreground">
+                  {t("noTagsAvailable")}
+                </DropdownMenuItem>
+              ) : (
+                allTags.map((tag) => (
+                  <DropdownMenuCheckboxItem
+                    key={tag.id}
+                    checked={contactTagIds.includes(tag.id)}
+                    onCheckedChange={() => handleToggleContactTag(tag.id)}
+                    className="text-sm text-popover-foreground"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="truncate">{tag.name}</span>
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Status dropdown */}
           <DropdownMenu>

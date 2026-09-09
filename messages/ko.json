@@ -159,6 +159,8 @@
       "showContact": "연락처 표시",
       "refresh": "새로고침",
       "refreshConversation": "대화 새로고침",
+      "tags": "태그",
+      "noTagsAvailable": "아직 태그가 없습니다 — 설정 → 태그에서 만들어 보세요",
       "status": "상태",
       "statusOpen": "열림",
       "statusPending": "대기 중",

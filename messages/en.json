@@ -159,6 +159,8 @@
       "showContact": "Show contact",
       "refresh": "Refresh",
       "refreshConversation": "Refresh conversation",
+      "tags": "Tags",
+      "noTagsAvailable": "No tags yet — create one in Settings → Tags",
       "status": "Status",
       "statusOpen": "Open",
       "statusPending": "Pending",

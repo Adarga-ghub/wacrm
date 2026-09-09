@@ -23,9 +23,17 @@ import { useTranslations } from "next-intl";
 
 interface ContactSidebarProps {
   contact: Contact | null;
+  /**
+   * Bumped by the page whenever the header's quick tag picker (in
+   * MessageThread) adds or removes a tag on this contact — this sidebar
+   * fetches the contact's tags independently, so it needs an explicit
+   * nudge to refetch and stay in sync. Optional so existing callers
+   * keep working.
+   */
+  tagsRefreshToken?: number;
 }
 
-export function ContactSidebar({ contact }: ContactSidebarProps) {
+export function ContactSidebar({ contact, tagsRefreshToken }: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
 
@@ -73,12 +81,14 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     }
   }, [contact]);
 
-  // Load on contact change. setContactData/setTags run inside async
+  // Load on contact change, and again whenever `tagsRefreshToken` bumps
+  // (the header's quick tag picker mutates tags independently of this
+  // component's own fetch). setContactData/setTags run inside async
   // Supabase callbacks, not synchronously in the effect body.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchContactData();
-  }, [fetchContactData]);
+  }, [fetchContactData, tagsRefreshToken]);
 
   const handleCopyPhone = useCallback(async () => {
     if (!contact?.phone) return;
