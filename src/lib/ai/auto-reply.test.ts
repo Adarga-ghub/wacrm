@@ -77,6 +77,7 @@ function aiConfig(overrides: Partial<AiConfig> = {}): AiConfig {
     autoReplyMaxPerConversation: 3,
     handoffAgentId: null,
     embeddingsApiKey: null,
+    runParallelWithFlows: true,
     ...overrides,
   }
 }
@@ -120,9 +121,30 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     expect(systemPrompt).toContain('Returns accepted within 30 days.')
   })
 
-  it('stands down when an active message-level automation exists', async () => {
+  it('still replies alongside an active message-level automation by default (parallel mode)', async () => {
     h.state.autoResponders = [{ id: 'auto-1' }]
     await dispatchInboundToAiReply(ARGS)
+    expect(h.generateReply).toHaveBeenCalled()
+    expect(h.engineSendText).toHaveBeenCalled()
+  })
+
+  it('still replies when a Flow consumed the inbound by default (parallel mode)', async () => {
+    await dispatchInboundToAiReply({ ...ARGS, flowConsumed: true })
+    expect(h.generateReply).toHaveBeenCalled()
+    expect(h.engineSendText).toHaveBeenCalled()
+  })
+
+  it('legacy mode: stands down when an active message-level automation exists', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ runParallelWithFlows: false }))
+    h.state.autoResponders = [{ id: 'auto-1' }]
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.generateReply).not.toHaveBeenCalled()
+    expect(h.engineSendText).not.toHaveBeenCalled()
+  })
+
+  it('legacy mode: stands down when a Flow consumed the inbound', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ runParallelWithFlows: false }))
+    await dispatchInboundToAiReply({ ...ARGS, flowConsumed: true })
     expect(h.generateReply).not.toHaveBeenCalled()
     expect(h.engineSendText).not.toHaveBeenCalled()
   })

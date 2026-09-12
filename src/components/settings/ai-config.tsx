@@ -74,6 +74,11 @@ export function AiConfig() {
   const [maxPerConversation, setMaxPerConversation] = useState(3);
   // Empty string = leave unassigned (shared queue).
   const [handoffAgentId, setHandoffAgentId] = useState('');
+  // Independent of the switches above: keeps the AI agent answering even
+  // while a Flow or Automation is also acting on the same lead (moving
+  // pipeline stage, tagging, running a timer, …). Defaults to true —
+  // parallel execution is the platform default.
+  const [runParallelWithFlows, setRunParallelWithFlows] = useState(true);
   const [members, setMembers] = useState<AccountMember[]>([]);
 
   // Guard keyed on the account (not a bare boolean) so an in-place
@@ -100,6 +105,7 @@ export function AiConfig() {
         setAutoReplyEnabled(data.auto_reply_enabled);
         setMaxPerConversation(data.auto_reply_max_per_conversation ?? 3);
         setHandoffAgentId(data.handoff_agent_id ?? '');
+        setRunParallelWithFlows(data.run_parallel_with_flows ?? true);
         setHasStoredKey(Boolean(data.has_key));
         setApiKey(data.has_key ? MASKED_KEY : '');
         setKeyEdited(false);
@@ -151,6 +157,7 @@ export function AiConfig() {
     auto_reply_enabled: autoReplyEnabled,
     auto_reply_max_per_conversation: maxPerConversation,
     handoff_agent_id: handoffAgentId || null,
+    run_parallel_with_flows: runParallelWithFlows,
   });
 
   const handleTest = async () => {
@@ -219,6 +226,7 @@ export function AiConfig() {
         setAutoReplyEnabled(false);
         setSystemPrompt('');
         setHandoffAgentId('');
+        setRunParallelWithFlows(true);
       } else {
         const data = await res.json();
         toast.error(data.error ?? t('removeFailed'));
@@ -457,10 +465,28 @@ export function AiConfig() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ai-handoff">{t('handoffTo')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('handoffToDesc')}
-              </p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <Label htmlFor="ai-handoff">{t('handoffTo')}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('handoffToDesc')}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2 pt-0.5">
+                  <Label
+                    htmlFor="ai-parallel-with-flows"
+                    className="text-right text-xs font-medium text-foreground"
+                  >
+                    {t('runParallelWithFlows')}
+                  </Label>
+                  <Switch
+                    id="ai-parallel-with-flows"
+                    checked={runParallelWithFlows}
+                    onCheckedChange={setRunParallelWithFlows}
+                    disabled={disabled}
+                  />
+                </div>
+              </div>
               <Select
                 value={handoffAgentId || HANDOFF_QUEUE}
                 onValueChange={(v) =>
@@ -482,6 +508,9 @@ export function AiConfig() {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {t('runParallelWithFlowsDesc')}
+              </p>
             </div>
           </CardContent>
         </Card>

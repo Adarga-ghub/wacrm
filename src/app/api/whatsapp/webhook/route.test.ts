@@ -316,6 +316,18 @@ describe('inbound webhook: idempotent insert (#367)', () => {
   })
 })
 
+describe('inbound webhook: AI agent runs in parallel with Flows/Automations', () => {
+  it('still dispatches the AI reply, passing flowConsumed through, when a Flow consumed the inbound', async () => {
+    h.dispatchInboundToFlows.mockResolvedValue({ consumed: true })
+
+    await runWebhook()
+
+    expect(h.dispatchInboundToAiReply).toHaveBeenCalledWith(
+      expect.objectContaining({ flowConsumed: true }),
+    )
+  })
+})
+
 describe('inbound webhook: atomic unread bump (#369)', () => {
   it('increments unread through the DB-side RPC, not a read-modify-write', async () => {
     await runWebhook()

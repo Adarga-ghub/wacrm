@@ -29,6 +29,13 @@ export interface AiConfig {
    *  knowledge base is embedded and semantic retrieval turns on; when
    *  null, retrieval falls back to lexical full-text search. */
   embeddingsApiKey: string | null
+  /** When true (default), the AI agent keeps answering inbound messages
+   *  even while a Flow or Automation is also acting on the same lead
+   *  (moving pipeline stage, tagging, running a timer, …) — the two
+   *  subsystems run independently. When false, restores the legacy
+   *  exclusive behavior: a Flow that consumes the inbound, or an active
+   *  message-triggered Automation, makes the bot stand down. */
+  runParallelWithFlows: boolean
 }
 
 /** A single conversation turn in the shape both providers accept. */

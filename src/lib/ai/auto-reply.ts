@@ -18,15 +18,23 @@ interface DispatchArgs {
   /** The account's WhatsApp config owner, used for the outbound send's
    *  audit columns (mirrors how the flow runner passes it through). */
   configOwnerUserId: string
+  /** Whether the deterministic Flow runner consumed this same inbound
+   *  (advanced/started a bot-menu run). Only consulted when the account
+   *  has opted out of parallel execution (`runParallelWithFlows: false`)
+   *  — see the eligibility gates below. */
+  flowConsumed?: boolean
 }
 
 /**
  * AI auto-reply for a freshly-arrived inbound message.
  *
- * Invoked from the WhatsApp webhook's `after()` block, only when no
- * deterministic flow consumed the message (flows win). Mirrors the flow
- * runner's contract: it owns its try/catch and NEVER throws — a failing
- * or slow LLM call must not affect the webhook's 200 to Meta.
+ * Invoked from the WhatsApp webhook's `after()` block. By default the AI
+ * agent and the Flows/Automations engines are fully decoupled: both act
+ * on the same inbound independently — Flows/Automations own the
+ * pipeline (stage, tags, timers, list membership) and the AI owns the
+ * conversation. Mirrors the flow runner's contract: it owns its try/
+ * catch and NEVER throws — a failing or slow LLM call must not affect
+ * the webhook's 200 to Meta.
  *
  * Eligibility gates (any → silent no-op):
  *   - AI off / auto-reply disabled for the account
@@ -34,6 +42,10 @@ interface DispatchArgs {
  *   - auto-reply was disabled for this conversation (prior handoff)
  *   - the per-conversation reply cap is reached
  *   - there's nothing to reply to
+ *   - only when `runParallelWithFlows` is turned OFF (legacy mode):
+ *     a Flow consumed this inbound, or the account has an active
+ *     message-triggered Automation (`new_message_received` /
+ *     `keyword_match`)
  *
  * The 24h WhatsApp session window is inherently open here — we're
  * reacting to a customer message that just landed — so no separate
@@ -50,22 +62,32 @@ export async function dispatchInboundToAiReply(
     const config = await loadAiConfig(db, accountId)
     if (!config || !config.autoReplyEnabled) return
 
-    // Deterministic, user-configured responders win over the LLM — the
-    // caller already excludes messages a Flow consumed. Message-level
-    // automations (`new_message_received` / `keyword_match`) are
-    // dispatched independently for this same inbound and may send their
-    // own reply, so if the account has any active one we stand down to
-    // avoid double-texting the customer. (Relationship triggers like
-    // `first_inbound_message` don't count — they're not per-message
-    // auto-responders.)
-    const { data: autoResponders } = await db
-      .from('automations')
-      .select('id')
-      .eq('account_id', accountId)
-      .eq('is_active', true)
-      .in('trigger_type', ['new_message_received', 'keyword_match'])
-      .limit(1)
-    if (autoResponders && autoResponders.length > 0) return
+    // Legacy single-responder mode, opt-in via the "Run in parallel with
+    // Flows & Automations" switch in Settings → AI Agents. Default is
+    // parallel (both subsystems run independently), so this whole block
+    // is skipped unless the account explicitly asked for the old
+    // exclusive behavior.
+    if (!config.runParallelWithFlows) {
+      // Flows win: a bot-menu run already owns this turn of the
+      // conversation.
+      if (args.flowConsumed) return
+
+      // Deterministic, user-configured responders win over the LLM.
+      // Message-level automations (`new_message_received` /
+      // `keyword_match`) are dispatched independently for this same
+      // inbound and may send their own reply, so if the account has any
+      // active one we stand down to avoid double-texting the customer.
+      // (Relationship triggers like `first_inbound_message` don't count
+      // — they're not per-message auto-responders.)
+      const { data: autoResponders } = await db
+        .from('automations')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('is_active', true)
+        .in('trigger_type', ['new_message_received', 'keyword_match'])
+        .limit(1)
+      if (autoResponders && autoResponders.length > 0) return
+    }
 
     const { data: conv, error: convErr } = await db
       .from('conversations')

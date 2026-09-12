@@ -866,17 +866,24 @@ async function processMessage(
     }).catch((err) => console.error('[automations] dispatch failed:', err))
   }
 
-  // AI auto-reply. Runs only for plain-text inbound the deterministic
-  // flow runner did NOT consume (flows win over the LLM), and only when
-  // the account has enabled it. Awaited inside `after()` (same reason as
-  // the webhook dispatch below); `dispatchInboundToAiReply` owns its
-  // eligibility gates + try/catch and never throws.
-  if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
+  // AI auto-reply. Runs for plain-text inbound whenever the account has
+  // it enabled — independently of the Flow runner and Automations by
+  // default (both subsystems act on the same inbound in parallel; Flows/
+  // Automations own the pipeline, the AI owns the conversation).
+  // `flowConsumed` is passed through only so an account that opted back
+  // into the legacy exclusive behavior (`runParallelWithFlows: false`)
+  // can still have Flows win. Interactive taps are excluded — a button/
+  // list reply isn't free text for the LLM to answer. Awaited inside
+  // `after()` (same reason as the webhook dispatch below);
+  // `dispatchInboundToAiReply` owns its eligibility gates + try/catch
+  // and never throws.
+  if (!interactiveReplyId && inboundText.trim()) {
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,
       contactId: contactRecord.id,
       configOwnerUserId,
+      flowConsumed,
     })
   }
 
