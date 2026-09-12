@@ -95,6 +95,12 @@ vi.mock("./meta-send", () => ({
   })),
 }));
 
+const dispatchOutboundMessage = vi.fn(async () => undefined);
+vi.mock("@/lib/automations/engine", () => ({
+  dispatchOutboundMessage: (...a: unknown[]) =>
+    (dispatchOutboundMessage as unknown as (...x: unknown[]) => unknown)(...a),
+}));
+
 import { dispatchInboundToFlows, entryTriggerTexts } from "./engine";
 import type { ParsedInbound } from "./types";
 
@@ -158,6 +164,7 @@ beforeEach(() => {
   h.state.insertedRun = null;
   h.state.rpcCalls = [];
   engineSendText.mockClear();
+  dispatchOutboundMessage.mockClear();
 });
 
 describe("entryTriggerTexts", () => {
@@ -223,6 +230,15 @@ describe("dispatchInboundToFlows — entry triggers (#490)", () => {
     expect(h.state.rpcCalls).toContain("increment_flow_execution_count");
     // The flow really ran, not just got created.
     expect(engineSendText).toHaveBeenCalledTimes(1);
+    // The send_message node's text is offered to outbound keyword_match
+    // automations, as a fresh (depth-0) chain root.
+    expect(dispatchOutboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: "acct-1",
+        contactId: "ct-1",
+        text: "Looking that up…",
+      }),
+    );
   });
 
   it("matches on the reply id when the visible title does not", async () => {

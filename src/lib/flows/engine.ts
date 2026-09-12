@@ -40,6 +40,7 @@ import {
   engineSendText,
 } from "./meta-send";
 import { decideFallback, resolveFallbackPolicy } from "./fallback";
+import { dispatchOutboundMessage } from "@/lib/automations/engine";
 import { addContactTagAndDispatch } from "@/lib/contacts/tag-events";
 import { removeContactTag } from "@/lib/contacts/tag-write";
 import {
@@ -402,6 +403,12 @@ async function sendButtonsAndSuspend(
     footerText: cfg.footer_text,
     buttons: cfg.buttons.map((b) => ({ id: b.reply_id, title: b.title })),
   });
+  await dispatchOutboundMessage({
+    accountId: run.account_id,
+    contactId: run.contact_id,
+    conversationId: run.conversation_id ?? undefined,
+    text: cfg.text,
+  });
   await logEvent(db, run.id, "message_sent", node.node_key, {
     node_type: "send_buttons",
     whatsapp_message_id,
@@ -445,6 +452,12 @@ async function sendListAndSuspend(
         description: r.description,
       })),
     })),
+  });
+  await dispatchOutboundMessage({
+    accountId: run.account_id,
+    contactId: run.contact_id,
+    conversationId: run.conversation_id ?? undefined,
+    text: cfg.text,
   });
   await logEvent(db, run.id, "message_sent", node.node_key, {
     node_type: "send_list",
@@ -614,12 +627,19 @@ async function advanceFromNodeKey(
     if (node.node_type === "send_message") {
       const cfg = node.config as unknown as SendMessageNodeConfig;
       try {
+        const text = interpolateVars(cfg.text, run.vars);
         const { whatsapp_message_id } = await engineSendText({
           accountId: run.account_id,
     userId: run.user_id,
           conversationId: run.conversation_id!,
           contactId: run.contact_id!,
-          text: interpolateVars(cfg.text, run.vars),
+          text,
+        });
+        await dispatchOutboundMessage({
+          accountId: run.account_id,
+          contactId: run.contact_id,
+          conversationId: run.conversation_id ?? undefined,
+          text,
         });
         await logEvent(db, run.id, "message_sent", node.node_key, {
           node_type: "send_message",
@@ -639,6 +659,9 @@ async function advanceFromNodeKey(
     if (node.node_type === "send_media") {
       const cfg = node.config as unknown as SendMediaNodeConfig;
       try {
+        const caption = cfg.caption
+          ? interpolateVars(cfg.caption, run.vars)
+          : undefined;
         const { whatsapp_message_id } = await engineSendMedia({
           accountId: run.account_id,
     userId: run.user_id,
@@ -646,11 +669,17 @@ async function advanceFromNodeKey(
           contactId: run.contact_id!,
           kind: cfg.media_type,
           link: cfg.media_url,
-          caption: cfg.caption
-            ? interpolateVars(cfg.caption, run.vars)
-            : undefined,
+          caption,
           filename: cfg.filename,
         });
+        if (caption) {
+          await dispatchOutboundMessage({
+            accountId: run.account_id,
+            contactId: run.contact_id,
+            conversationId: run.conversation_id ?? undefined,
+            text: caption,
+          });
+        }
         await logEvent(db, run.id, "message_sent", node.node_key, {
           node_type: "send_media",
           media_type: cfg.media_type,
@@ -672,12 +701,19 @@ async function advanceFromNodeKey(
       // wake us up via handleReplyForActiveRun's collect_input branch.
       const cfg = node.config as unknown as CollectInputNodeConfig;
       try {
+        const promptText = interpolateVars(cfg.prompt_text, run.vars);
         const { whatsapp_message_id } = await engineSendText({
           accountId: run.account_id,
     userId: run.user_id,
           conversationId: run.conversation_id!,
           contactId: run.contact_id!,
-          text: interpolateVars(cfg.prompt_text, run.vars),
+          text: promptText,
+        });
+        await dispatchOutboundMessage({
+          accountId: run.account_id,
+          contactId: run.contact_id,
+          conversationId: run.conversation_id ?? undefined,
+          text: promptText,
         });
         await logEvent(db, run.id, "message_sent", node.node_key, {
           node_type: "collect_input",
@@ -1052,12 +1088,19 @@ async function handleReplyForActiveRun(
       // or var_key missing — rare). Re-send the prompt so they try again.
       const cfg = currentNode.config as unknown as CollectInputNodeConfig;
       try {
+        const promptText = interpolateVars(cfg.prompt_text, run.vars);
         await engineSendText({
           accountId: run.account_id,
     userId: run.user_id,
           conversationId: run.conversation_id!,
           contactId: run.contact_id!,
-          text: interpolateVars(cfg.prompt_text, run.vars),
+          text: promptText,
+        });
+        await dispatchOutboundMessage({
+          accountId: run.account_id,
+          contactId: run.contact_id,
+          conversationId: run.conversation_id ?? undefined,
+          text: promptText,
         });
       } catch (err) {
         await logEvent(db, run.id, "error", currentNode.node_key, {

@@ -6,6 +6,7 @@ const h = vi.hoisted(() => ({
   state: {
     owned: null as { id: string } | null,
     ownedCustomField: null as { id: string } | null,
+    conversation: null as { id: string } | null,
     automations: [] as Record<string, unknown>[],
     steps: [] as Record<string, unknown>[],
     fromCalls: [] as string[],
@@ -45,6 +46,7 @@ vi.mock("./admin-client", () => {
       }
       return { data: null, error: null };
     }
+    if (table === "conversations") return { data: state.conversation, error: null };
     if (table === "automations") return { data: state.automations, error: null };
     if (table === "automation_logs") {
       if (type === "insert") {
@@ -99,12 +101,14 @@ vi.mock("./admin-client", () => {
 });
 
 vi.mock("./meta-send", () => ({
-  engineSendText: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
-  engineSendTemplate: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
+  engineSendText: vi.fn(async () => ({ whatsapp_message_id: "m1", content_text: "" })),
+  engineSendTemplate: vi.fn(async () => ({ whatsapp_message_id: "m1", content_text: "" })),
   engineSendInteractive: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
 }));
 
-import { runAutomationsForTrigger, triggerMatches } from "./engine";
+import { runAutomationsForTrigger, triggerMatches, dispatchOutboundMessage } from "./engine";
+import { MAX_OUTBOUND_CHAIN_DEPTH } from "./dispatch-chain";
+import { engineSendText } from "./meta-send";
 import type { Automation, KeywordMatchTriggerConfig } from "@/types";
 
 const ACCOUNT = "acct-1";
@@ -112,6 +116,7 @@ const ACCOUNT = "acct-1";
 beforeEach(() => {
   h.state.owned = null;
   h.state.ownedCustomField = null;
+  h.state.conversation = null;
   h.state.automations = [];
   h.state.steps = [];
   h.state.fromCalls = [];
@@ -119,6 +124,7 @@ beforeEach(() => {
   h.state.upsertCalls = [];
   h.state.logInserts = [];
   h.state.logUpdates = [];
+  vi.mocked(engineSendText).mockClear();
 });
 
 describe("runAutomationsForTrigger — tenant isolation", () => {
@@ -548,5 +554,135 @@ describe("triggerMatches — keyword_match", () => {
   it("ignores empty keywords and empty messages in `word` mode", () => {
     expect(on(automation({ keywords: [""], match_type: "word" }), "anything")).toBe(false);
     expect(on(automation({ keywords: ["hi"], match_type: "word" }), "")).toBe(false);
+  });
+});
+
+describe("triggerMatches — keyword_match direction", () => {
+  function automation(
+    cfg: Partial<KeywordMatchTriggerConfig> & { keywords: string[] },
+  ): Automation {
+    return {
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "kw",
+      trigger_type: "keyword_match",
+      trigger_config: { match_type: "contains", ...cfg },
+      is_active: true,
+    } as unknown as Automation;
+  }
+
+  it("defaults to inbound: matches a customer message when direction is unset", () => {
+    const a = automation({ keywords: ["hi"] });
+    expect(triggerMatches(a, { message_text: "hi" })).toBe(true);
+    expect(
+      triggerMatches(a, { message_text: "hi", message_direction: "inbound" }),
+    ).toBe(true);
+  });
+
+  it("defaults to inbound: ignores an outbound message when direction is unset", () => {
+    const a = automation({ keywords: ["hi"] });
+    expect(
+      triggerMatches(a, { message_text: "hi", message_direction: "outbound" }),
+    ).toBe(false);
+  });
+
+  it("direction: 'outbound' matches only messages the CRM sent", () => {
+    const a = automation({ keywords: ["hi"], direction: "outbound" });
+    expect(
+      triggerMatches(a, { message_text: "hi", message_direction: "outbound" }),
+    ).toBe(true);
+    expect(
+      triggerMatches(a, { message_text: "hi", message_direction: "inbound" }),
+    ).toBe(false);
+    expect(triggerMatches(a, { message_text: "hi" })).toBe(false);
+  });
+
+  it("direction: 'inbound' is explicit but behaves the same as unset", () => {
+    const a = automation({ keywords: ["hi"], direction: "inbound" });
+    expect(triggerMatches(a, { message_text: "hi" })).toBe(true);
+    expect(
+      triggerMatches(a, { message_text: "hi", message_direction: "outbound" }),
+    ).toBe(false);
+  });
+});
+
+describe("dispatchOutboundMessage", () => {
+  it("no-ops without querying automations once the chain depth cap is reached", async () => {
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "kw",
+      trigger_type: "keyword_match",
+      trigger_config: { match_type: "contains", keywords: ["hi"], direction: "outbound" },
+      is_active: true,
+    }];
+
+    await dispatchOutboundMessage({
+      accountId: ACCOUNT,
+      contactId: "c1",
+      conversationId: "conv-1",
+      text: "hi",
+      chainDepth: MAX_OUTBOUND_CHAIN_DEPTH,
+    });
+
+    expect(h.state.fromCalls).not.toContain("automations");
+  });
+
+  it("no-ops on an empty contact or blank text", async () => {
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "kw",
+      trigger_type: "keyword_match",
+      trigger_config: { match_type: "contains", keywords: ["hi"], direction: "outbound" },
+      is_active: true,
+    }];
+
+    await dispatchOutboundMessage({ accountId: ACCOUNT, contactId: null, text: "hi" });
+    await dispatchOutboundMessage({ accountId: ACCOUNT, contactId: "c1", text: "   " });
+
+    expect(h.state.fromCalls).not.toContain("automations");
+  });
+
+  it("caps a self-triggering outbound keyword_match chain instead of looping forever", async () => {
+    // A single automation whose own send_message reply contains the
+    // keyword it's watching for on outbound — worst case for the
+    // recursion guard: every send re-triggers the same automation.
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv-1" };
+    h.state.automations = [{
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      name: "loop",
+      trigger_type: "keyword_match",
+      trigger_config: { match_type: "contains", keywords: ["hello"], direction: "outbound" },
+      is_active: true,
+    }];
+    h.state.steps = [{
+      id: "s1",
+      automation_id: "a1",
+      step_type: "send_message",
+      position: 0,
+      parent_step_id: null,
+      step_config: { text: "hello again" },
+    }];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "keyword_match",
+      contactId: "c1",
+      context: { message_text: "hello", message_direction: "outbound" },
+    });
+
+    // 1 initial send + at most MAX_OUTBOUND_CHAIN_DEPTH recursive resends,
+    // then the depth guard cuts it off — never unbounded.
+    expect(vi.mocked(engineSendText).mock.calls.length).toBeLessThanOrEqual(
+      MAX_OUTBOUND_CHAIN_DEPTH + 1,
+    );
+    expect(vi.mocked(engineSendText).mock.calls.length).toBeGreaterThan(1);
   });
 });

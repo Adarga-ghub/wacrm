@@ -8,6 +8,7 @@ import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
 import { engineSendText } from '@/lib/flows/meta-send'
+import { dispatchOutboundMessage } from '@/lib/automations/engine'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 interface DispatchArgs {
@@ -208,6 +209,16 @@ export async function dispatchInboundToAiReply(
       contactId,
       text,
       aiGenerated: true,
+    })
+
+    // Fire any `keyword_match` (direction: outbound) automations
+    // watching for this reply. An AI reply is always a fresh chain
+    // root, so no depth to pass.
+    await dispatchOutboundMessage({
+      accountId,
+      contactId,
+      conversationId,
+      text,
     })
   } catch (err) {
     console.error('[ai auto-reply] dispatch failed:', err)

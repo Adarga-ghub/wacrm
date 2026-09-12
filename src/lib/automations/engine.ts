@@ -21,6 +21,7 @@ import type {
 import { supabaseAdmin } from './admin-client'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
 import { MAX_TAG_CHAIN_DEPTH, getTagChainDepth } from '@/lib/contacts/tag-chain'
+import { MAX_OUTBOUND_CHAIN_DEPTH, getOutboundChainDepth } from './dispatch-chain'
 import { engineSendText, engineSendTemplate, engineSendInteractive } from './meta-send'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
@@ -42,6 +43,11 @@ export interface AutomationContext {
   agent_id?: string
   /** Button / list-row id the customer tapped, for interactive_reply. */
   interactive_reply_id?: string
+  /** Which side sent `message_text` — drives `keyword_match`'s
+   *  `direction` filter. Absent is treated as `'inbound'` (every
+   *  dispatch site that fires for a customer message predates this
+   *  field and never set it). */
+  message_direction?: 'inbound' | 'outbound'
 }
 
 export interface DispatchInput {
@@ -115,6 +121,54 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
     }
   } catch (err) {
     console.error('[automations] dispatch failed:', err)
+  }
+}
+
+/**
+ * Fire `keyword_match` (direction: outbound) automations for a message
+ * the CRM just sent the customer — regardless of whether a human agent
+ * typed it, a Flow/Automation step sent it, or the AI agent auto-
+ * replied. Every one of those call sites is a fresh chain root
+ * (`chainDepth` omitted / 0) EXCEPT an automation's own `send_message`/
+ * `send_template`/`send_buttons`/`send_list` step, which passes the
+ * current chain depth (`getOutboundChainDepth(args.context)`) — that's
+ * the only path where firing this can recursively trigger another
+ * outbound automation whose own send step fires this again, so it's
+ * the only one that needs the cap.
+ *
+ * Must never throw — every caller sends a message as its primary job;
+ * a broken keyword automation must not fail the send.
+ */
+export async function dispatchOutboundMessage(input: {
+  accountId: string
+  contactId: string | null | undefined
+  conversationId?: string
+  text: string
+  chainDepth?: number
+}): Promise<void> {
+  try {
+    if (!input.contactId || !input.text.trim()) return
+    const depth = input.chainDepth ?? 0
+    if (depth >= MAX_OUTBOUND_CHAIN_DEPTH) {
+      console.warn(
+        '[automations] outbound keyword_match chain depth limit reached',
+        { accountId: input.accountId, contactId: input.contactId, depth },
+      )
+      return
+    }
+    await runAutomationsForTrigger({
+      accountId: input.accountId,
+      triggerType: 'keyword_match',
+      contactId: input.contactId,
+      context: {
+        message_text: input.text,
+        message_direction: 'outbound',
+        conversation_id: input.conversationId,
+        vars: { _outbound_chain_depth: depth + 1 },
+      },
+    })
+  } catch (err) {
+    console.error('[automations] dispatchOutboundMessage failed:', err)
   }
 }
 
@@ -372,6 +426,13 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         contactId: args.contactId,
         text,
       })
+      await dispatchOutboundMessage({
+        accountId: args.automation.account_id,
+        contactId: args.contactId,
+        conversationId,
+        text,
+        chainDepth: getOutboundChainDepth(args.context),
+      })
       return `sent via Meta (${whatsapp_message_id})`
     }
 
@@ -391,6 +452,13 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         conversationId,
         contactId: args.contactId,
         payload,
+      })
+      await dispatchOutboundMessage({
+        accountId: args.automation.account_id,
+        contactId: args.contactId,
+        conversationId,
+        text: payload.body,
+        chainDepth: getOutboundChainDepth(args.context),
       })
       return `interactive sent via Meta (${whatsapp_message_id})`
     }
@@ -418,7 +486,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
             })
             .map((k) => String(cfg.variables![k]))
         : []
-      const { whatsapp_message_id } = await engineSendTemplate({
+      const { whatsapp_message_id, content_text } = await engineSendTemplate({
         accountId: args.automation.account_id,
         userId: args.automation.user_id,
         conversationId,
@@ -426,6 +494,13 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         templateName: cfg.template_name,
         language: cfg.language,
         params,
+      })
+      await dispatchOutboundMessage({
+        accountId: args.automation.account_id,
+        contactId: args.contactId,
+        conversationId,
+        text: content_text,
+        chainDepth: getOutboundChainDepth(args.context),
       })
       return `template sent via Meta (${whatsapp_message_id})`
     }
@@ -698,6 +773,9 @@ export function triggerMatches(automation: Automation, ctx: AutomationContext | 
   if (automation.trigger_type === 'keyword_match') {
     const cfg = automation.trigger_config as KeywordMatchTriggerConfig
     if (!cfg?.keywords || cfg.keywords.length === 0) return false
+    if ((cfg.direction ?? 'inbound') !== (ctx?.message_direction ?? 'inbound')) {
+      return false
+    }
     const text = (ctx?.message_text ?? '').toString()
     if (!text) return false
     if (cfg.match_type === 'word') {

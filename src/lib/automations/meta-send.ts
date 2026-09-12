@@ -52,13 +52,15 @@ interface SendTemplateArgs {
   params?: string[]
 }
 
-export async function engineSendText(args: SendTextArgs): Promise<{ whatsapp_message_id: string }> {
+export async function engineSendText(
+  args: SendTextArgs,
+): Promise<{ whatsapp_message_id: string; content_text: string }> {
   return sendViaMeta({ ...args, kind: 'text' })
 }
 
 export async function engineSendTemplate(
   args: SendTemplateArgs,
-): Promise<{ whatsapp_message_id: string }> {
+): Promise<{ whatsapp_message_id: string; content_text: string }> {
   return sendViaMeta({ ...args, kind: 'template' })
 }
 
@@ -109,7 +111,9 @@ type SendInput =
   | (SendTextArgs & { kind: 'text' })
   | (SendTemplateArgs & { kind: 'template' })
 
-async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: string }> {
+async function sendViaMeta(
+  input: SendInput,
+): Promise<{ whatsapp_message_id: string; content_text: string }> {
   const db = supabaseAdmin()
 
   // Scope the contact + config lookups by account_id, not user_id.
@@ -248,5 +252,5 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
     })
     .eq('id', input.conversationId)
 
-  return { whatsapp_message_id: waMessageId }
+  return { whatsapp_message_id: waMessageId, content_text: content_text ?? '' }
 }

@@ -496,6 +496,13 @@ export interface KeywordMatchTriggerConfig {
    */
   match_type: 'exact' | 'contains' | 'word';
   case_sensitive?: boolean;
+  /** Which side of the conversation the keyword is matched against.
+   *  Missing/`inbound` (the default — preserves every existing
+   *  automation's behavior) matches customer messages; `outbound`
+   *  matches messages the CRM sends the customer, regardless of
+   *  whether an agent typed it, an Automation/Flow step sent it, or
+   *  the AI agent auto-replied. */
+  direction?: 'inbound' | 'outbound';
 }
 
 export interface TagTriggerConfig {

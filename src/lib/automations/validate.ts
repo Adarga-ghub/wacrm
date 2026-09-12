@@ -182,6 +182,19 @@ export function validateTriggerForActivation(
         message: 'match type must be "exact", "contains" or "word"',
       })
     }
+    // Same "missing defaults at runtime" reasoning as match_type above —
+    // engine.ts reads `cfg.direction ?? 'inbound'`, so only an explicit,
+    // unrecognised value is invalid.
+    if (
+      cfg.direction != null &&
+      cfg.direction !== 'inbound' &&
+      cfg.direction !== 'outbound'
+    ) {
+      issues.push({
+        path: 'trigger.direction',
+        message: 'direction must be "inbound" or "outbound"',
+      })
+    }
   } else if (triggerType === 'time_based') {
     if (!nonEmpty(cfg.schedule)) {
       issues.push({ path: 'trigger.schedule', message: 'schedule is required' })

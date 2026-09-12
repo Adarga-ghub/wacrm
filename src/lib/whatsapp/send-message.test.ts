@@ -193,6 +193,12 @@ vi.mock('@/lib/flows/admin-client', () => ({
   }),
 }));
 
+const dispatchOutboundMessage = vi.fn(async () => undefined);
+vi.mock('@/lib/automations/engine', () => ({
+  dispatchOutboundMessage: (...args: unknown[]) =>
+    (dispatchOutboundMessage as unknown as (...a: unknown[]) => unknown)(...args),
+}));
+
 interface CapturedWrites {
   message?: Record<string, unknown>;
   conversation?: Record<string, unknown>;
@@ -344,5 +350,26 @@ describe('sendMessageToConversation — template persistence (#483)', () => {
     // name rather than inventing a body.
     expect(captured.message?.content_text).toBeNull();
     expect(captured.conversation?.last_message_text).toBe('[template]');
+  });
+});
+
+describe('sendMessageToConversation — outbound keyword_match dispatch', () => {
+  it('fires a fresh (depth-0) outbound dispatch with the sent text after a manual send', async () => {
+    dispatchOutboundMessage.mockClear();
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'Order shipped!',
+    });
+
+    // Never a recursive send — every manual/API send is a fresh chain
+    // root, so `chainDepth` is omitted entirely.
+    expect(dispatchOutboundMessage).toHaveBeenCalledWith({
+      accountId: 'acct-1',
+      contactId: 'ct-1',
+      conversationId: 'cv-1',
+      text: 'Order shipped!',
+    });
   });
 });

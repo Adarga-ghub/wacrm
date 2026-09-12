@@ -1012,6 +1012,10 @@
         "matchWord": "Whole word",
         "matchWordHint": "Matches the keyword only as a standalone word, so \"k\" no longer fires on \"thanks\". Best for short keywords in space-separated languages; use Contains for languages written without spaces.",
         "matchExact": "Exact",
+        "direction": "Message direction",
+        "directionInbound": "Inbound (from the customer)",
+        "directionOutbound": "Outbound (sent by the CRM)",
+        "directionHint": "Outbound matches any message the CRM sends the customer — typed by an agent, sent by an Automation or Flow step, or an AI agent auto-reply.",
         "closeConversationHint": "Sets the conversation status to \"closed\". No configuration needed."
       }
     }

@@ -36,6 +36,7 @@ import {
 } from '@/lib/whatsapp/interactive';
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { dispatchOutboundMessage } from '@/lib/automations/engine';
 import {
   sanitizePhoneForMeta,
   isValidE164,
@@ -508,6 +509,16 @@ export async function sendMessageToConversation(
       updated_at: new Date().toISOString(),
     })
     .eq('id', conversationId);
+
+  // Fire any `keyword_match` (direction: outbound) automations watching
+  // for this text — a manual/API send is always a fresh chain root, so
+  // no depth to pass. Best-effort: never blocks or fails the send.
+  await dispatchOutboundMessage({
+    accountId,
+    contactId: contact.id,
+    conversationId,
+    text: persistedText ?? '',
+  });
 
   // Pause any active Flow run for this contact — the agent stepping in
   // is the strongest "yield, human is here" signal. Best-effort.

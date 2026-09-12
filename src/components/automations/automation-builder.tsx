@@ -981,6 +981,27 @@ function KeywordMatchConfig({
           </p>
         )}
       </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+          {t("config.direction")}
+        </label>
+        <select
+          value={config?.direction ?? "inbound"}
+          onChange={(e) =>
+            onChange({
+              ...config,
+              direction: e.target.value as "inbound" | "outbound",
+            })
+          }
+          className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:outline-none"
+        >
+          <option value="inbound">{t("config.directionInbound")}</option>
+          <option value="outbound">{t("config.directionOutbound")}</option>
+        </select>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("config.directionHint")}
+        </p>
+      </div>
     </div>
   )
 }
