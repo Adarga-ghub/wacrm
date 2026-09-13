@@ -91,6 +91,16 @@ interface WhatsAppWebhookEntry {
         status: string
         timestamp: string
         recipient_id: string
+        // Present when `status === 'failed'`. The ONLY place Meta puts
+        // the actual failure reason (invalid template params, a
+        // payment/billing hold on the WABA, a quality restriction,
+        // etc.) — `status` alone is just the string "failed".
+        errors?: Array<{
+          code?: number
+          title?: string
+          message?: string
+          error_data?: { details?: string }
+        }>
       }>
     }
     field: string
@@ -369,7 +379,25 @@ async function handleStatusUpdate(status: {
   status: string
   timestamp: string
   recipient_id: string
+  errors?: Array<{
+    code?: number
+    title?: string
+    message?: string
+    error_data?: { details?: string }
+  }>
 }) {
+  // The real failure reason, when Meta gave one (migration 041). Prefer
+  // `title` — Meta's short, human-readable summary (e.g. "Payment
+  // method error") — over `message`, which is often just the generic
+  // "invalid parameter" template text; fall back to `message`, then the
+  // error_data detail, so we still capture *something* if `title` is
+  // ever absent.
+  const metaError = status.errors?.[0]
+  const errorMessage =
+    status.status === 'failed' && metaError
+      ? metaError.title || metaError.message || metaError.error_data?.details || null
+      : null
+
   // 1) Mirror onto messages (legacy behavior) — Meta's status values
   //    already match the CHECK constraint on messages.status. No
   //    `.select()`: message_id is NOT unique (migration 009 — Meta ids
@@ -377,8 +405,19 @@ async function handleStatusUpdate(status: {
   //    assume a single row.
   const { error: msgErr } = await supabaseAdmin()
     .from('messages')
-    .update({ status: status.status })
+    .update({
+      status: status.status,
+      ...(errorMessage ? { error_message: errorMessage } : {}),
+    })
     .eq('message_id', status.id)
+
+  if (errorMessage) {
+    console.error(
+      `[webhook] template/message ${status.id} failed:`,
+      metaError?.code,
+      errorMessage
+    )
+  }
 
   if (msgErr) {
     console.error('Error updating message status:', msgErr)

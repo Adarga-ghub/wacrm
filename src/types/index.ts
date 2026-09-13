@@ -235,6 +235,13 @@ export interface Message {
   template_name?: string;
   message_id?: string;
   status: MessageStatus;
+  /**
+   * Meta's reported reason this message failed (status webhook's
+   * `errors[]`), e.g. "Payment method error". Only set when
+   * `status === 'failed'`; NULL for every row written before migration
+   * 041, so a failed bubble may still have no detail to show.
+   */
+  error_message?: string | null;
   created_at: string;
   reply_to_message_id?: string;
   /**
