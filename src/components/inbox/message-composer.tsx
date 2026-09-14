@@ -89,6 +89,13 @@ interface ReplyDraft {
   preview: string;
 }
 
+interface EditingDraft {
+  /** Internal UUID of the message being corrected — sent back through onSend. */
+  id: string;
+  /** The original text, used to pre-fill the input and as the quote preview. */
+  originalText: string;
+}
+
 // Mirrors the chat-media bucket's allowed_mime_types (migration 023) for
 // the file picker so unsupported files are rejected before upload rather
 // than failing with a confusing Storage error. Audio has no picker — it's
@@ -112,12 +119,15 @@ interface MediaDraft {
 interface MessageComposerProps {
   conversationId: string;
   sessionExpired: boolean;
-  onSend: (text: string, replyToId?: string) => void;
+  onSend: (text: string, replyToId?: string, editsMessageId?: string) => void;
   onSendMedia: (payload: SendMediaPayload) => void;
   onSendInteractive: (payload: InteractiveMessagePayload, replyToId?: string) => void;
   onOpenTemplates: () => void;
   replyTo?: ReplyDraft | null;
   onClearReply?: () => void;
+  /** Set while correcting an earlier message — see migration 044. */
+  editing?: EditingDraft | null;
+  onClearEditing?: () => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -140,6 +150,8 @@ export function MessageComposer({
   onOpenTemplates,
   replyTo,
   onClearReply,
+  editing,
+  onClearEditing,
 }: MessageComposerProps) {
   const t = useTranslations("Inbox.composer");
 
@@ -147,6 +159,17 @@ export function MessageComposer({
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Entering edit mode pre-fills the input with the original text so
+  // the agent corrects in place rather than retyping from scratch.
+  // Keyed on the id (not the whole object) so re-selecting the same
+  // message being edited doesn't clobber what the agent already typed.
+  const editingId = editing?.id;
+  useEffect(() => {
+    if (!editingId) return;
+    setText(editing?.originalText ?? "");
+    textareaRef.current?.focus();
+  }, [editingId, editing?.originalText]);
 
   // Interactive-message builder dialog + quick-reply picker.
   const [interactiveOpen, setInteractiveOpen] = useState(false);
@@ -226,15 +249,22 @@ export function MessageComposer({
 
     setSending(true);
     try {
-      onSend(trimmed, replyTo?.id);
+      // Editing and replying are mutually exclusive (the parent clears
+      // whichever isn't active when the other starts), so at most one
+      // of these is set. A correction also rides as a swipe-reply
+      // quoting the original — free context for the customer, no
+      // extra plumbing since it's the same `replyToId` the send API
+      // already accepts.
+      onSend(trimmed, editing?.id ?? replyTo?.id, editing?.id);
       setText("");
+      onClearEditing?.();
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
     } finally {
       setSending(false);
     }
-  }, [text, sending, sessionExpired, onSend, replyTo?.id]);
+  }, [text, sending, sessionExpired, onSend, replyTo?.id, editing?.id, onClearEditing]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -537,14 +567,27 @@ export function MessageComposer({
 
   return (
     <div className="border-t border-border bg-card p-3">
-      {replyTo && (
+      {editing ? (
         <div className="mb-2">
           <ReplyQuote
-            authorLabel={replyTo.authorLabel}
-            preview={replyTo.preview}
-            onDismiss={onClearReply}
+            authorLabel={t("editingLabel")}
+            preview={editing.originalText}
+            onDismiss={() => {
+              onClearEditing?.();
+              setText("");
+            }}
           />
         </div>
+      ) : (
+        replyTo && (
+          <div className="mb-2">
+            <ReplyQuote
+              authorLabel={replyTo.authorLabel}
+              preview={replyTo.preview}
+              onDismiss={onClearReply}
+            />
+          </div>
+        )
       )}
       {sessionExpired && (
         <div className="mb-2 flex items-center justify-between rounded-lg bg-amber-500/10 px-3 py-2">
@@ -633,13 +676,15 @@ export function MessageComposer({
           {/* Attach menu — photo / video / document / voice. */}
           <DropdownMenu>
             <DropdownMenuTrigger
-              disabled={inputsDisabled || busy}
+              disabled={inputsDisabled || busy || !!editing}
               title={
                 readOnly
                   ? t("readOnlyTitle")
-                  : inputsDisabled
-                    ? undefined
-                    : t("attachMedia")
+                  : editing
+                    ? t("editingDisablesAttachments")
+                    : inputsDisabled
+                      ? undefined
+                      : t("attachMedia")
               }
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md p-0 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -673,13 +718,15 @@ export function MessageComposer({
               24h window like free-form text (interactive requires it). */}
           <DropdownMenu>
             <DropdownMenuTrigger
-              disabled={inputsDisabled}
+              disabled={inputsDisabled || !!editing}
               title={
                 readOnly
                   ? t("readOnlyTitle")
-                  : inputsDisabled
-                    ? undefined
-                    : t("moreActions")
+                  : editing
+                    ? t("editingDisablesAttachments")
+                    : inputsDisabled
+                      ? undefined
+                      : t("moreActions")
               }
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md p-0 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -702,7 +749,8 @@ export function MessageComposer({
             size="sm"
             canAct={!readOnly}
             gateReason="send messages"
-            title={readOnly ? undefined : t("sendTemplate")}
+            disabled={!!editing}
+            title={readOnly ? undefined : editing ? t("editingDisablesAttachments") : t("sendTemplate")}
             className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
             onClick={onOpenTemplates}
           >
@@ -714,8 +762,8 @@ export function MessageComposer({
             size="sm"
             canAct={!readOnly}
             gateReason="send messages"
-            disabled={drafting}
-            title={readOnly ? undefined : t("draftWithAI")}
+            disabled={drafting || !!editing}
+            title={readOnly ? undefined : editing ? t("editingDisablesAttachments") : t("draftWithAI")}
             className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-primary"
             onClick={handleDraft}
           >

@@ -211,7 +211,9 @@
       "send": "보내기",
       "quickReplyNamePrompt": "이 빠른 답장의 이름을 지정하세요:",
       "quickReplySaved": "빠른 답장으로 저장되었습니다.",
-      "quickReplySaveError": "빠른 답장을 저장하지 못했습니다."
+      "quickReplySaveError": "빠른 답장을 저장하지 못했습니다.",
+      "editingLabel": "메시지 수정 중",
+      "editingDisablesAttachments": "먼저 수정을 완료하거나 취소하세요"
     },
     "bubble": {
       "photo": "사진",
@@ -230,7 +232,9 @@
       "downloadFailed": "첨부파일을 다운로드할 수 없습니다",
       "viewImage": "이미지 보기",
       "expandVideo": "동영상 확대",
-      "imageAlt": "공유된 이미지"
+      "imageAlt": "공유된 이미지",
+      "edited": "수정됨",
+      "viewCorrection": "수정본 보기"
     },
     "mediaViewer": {
       "counter": "{total}개 중 {index}번째",
@@ -247,6 +251,7 @@
     },
     "actions": {
       "reply": "답장",
+      "edit": "수정",
       "copyText": "텍스트 복사",
       "delete": "삭제",
       "react": "반응 남기기",

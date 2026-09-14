@@ -211,7 +211,9 @@
       "send": "Send",
       "quickReplyNamePrompt": "Name this quick reply:",
       "quickReplySaved": "Saved as a quick reply.",
-      "quickReplySaveError": "Couldn't save the quick reply."
+      "quickReplySaveError": "Couldn't save the quick reply.",
+      "editingLabel": "Editing your message",
+      "editingDisablesAttachments": "Finish or cancel the edit first"
     },
     "bubble": {
       "photo": "Photo",
@@ -230,7 +232,9 @@
       "downloadFailed": "Couldn't download the attachment",
       "viewImage": "View image",
       "expandVideo": "Expand video",
-      "imageAlt": "Shared image"
+      "imageAlt": "Shared image",
+      "edited": "Edited",
+      "viewCorrection": "view correction"
     },
     "mediaViewer": {
       "counter": "{index} of {total}",
@@ -247,6 +251,7 @@
     },
     "actions": {
       "reply": "Reply",
+      "edit": "Edit",
       "copyText": "Copy text",
       "delete": "Delete",
       "react": "React",

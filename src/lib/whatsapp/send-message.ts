@@ -89,6 +89,13 @@ export interface SendMessageParams {
   /** Structured payload for `messageType === 'interactive'`. */
   interactivePayload?: InteractiveMessagePayload | null;
   replyToMessageId?: string | null;
+  /**
+   * Marks this send as a correction of an earlier message — see
+   * migration 044. Must name a text message already in this
+   * conversation that we sent (agent/bot); resolved and validated the
+   * same way as `replyToMessageId`, just against a different column.
+   */
+  editsMessageId?: string | null;
 }
 
 export interface SendMessageResult {
@@ -202,6 +209,7 @@ export async function sendMessageToConversation(
     templateMessageParams,
     interactivePayload,
     replyToMessageId,
+    editsMessageId,
   } = params;
 
   if (!conversationId) {
@@ -310,6 +318,43 @@ export async function sendMessageToConversation(
       );
     } else {
       contextMessageId = parent.message_id;
+    }
+  }
+
+  // Resolve + validate the edit target (migration 044). Same
+  // ownership check as the reply target above — must be in this
+  // conversation — plus two edit-specific rules: only a message WE
+  // sent can be "corrected" (a customer's message is theirs, not
+  // ours to edit), and only a text message (media/template/
+  // interactive edits are out of scope for v1).
+  if (editsMessageId) {
+    const { data: original, error: originalError } = await db
+      .from('messages')
+      .select('id, conversation_id, sender_type, content_type')
+      .eq('id', editsMessageId)
+      .eq('conversation_id', conversationId)
+      .maybeSingle();
+
+    if (originalError || !original) {
+      throw new SendMessageError(
+        'bad_request',
+        'edits_message_id not found in this conversation',
+        400
+      );
+    }
+    if (original.sender_type !== 'agent' && original.sender_type !== 'bot') {
+      throw new SendMessageError(
+        'bad_request',
+        'can only edit a message this account sent',
+        400
+      );
+    }
+    if (original.content_type !== 'text') {
+      throw new SendMessageError(
+        'bad_request',
+        'can only edit a text message',
+        400
+      );
     }
   }
 
@@ -483,6 +528,7 @@ export async function sendMessageToConversation(
       message_id: waMessageId,
       status: 'sent',
       reply_to_message_id: replyToMessageId || null,
+      edits_message_id: editsMessageId || null,
     })
     .select()
     .single();

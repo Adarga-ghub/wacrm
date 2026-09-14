@@ -11,6 +11,7 @@ import {
   LayoutTemplate,
   CornerDownLeft,
   Sparkles,
+  Pencil,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ReplyQuote } from "./reply-quote";
@@ -39,6 +40,14 @@ interface MessageBubbleProps {
    * stays inline and non-clickable.
    */
   onOpenMedia?: (messageId: string) => void;
+  /**
+   * Set when some later message corrects this one (migration 044) —
+   * renders an "edited → view correction" badge under the bubble.
+   * WhatsApp's Cloud API can't actually edit the message the customer
+   * received; this just links the CRM's record of the two sends.
+   */
+  correctionPreview?: string | null;
+  onViewCorrection?: () => void;
 }
 
 function StatusIcon({
@@ -240,6 +249,8 @@ export function MessageBubble({
   currentUserId,
   onToggleReaction,
   onOpenMedia,
+  correctionPreview,
+  onViewCorrection,
 }: MessageBubbleProps) {
   const t = useTranslations("Inbox.bubble");
 
@@ -318,6 +329,17 @@ export function MessageBubble({
           currentUserId={currentUserId}
           onToggle={onToggleReaction}
         />
+      )}
+      {correctionPreview && (
+        <button
+          type="button"
+          onClick={onViewCorrection}
+          className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:underline"
+          title={correctionPreview}
+        >
+          <Pencil className="h-2.5 w-2.5" />
+          {t("edited")} — {t("viewCorrection")}
+        </button>
       )}
     </div>
   );

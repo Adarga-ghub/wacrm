@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { CornerUpLeft, Copy, SmilePlus } from "lucide-react";
+import { CornerUpLeft, Copy, SmilePlus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -20,6 +20,14 @@ interface MessageActionsProps {
   message: Message;
   onReply: () => void;
   onReact: (emoji: string) => void;
+  /**
+   * Opens edit mode for this message. Omitted (no Edit button shown)
+   * unless the caller determines the message is eligible — see the
+   * gate in message-thread.tsx: our own text messages only. WhatsApp's
+   * Cloud API can't actually edit/recall a sent message (migration
+   * 044) — this starts the "send a correction" flow, not a real edit.
+   */
+  onEdit?: () => void;
   children: ReactNode;
 }
 
@@ -32,6 +40,7 @@ export function MessageActions({
   message,
   onReply,
   onReact,
+  onEdit,
   children,
 }: MessageActionsProps) {
   const t = useTranslations("Inbox.actions");
@@ -73,6 +82,11 @@ export function MessageActions({
 
   const handleReply = () => {
     onReply();
+    setTouchOpen(false);
+  };
+
+  const handleEdit = () => {
+    onEdit?.();
     setTouchOpen(false);
   };
 
@@ -136,6 +150,16 @@ export function MessageActions({
         >
           <CornerUpLeft className="h-3.5 w-3.5" />
         </button>
+        {onEdit && (
+          <button
+            type="button"
+            onClick={handleEdit}
+            className="flex h-5 w-5 items-center justify-center rounded-full text-popover-foreground hover:bg-muted hover:text-foreground"
+            aria-label={t("edit")}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
         <button
           type="button"
           onClick={handleCopy}

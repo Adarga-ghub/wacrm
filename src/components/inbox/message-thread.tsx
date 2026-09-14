@@ -66,6 +66,11 @@ interface ReplyDraft {
   preview: string;
 }
 
+interface EditingDraft {
+  id: string;
+  originalText: string;
+}
+
 interface MessageThreadProps {
   conversation: Conversation | null;
   contact: Contact | null;
@@ -212,6 +217,10 @@ export function MessageThread({
     }, 700);
   }, [isRefreshing, onRefresh]);
   const [replyTo, setReplyTo] = useState<ReplyDraft | null>(null);
+  // Editing a sent message = drafting a correction (migration 044);
+  // WhatsApp's Cloud API has no real edit/recall endpoint. Mutually
+  // exclusive with replyTo — starting one clears the other.
+  const [editingDraft, setEditingDraft] = useState<EditingDraft | null>(null);
   // Which attachment the media viewer is showing. Lives here rather than in
   // the bubble so the viewer can page through every image/video in the
   // thread (issue #373). Paired with the conversation it belongs to and read
@@ -503,10 +512,12 @@ export function MessageThread({
     };
   }, [conversationId]);
 
-  // Clear any in-progress reply draft when the active conversation changes —
-  // a quote pulled from conversation A shouldn't bleed into conversation B.
+  // Clear any in-progress reply/edit draft when the active conversation
+  // changes — a quote (or a correction-in-progress) pulled from
+  // conversation A shouldn't bleed into conversation B.
   useEffect(() => {
     setReplyTo(null);
+    setEditingDraft(null);
   }, [conversationId]);
 
   // Reset the server-side unread_count to 0 whenever an unread count
@@ -539,7 +550,7 @@ export function MessageThread({
   }, [messages]);
 
   const handleSend = useCallback(
-    async (text: string, replyToId?: string) => {
+    async (text: string, replyToId?: string, editsId?: string) => {
       if (!conversation) return;
 
       const tempId = `temp-${Date.now()}`;
@@ -554,9 +565,11 @@ export function MessageThread({
         status: "sending",
         created_at: new Date().toISOString(),
         reply_to_message_id: replyToId,
+        edits_message_id: editsId,
       };
       onNewMessage(optimisticMsg);
       setReplyTo(null);
+      setEditingDraft(null);
 
       try {
         const res = await fetch("/api/whatsapp/send", {
@@ -567,6 +580,7 @@ export function MessageThread({
             message_type: "text",
             content_text: text,
             reply_to_message_id: replyToId,
+            edits_message_id: editsId,
           }),
         });
 
@@ -811,6 +825,20 @@ export function MessageThread({
     return map;
   }, [messages]);
 
+  // Reverse of edits_message_id: "does this message have a
+  // correction?" — one map built per thread load rather than an
+  // O(n²) scan per bubble. At most one correction is expected per
+  // original in normal use, but if an agent corrects the same
+  // message twice, the most recent correction wins (messages are in
+  // chronological order).
+  const correctionByOriginalId = useMemo(() => {
+    const map = new Map<string, Message>();
+    for (const m of messages) {
+      if (m.edits_message_id) map.set(m.edits_message_id, m);
+    }
+    return map;
+  }, [messages]);
+
   // Images + videos in the thread, in order — the set the media viewer
   // pages through with ← / →.
   const mediaGallery = useMemo(() => collectMediaGallery(messages), [messages]);
@@ -841,6 +869,7 @@ export function MessageThread({
 
   const handleStartReply = useCallback(
     (msg: Message) => {
+      setEditingDraft(null);
       setReplyTo({
         id: msg.id,
         authorLabel: authorLabelFor(msg),
@@ -849,6 +878,31 @@ export function MessageThread({
     },
     [authorLabelFor],
   );
+
+  // Opens the composer in "correction" mode for one of our own text
+  // messages. WhatsApp's Cloud API can't edit/recall what the customer
+  // already received (migration 044) — this just pre-fills the input
+  // so the agent can send a corrected message, linked to this one.
+  const handleStartEdit = useCallback((msg: Message) => {
+    setReplyTo(null);
+    setEditingDraft({ id: msg.id, originalText: msg.content_text ?? "" });
+  }, []);
+
+  // "editado → ver corrección" badge target — scrolls the referenced
+  // message into view within the thread's own scroll container rather
+  // than the page, and briefly outlines it so the agent can spot it.
+  const scrollToMessage = useCallback((messageId: string) => {
+    const el = scrollRef.current?.querySelector<HTMLElement>(
+      `[data-message-id="${messageId}"]`,
+    );
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.style.outline = "2px solid var(--primary)";
+    el.style.borderRadius = "0.75rem";
+    setTimeout(() => {
+      el.style.outline = "";
+    }, 1500);
+  }, []);
 
   // Single reaction-set primitive. emoji === "" removes; otherwise adds/swaps.
   // The "toggle" semantic (pill click) is computed at the call site where the
@@ -1253,8 +1307,19 @@ export function MessageThread({
                       const next = own?.emoji === emoji ? "" : emoji;
                       void postReaction(msg.id, next);
                     };
+                    // Edit ("send a correction") is only offered for our
+                    // own plain-text sends — WhatsApp's Cloud API has no
+                    // real edit/recall endpoint (migration 044), so this
+                    // is scoped to the one case where "retype and resend"
+                    // is unambiguous. Media/template/interactive stay
+                    // out of v1.
+                    const isOwnTextMessage =
+                      (msg.sender_type === "agent" || msg.sender_type === "bot") &&
+                      msg.content_type === "text" &&
+                      !!msg.content_text;
+                    const correction = correctionByOriginalId.get(msg.id);
                     return (
-                      <div key={msg.id}>
+                      <div key={msg.id} data-message-id={msg.id}>
                         {/* Click-to-WhatsApp ad origin, when this exact
                             message carried Meta's `referral` (migration
                             042) — rendered inline, like the WhatsApp
@@ -1268,6 +1333,7 @@ export function MessageThread({
                           onReact={(emoji) => {
                             if (emoji) void postReaction(msg.id, emoji);
                           }}
+                          onEdit={isOwnTextMessage ? () => handleStartEdit(msg) : undefined}
                         >
                           <MessageBubble
                             message={msg}
@@ -1276,6 +1342,12 @@ export function MessageThread({
                             currentUserId={user?.id}
                             onToggleReaction={handlePillToggle}
                             onOpenMedia={handleMediaChange}
+                            correctionPreview={correction?.content_text}
+                            onViewCorrection={
+                              correction
+                                ? () => scrollToMessage(correction.id)
+                                : undefined
+                            }
                           />
                         </MessageActions>
                       </div>
@@ -1314,6 +1386,8 @@ export function MessageThread({
         onOpenTemplates={handleOpenTemplates}
         replyTo={replyTo}
         onClearReply={() => setReplyTo(null)}
+        editing={editingDraft}
+        onClearEditing={() => setEditingDraft(null)}
       />
 
       <TemplatePicker

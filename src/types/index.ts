@@ -311,6 +311,14 @@ export interface Message {
    * badge in the inbox. Migration 033.
    */
   ai_generated?: boolean;
+  /**
+   * Set on a correction message to the id of the earlier message it
+   * corrects (migration 044). WhatsApp's Cloud API has no edit/recall
+   * endpoint, so "editing" a sent message means sending a new one and
+   * linking it here — the original is never modified. NULL for every
+   * message that is not a correction.
+   */
+  edits_message_id?: string | null;
 }
 
 export type ReactionActor = 'customer' | 'agent';

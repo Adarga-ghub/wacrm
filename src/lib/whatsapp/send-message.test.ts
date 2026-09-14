@@ -212,7 +212,13 @@ interface CapturedWrites {
  */
 function sendPathDb(
   templateRows: unknown[],
-  captured: CapturedWrites
+  captured: CapturedWrites,
+  // `maybeSingle()` on `messages` backs BOTH the reply-target and the
+  // edit-target lookups (send-message.ts). Tests that need a specific
+  // row there (e.g. to validate edits_message_id) pass it here; tests
+  // that don't care about reply/edit targets get the pre-existing
+  // "nothing found" default.
+  messagesRow: Record<string, unknown> | null = null
 ): SupabaseClient {
   const conversation = {
     id: 'cv-1',
@@ -237,7 +243,10 @@ function sendPathDb(
           if (table === 'conversations') captured.conversation = row;
           return builder;
         },
-        maybeSingle: async () => ({ data: null, error: null }),
+        maybeSingle: async () => ({
+          data: table === 'messages' ? messagesRow : null,
+          error: null,
+        }),
         single: async () => {
           if (table === 'conversations') {
             return { data: conversation, error: null };
@@ -371,5 +380,88 @@ describe('sendMessageToConversation — outbound keyword_match dispatch', () => 
       conversationId: 'cv-1',
       text: 'Order shipped!',
     });
+  });
+});
+
+// ============================================================
+// "Edit" a sent message = send a correction, linked via
+// edits_message_id (migration 044) — WhatsApp's Cloud API has no
+// real edit/recall endpoint, so this is purely a CRM-side link
+// between two real, separately-sent messages.
+// ============================================================
+describe('sendMessageToConversation — edits_message_id (#message-edit)', () => {
+  it('rejects when the edit target is not in this conversation', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, null); // maybeSingle finds nothing
+    await expect(
+      sendMessageToConversation(db, 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'text',
+        contentText: 'Corrected text',
+        editsMessageId: 'msg-does-not-exist',
+      })
+    ).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringContaining('edits_message_id not found'),
+    });
+  });
+
+  it('rejects editing a message the customer sent', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, {
+      id: 'msg-orig',
+      conversation_id: 'cv-1',
+      sender_type: 'customer',
+      content_type: 'text',
+    });
+    await expect(
+      sendMessageToConversation(db, 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'text',
+        contentText: 'Corrected text',
+        editsMessageId: 'msg-orig',
+      })
+    ).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringContaining('this account sent'),
+    });
+  });
+
+  it('rejects editing a non-text message', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, {
+      id: 'msg-orig',
+      conversation_id: 'cv-1',
+      sender_type: 'agent',
+      content_type: 'image',
+    });
+    await expect(
+      sendMessageToConversation(db, 'acct-1', {
+        conversationId: 'cv-1',
+        messageType: 'text',
+        contentText: 'Corrected text',
+        editsMessageId: 'msg-orig',
+      })
+    ).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringContaining('text message'),
+    });
+  });
+
+  it('persists edits_message_id on the new message when the target is our own text message', async () => {
+    const captured: CapturedWrites = {};
+    const db = sendPathDb([], captured, {
+      id: 'msg-orig',
+      conversation_id: 'cv-1',
+      sender_type: 'agent',
+      content_type: 'text',
+    });
+    await sendMessageToConversation(db, 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'Corrected text',
+      editsMessageId: 'msg-orig',
+    });
+    expect(captured.message?.edits_message_id).toBe('msg-orig');
   });
 });
