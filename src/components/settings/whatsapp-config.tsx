@@ -96,6 +96,7 @@ export function WhatsAppConfig() {
   const [metaAdsSharingEnabled, setMetaAdsSharingEnabled] = useState(false);
   const [savingMetaAdsToggle, setSavingMetaAdsToggle] = useState(false);
   const [metaDatasetId, setMetaDatasetId] = useState('');
+  const [metaPageId, setMetaPageId] = useState('');
   const [savingMetaDatasetId, setSavingMetaDatasetId] = useState(false);
 
   // True once /register has succeeded on Meta's side (timestamp set
@@ -154,6 +155,7 @@ export function WhatsAppConfig() {
         setMirrorMedia(data.mirror_inbound_media !== false);
         setMetaAdsSharingEnabled(data.meta_ads_data_sharing_enabled === true);
         setMetaDatasetId(data.meta_dataset_id || '');
+        setMetaPageId(data.meta_page_id || '');
       } else {
         setConfig(null);
         setPhoneNumberId('');
@@ -165,6 +167,7 @@ export function WhatsAppConfig() {
         setMirrorMedia(true);
         setMetaAdsSharingEnabled(false);
         setMetaDatasetId('');
+        setMetaPageId('');
       }
       // Clear any stale probe result when reloading the row.
       setRegistrationProbe(null);
@@ -266,17 +269,26 @@ export function WhatsAppConfig() {
     if (!config || !accountId || savingMetaDatasetId) return;
     setSavingMetaDatasetId(true);
     try {
-      const trimmed = metaDatasetId.trim();
+      const trimmedDataset = metaDatasetId.trim();
+      const trimmedPage = metaPageId.trim();
       const { error } = await supabase
         .from('whatsapp_config')
-        .update({ meta_dataset_id: trimmed || null })
+        .update({
+          meta_dataset_id: trimmedDataset || null,
+          meta_page_id: trimmedPage || null,
+        })
         .eq('account_id', accountId);
       if (error) throw new Error(error.message);
-      setConfig({ ...config, meta_dataset_id: trimmed || null });
-      setMetaDatasetId(trimmed);
+      setConfig({
+        ...config,
+        meta_dataset_id: trimmedDataset || null,
+        meta_page_id: trimmedPage || null,
+      });
+      setMetaDatasetId(trimmedDataset);
+      setMetaPageId(trimmedPage);
       toast.success(t('metaAdsSaved'));
     } catch (error) {
-      console.error('Failed to update Meta Dataset ID:', error);
+      console.error('Failed to update Meta Dataset ID / Page ID:', error);
       toast.error(t('metaAdsSaveFailed'));
     } finally {
       setSavingMetaDatasetId(false);
@@ -857,6 +869,19 @@ export function WhatsAppConfig() {
                     value={metaDatasetId}
                     onChange={(e) => setMetaDatasetId(e.target.value)}
                     placeholder={t('metaDatasetIdPlaceholder')}
+                    disabled={!canEditSettings}
+                    className="bg-background border-border text-foreground font-mono text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">{t('metaPageIdLabel')}</Label>
+                <p className="text-xs text-muted-foreground">{t('metaPageIdDesc')}</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={metaPageId}
+                    onChange={(e) => setMetaPageId(e.target.value)}
+                    placeholder={t('metaPageIdPlaceholder')}
                     disabled={!canEditSettings}
                     className="bg-background border-border text-foreground font-mono text-sm"
                   />

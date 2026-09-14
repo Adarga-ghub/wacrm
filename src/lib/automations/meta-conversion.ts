@@ -15,8 +15,11 @@ import { supabaseAdmin } from './admin-client'
 //     Sharing a customer's phone number with Meta is a data-sharing
 //     decision the account owner must make deliberately.
 //   - `meta_dataset_id` — where to send it.
-//   - `waba_id` — required by Meta as `user_data.page_id` (see
-//     meta-api.ts's SendConversionEventArgs).
+//   - `meta_page_id` — the Facebook Page ID running the account's
+//     Click-to-WhatsApp ads, required by Meta as `user_data.page_id`
+//     (see meta-api.ts's SendConversionEventArgs). NOT the same as
+//     `waba_id` or `phone_number_id` — confirmed empirically against
+//     a live ad in Ads Manager.
 // Missing any of those is treated as "not configured", not an error.
 //
 // ALSO gated on the contact having a `ctwa_clid` on record (migration
@@ -38,6 +41,12 @@ export interface SendMetaConversionEventArgs {
   eventName: string
   value?: number
   currency?: string
+  /**
+   * Manual-verification-only escape hatch — routes the event to Events
+   * Manager's Test Events tab instead of production reporting. The
+   * automation engine's real dispatch path must never set this.
+   */
+  testEventCode?: string
 }
 
 export interface SendMetaConversionEventResult {
@@ -53,7 +62,7 @@ export async function sendMetaConversionEvent(
 
   const { data: config, error: configErr } = await db
     .from('whatsapp_config')
-    .select('access_token, meta_ads_data_sharing_enabled, meta_dataset_id, waba_id')
+    .select('access_token, meta_ads_data_sharing_enabled, meta_dataset_id, meta_page_id')
     .eq('account_id', args.accountId)
     .maybeSingle()
   if (configErr || !config) {
@@ -68,8 +77,8 @@ export async function sendMetaConversionEvent(
   if (!config.meta_dataset_id) {
     return { sent: false, reason: 'no Meta Dataset ID configured (Settings → WhatsApp)' }
   }
-  if (!config.waba_id) {
-    return { sent: false, reason: 'no WhatsApp Business Account ID on record for this account' }
+  if (!config.meta_page_id) {
+    return { sent: false, reason: 'no Meta Page ID configured (Settings → WhatsApp)' }
   }
 
   const { data: contact, error: contactErr } = await db
@@ -122,10 +131,11 @@ export async function sendMetaConversionEvent(
     accessToken,
     eventName: args.eventName,
     hashedPhone,
-    pageId: config.waba_id,
+    pageId: config.meta_page_id,
     ctwaClid,
     value: args.value,
     currency: args.currency,
+    testEventCode: args.testEventCode,
   })
 
   return {

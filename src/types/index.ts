@@ -364,6 +364,15 @@ export interface WhatsAppConfig {
    * Conversion Event" automation steps to actually fire.
    */
   meta_dataset_id?: string | null;
+  /**
+   * The Facebook Page ID running this account's Click-to-WhatsApp ads.
+   * Required (together with the opt-in above) for "Send Conversion
+   * Event" automation steps to actually fire — Meta rejects the event
+   * without it. NOT the same as `waba_id` or `phone_number_id`; find
+   * it in Meta Business Settings → Pages, or on the ad itself in Ads
+   * Manager.
+   */
+  meta_page_id?: string | null;
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)

@@ -77,7 +77,7 @@ describe("sendMetaConversionEvent", () => {
       access_token: "enc",
       meta_ads_data_sharing_enabled: true,
       meta_dataset_id: null,
-      waba_id: "waba1",
+      meta_page_id: "page1",
     };
     h.state.contact = { phone: "5215512345678" };
 
@@ -92,12 +92,12 @@ describe("sendMetaConversionEvent", () => {
     expect(sendConversionEventMock).not.toHaveBeenCalled();
   });
 
-  it("skips when the account has no WABA id on record", async () => {
+  it("skips when the account has no Meta Page ID on record", async () => {
     h.state.config = {
       access_token: "enc",
       meta_ads_data_sharing_enabled: true,
       meta_dataset_id: "ds1",
-      waba_id: null,
+      meta_page_id: null,
     };
     h.state.contact = { phone: "5215512345678" };
 
@@ -108,7 +108,7 @@ describe("sendMetaConversionEvent", () => {
     });
 
     expect(result.sent).toBe(false);
-    expect(result.reason).toMatch(/WhatsApp Business Account/);
+    expect(result.reason).toMatch(/Page ID/);
     expect(sendConversionEventMock).not.toHaveBeenCalled();
   });
 
@@ -123,7 +123,7 @@ describe("sendMetaConversionEvent", () => {
       access_token: "enc-token",
       meta_ads_data_sharing_enabled: true,
       meta_dataset_id: "ds1",
-      waba_id: "waba1",
+      meta_page_id: "page1",
     };
     h.state.contact = { phone: "5215512345678" };
     h.state.conversation = { ad_referral_ctwa_clid: null };
@@ -144,7 +144,7 @@ describe("sendMetaConversionEvent", () => {
       access_token: "enc-token",
       meta_ads_data_sharing_enabled: true,
       meta_dataset_id: "ds1",
-      waba_id: "waba1",
+      meta_page_id: "page1",
     };
     h.state.contact = { phone: "5215512345678" };
     h.state.conversation = { ad_referral_ctwa_clid: "clid-abc" };
@@ -163,7 +163,7 @@ describe("sendMetaConversionEvent", () => {
       accessToken: "decrypted:enc-token",
       eventName: "Purchase",
       hashedPhone: expectedHash,
-      pageId: "waba1",
+      pageId: "page1",
       ctwaClid: "clid-abc",
       value: 199,
       currency: "MXN",

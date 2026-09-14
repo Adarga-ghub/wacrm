@@ -1069,14 +1069,15 @@ export interface SendConversionEventArgs {
   /** SHA-256 hex digest of the customer's E.164 phone (digits only, no '+'). */
   hashedPhone: string
   /**
-   * WhatsApp Business Account ID (`whatsapp_config.waba_id`). REQUIRED
+   * The Facebook Page ID connected to the ad account running the
+   * Click-to-WhatsApp ads (`whatsapp_config.meta_page_id`). REQUIRED
    * by Meta for `action_source: business_messaging` — confirmed
-   * empirically: omitting it fails with error_subcode 2804069
-   * ("Falta el identificador de la página"). Despite the wire field
-   * being named `page_id` (shared with the Messenger/Instagram path,
-   * which uses an actual Facebook Page id), WhatsApp events use the
-   * WABA id there instead — there is no separate Page in a WhatsApp-
-   * only integration.
+   * empirically: omitting it fails with error_subcode 2804069 ("Falta
+   * el identificador de la página"), and passing the WABA id instead
+   * of the actual Page id fails with error_subcode 2804070 ("El
+   * parámetro page_id... no es válido") — verified against a real ad
+   * in Ads Manager, where the Page identity running the ad is a
+   * distinct entity from both the phone_number_id and the waba_id.
    */
   pageId: string
   /**
@@ -1088,11 +1089,24 @@ export interface SendConversionEventArgs {
    * conversions, so a contact with no ad click on record has nothing
    * Meta will accept here — callers must not call this function for
    * such a contact (see the gate in `meta-conversion.ts`).
+   *
+   * Meta additionally validates this is a REAL click id against its
+   * own records (error_subcode 2804087, "el parámetro no es válido")
+   * — a synthetic/placeholder value is rejected even under
+   * `testEventCode`, so there is no way to smoke-test this call
+   * without a genuine ad click.
    */
   ctwaClid: string
   value?: number
   /** ISO 4217 currency code. Meta requires this whenever `value` is set. */
   currency?: string
+  /**
+   * Routes the event to Events Manager's "Test Events" tab instead of
+   * production reporting/optimization — get this from Events Manager
+   * → the dataset → Test Events. Use ONLY for manual verification;
+   * never set from the automation engine's real dispatch path.
+   */
+  testEventCode?: string
 }
 
 /**
@@ -1118,6 +1132,7 @@ export async function sendConversionEvent(
     ctwaClid,
     value,
     currency,
+    testEventCode,
   } = args
 
   const url = `${META_API_BASE}/${datasetId}/events`
@@ -1143,6 +1158,7 @@ export async function sendConversionEvent(
           : {}),
       },
     ],
+    ...(testEventCode ? { test_event_code: testEventCode } : {}),
   }
 
   const response = await fetch(url, {
