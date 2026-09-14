@@ -9,6 +9,9 @@ const h = vi.hoisted(() => ({
     conversation: null as { id: string } | null,
     automations: [] as Record<string, unknown>[],
     steps: [] as Record<string, unknown>[],
+    /** Whether the contact currently has the tag_id looked up by the
+     *  resumePendingExecution wait-guard (contact_tags lookup). */
+    contactTagPresent: false,
     fromCalls: [] as string[],
     updateCalls: [] as { table: string; filters: [string, string, unknown][] }[],
     upsertCalls: [] as { table: string; payload: unknown }[],
@@ -47,7 +50,24 @@ vi.mock("./admin-client", () => {
       return { data: null, error: null };
     }
     if (table === "conversations") return { data: state.conversation, error: null };
-    if (table === "automations") return { data: state.automations, error: null };
+    if (table === "automations") {
+      // resumePendingExecution looks up ONE automation by id (`.single()`);
+      // runAutomationsForTrigger lists active automations by trigger_type
+      // (no id filter). Differentiate on the actual filter shape rather
+      // than call type, since both go through plain `.select()`.
+      const idFilter = ops.filters.find(([op, k]) => op === "eq" && k === "id");
+      if (idFilter) {
+        const found = state.automations.find((a) => a.id === idFilter[2]) ?? null;
+        return { data: found, error: null };
+      }
+      return { data: state.automations, error: null };
+    }
+    if (table === "contact_tags") {
+      // resumePendingExecution's wait-guard: is the triggering tag still
+      // on this contact? One synthetic flag covers every test's single
+      // (contact_id, tag_id) pair — none of these tests need more.
+      return { data: state.contactTagPresent ? { tag_id: "any" } : null, error: null };
+    }
     if (table === "automation_logs") {
       if (type === "insert") {
         state.logInserts.push(ops.payload as Record<string, unknown>);
@@ -114,7 +134,12 @@ vi.mock("./meta-conversion", () => ({
   sendMetaConversionEvent: vi.fn(async () => ({ sent: true, reason: "sent 'Purchase'" })),
 }));
 
-import { runAutomationsForTrigger, triggerMatches, dispatchOutboundMessage } from "./engine";
+import {
+  runAutomationsForTrigger,
+  triggerMatches,
+  dispatchOutboundMessage,
+  resumePendingExecution,
+} from "./engine";
 import { MAX_OUTBOUND_CHAIN_DEPTH } from "./dispatch-chain";
 import { engineSendText } from "./meta-send";
 import { sendMetaConversionEvent } from "./meta-conversion";
@@ -128,6 +153,7 @@ beforeEach(() => {
   h.state.conversation = null;
   h.state.automations = [];
   h.state.steps = [];
+  h.state.contactTagPresent = false;
   h.state.fromCalls = [];
   h.state.updateCalls = [];
   h.state.upsertCalls = [];
@@ -347,6 +373,107 @@ describe("send_conversion_event", () => {
 
     // Ownership guard fails closed before any step runs.
     expect(sendMetaConversionEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("resumePendingExecution — wait-guard on a removed tag", () => {
+  function tagAddedAutomation(tagId: string) {
+    return {
+      id: "a1",
+      account_id: ACCOUNT,
+      user_id: "u1",
+      trigger_type: "tag_added",
+      trigger_config: { tag_id: tagId },
+      is_active: true,
+    };
+  }
+
+  const resumeArgs = (overrides: Partial<Parameters<typeof resumePendingExecution>[0]> = {}) => ({
+    id: "pending1",
+    automation_id: "a1",
+    user_id: "u1",
+    account_id: ACCOUNT,
+    contact_id: "c1",
+    log_id: "log1",
+    parent_step_id: null,
+    branch: null,
+    next_step_position: 1,
+    context: {},
+    ...overrides,
+  });
+
+  it("skips the resume (does not run the remaining steps) when the tag was removed", async () => {
+    h.state.automations = [tagAddedAutomation("tag-esperando")];
+    h.state.contactTagPresent = false;
+    // If the guard didn't short-circuit, this step would run and record
+    // a contacts update — its absence is how we prove it never ran.
+    h.state.steps = [
+      {
+        id: "s1",
+        automation_id: "a1",
+        step_type: "update_contact_field",
+        position: 1,
+        parent_step_id: null,
+        step_config: { field: "name", value: "ranAfterWait" },
+      },
+    ];
+
+    await resumePendingExecution(resumeArgs());
+
+    expect(h.state.updateCalls).toHaveLength(0);
+    expect(h.state.logUpdates.at(-1)?.status).toBe("success");
+    const steps = h.state.logUpdates.at(-1)?.steps_executed as Array<{ detail: string }>;
+    expect(steps.at(-1)?.detail).toMatch(/resume skipped: tag tag-esperando was removed/);
+  });
+
+  it("proceeds normally when the tag is still present", async () => {
+    h.state.automations = [tagAddedAutomation("tag-esperando")];
+    h.state.contactTagPresent = true;
+    h.state.steps = [
+      {
+        id: "s1",
+        automation_id: "a1",
+        step_type: "update_contact_field",
+        position: 1,
+        parent_step_id: null,
+        step_config: { field: "name", value: "ranAfterWait" },
+      },
+    ];
+
+    await resumePendingExecution(resumeArgs());
+
+    // The update_contact_field step ran — proves the guard let the
+    // resume proceed instead of skipping it.
+    expect(h.state.updateCalls).toHaveLength(1);
+    expect(h.state.updateCalls[0].table).toBe("contacts");
+  });
+
+  it("does not gate resumes for non-tag_added automations", async () => {
+    h.state.automations = [
+      {
+        id: "a1",
+        account_id: ACCOUNT,
+        user_id: "u1",
+        trigger_type: "new_message_received",
+        trigger_config: {},
+        is_active: true,
+      },
+    ];
+    h.state.contactTagPresent = false; // irrelevant — no tag_id to check
+    h.state.steps = [
+      {
+        id: "s1",
+        automation_id: "a1",
+        step_type: "update_contact_field",
+        position: 1,
+        parent_step_id: null,
+        step_config: { field: "name", value: "ranAfterWait" },
+      },
+    ];
+
+    await resumePendingExecution(resumeArgs());
+
+    expect(h.state.updateCalls).toHaveLength(1);
   });
 });
 

@@ -207,6 +207,46 @@ export async function resumePendingExecution(pending: {
     return
   }
 
+  // Guard: a `tag_added` automation's whole premise is "this tag is on
+  // the contact." A `wait` step only records a delay + resume point
+  // (see the 'wait' branch in executeStepsFrom) — it does NOT re-check
+  // anything about the contact when the cron resumes it later. Without
+  // this guard, a wait+reminder chain keyed on a tag (e.g. tag
+  // "esperando respuesta" → wait 45m → remove tag + send reminder)
+  // fires the reminder even after the customer already replied and the
+  // tag was removed in the meantime, because nothing ever re-validates
+  // that the tag is still there before continuing. Skip (not fail) the
+  // resume when the triggering tag is gone — the automation's premise
+  // no longer holds, so there is nothing left to do.
+  if (pending.contact_id && automation.trigger_type === 'tag_added') {
+    const tagId = (automation.trigger_config as TagTriggerConfig | null)?.tag_id
+    if (tagId) {
+      const { data: stillTagged } = await db
+        .from('contact_tags')
+        .select('tag_id')
+        .eq('contact_id', pending.contact_id)
+        .eq('tag_id', tagId)
+        .maybeSingle()
+      if (!stillTagged) {
+        await appendResults(
+          pending.log_id,
+          [
+            {
+              step_id: 'wait-guard',
+              step_type: 'wait',
+              status: 'success',
+              detail: `resume skipped: tag ${tagId} was removed before the wait elapsed`,
+            },
+          ],
+          pending.parent_step_id === null ? 'success' : null,
+          null,
+        )
+        await markPending(pending.id, 'done')
+        return
+      }
+    }
+  }
+
   try {
     await executeStepsFrom({
       automation: automation as Automation,
