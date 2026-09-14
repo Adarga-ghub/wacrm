@@ -55,6 +55,7 @@ import {
 import { validateInteractivePayload } from "@/lib/whatsapp/interactive";
 import type { InteractiveMessagePayload, QuickReply } from "@/types";
 import { QuickReplyPicker } from "./quick-reply-picker";
+import { createClient } from "@/lib/supabase/client";
 
 /** Media content types an agent can send from the composer. */
 export type ComposerMediaKind = "image" | "video" | "document" | "audio";
@@ -276,21 +277,36 @@ export function MessageComposer({
     [handleSend]
   );
 
-  // Minimum gap between typing-indicator pings. WhatsApp's own bubble
-  // lasts up to 25s, so re-pinging every 15s while the agent keeps
-  // typing keeps it alive continuously without hammering the API on
-  // every keystroke.
+  // Minimum gap between typing-indicator pings TO META. WhatsApp's own
+  // bubble lasts up to 25s, so re-pinging every 15s while the agent
+  // keeps typing keeps it alive continuously without hammering the
+  // API on every keystroke.
   const TYPING_PING_THROTTLE_MS = 15_000;
   const lastTypingPingAtRef = useRef(0);
+  // Separate, much shorter throttle for the CRM's OWN "Online" →
+  // "Typing…" header label (migration 045) — that one only needs to
+  // survive a couple of seconds of silence (TYPING_STALE_AFTER_MS),
+  // so it re-pings far more often to actually feel live.
+  const CRM_TYPING_PING_THROTTLE_MS = 3_000;
+  const lastCrmTypingPingAtRef = useRef(0);
 
   const pingTyping = useCallback(() => {
     if (readOnly || sessionExpired) return;
     const now = Date.now();
+
+    if (now - lastCrmTypingPingAtRef.current >= CRM_TYPING_PING_THROTTLE_MS) {
+      lastCrmTypingPingAtRef.current = now;
+      void createClient()
+        .rpc("touch_conversation_typing", { p_conversation_id: conversationId })
+        .then(({ error }: { error: { message: string } | null }) => {
+          if (error) console.warn("[typing] touch_conversation_typing failed:", error.message);
+        });
+    }
+
     if (now - lastTypingPingAtRef.current < TYPING_PING_THROTTLE_MS) return;
     lastTypingPingAtRef.current = now;
     // Fire-and-forget — a purely cosmetic signal to the customer's
-    // WhatsApp app (migration-free; nothing persisted on our side).
-    // Never worth blocking or surfacing an error for.
+    // WhatsApp app. Never worth blocking or surfacing an error for.
     void fetch("/api/whatsapp/typing", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

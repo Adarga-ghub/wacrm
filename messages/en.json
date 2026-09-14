@@ -175,7 +175,10 @@
       "selectConversation": "Select a conversation",
       "selectConversationHint": "Choose a conversation from the left to start messaging",
       "today": "Today",
-      "yesterday": "Yesterday"
+      "yesterday": "Yesterday",
+      "online": "En línea",
+      "agentTyping": "Escribiendo…",
+      "botTyping": "El bot está escribiendo…"
     },
     "sessionTimer": {
       "expired": "Expired",

@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
     claim: true as boolean,
     updatePayload: null as Record<string, unknown> | null,
     rpcCalls: [] as { name: string; args: unknown }[],
+    typingUpserts: [] as Record<string, unknown>[],
   },
 }))
 
@@ -38,6 +39,22 @@ vi.mock('./admin-client', () => ({
           limit: () =>
             Promise.resolve({ data: h.state.autoResponders, error: null }),
         }
+        return chain
+      }
+      if (table === 'conversation_typing') {
+        return {
+          upsert: (payload: Record<string, unknown>) => {
+            h.state.typingUpserts.push(payload)
+            return Promise.resolve({ error: null })
+          },
+        }
+      }
+      if (table === 'whatsapp_config' || table === 'messages') {
+        // Backs sendTypingIndicatorForConversation's own lookups — no
+        // config/inbound row in this suite, so it no-ops (its own
+        // try/catch swallows the rest); covered directly in
+        // typing-indicator.test.ts.
+        const chain = { select: () => chain, eq: () => chain, order: () => chain, limit: () => chain, maybeSingle: () => Promise.resolve({ data: null, error: null }) }
         return chain
       }
       // conversations
@@ -96,6 +113,7 @@ beforeEach(() => {
   h.state.claim = true
   h.state.updatePayload = null
   h.state.rpcCalls = []
+  h.state.typingUpserts = []
   h.loadAiConfig.mockResolvedValue(aiConfig())
   h.buildConversationContext.mockResolvedValue([{ role: 'user', content: 'hi' }])
   h.retrieveKnowledge.mockResolvedValue([])
@@ -126,6 +144,17 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
         text: 'Hello!',
       }),
     )
+  })
+
+  it('marks the CRM-side conversation_typing row as "bot" before generating', async () => {
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.typingUpserts).toHaveLength(1)
+    expect(h.state.typingUpserts[0]).toMatchObject({
+      conversation_id: 'conv-1',
+      account_id: 'acct-1',
+      actor_type: 'bot',
+      actor_id: null,
+    })
   })
 
   it('does not fire the outbound dispatch on handoff (nothing was sent)', async () => {

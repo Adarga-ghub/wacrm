@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { usePresence } from "@/hooks/use-presence";
+import { useConversationTyping } from "@/hooks/use-conversation-typing";
 import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
@@ -189,6 +190,7 @@ export function MessageThread({
 
   const { user } = useAuth();
   const { getPresence, getRow, now } = usePresence();
+  const { isTyping, actorType } = useConversationTyping(conversation?.id ?? null);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -1051,6 +1053,29 @@ export function MessageThread({
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-foreground">{displayName}</h2>
             <p className="truncate text-xs text-muted-foreground">{contact.phone}</p>
+            {/* "Online" by default whenever this thread isn't closed —
+                the same subtitle slot WhatsApp itself uses for the
+                other party's presence, repurposed here for OUR side
+                since Meta never exposes the customer's own online/
+                typing status to a business (confirmed against the
+                Cloud API docs). Flips to "Typing…" for up to
+                TYPING_STALE_AFTER_MS after the assigned agent's last
+                keystroke, or the AI's last generation tick — see
+                migration 045 + useConversationTyping. */}
+            {conversation.status !== "closed" && (
+              <p
+                className={cn(
+                  "truncate text-[11px]",
+                  isTyping ? "text-primary" : "text-muted-foreground/80",
+                )}
+              >
+                {isTyping
+                  ? actorType === "bot"
+                    ? t("botTyping")
+                    : t("agentTyping")
+                  : t("online")}
+              </p>
+            )}
           </div>
           {/* Session timer badge — hidden on the narrowest phones so
               the name + back arrow keep their room. */}

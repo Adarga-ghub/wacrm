@@ -141,6 +141,26 @@ export async function dispatchInboundToAiReply(
     // Best-effort: `sendTypingIndicatorForConversation` never throws.
     void sendTypingIndicatorForConversation({ db, accountId, conversationId })
 
+    // Mirror it into the CRM's own header ("Online" → "Typing…" —
+    // migration 045). Direct upsert: this runs with the service-role
+    // client, which has no auth.uid(), so the agent-side RPC doesn't
+    // apply here. Best-effort, wrapped defensively (unlike the helper
+    // above, this is a bare table call, not something that owns its
+    // own try/catch) — never let a write hiccup block the actual reply.
+    try {
+      void db
+        .from('conversation_typing')
+        .upsert(
+          { conversation_id: conversationId, account_id: accountId, actor_type: 'bot', actor_id: null, updated_at: new Date().toISOString() },
+          { onConflict: 'conversation_id' },
+        )
+        .then(({ error }: { error: { message: string } | null }) => {
+          if (error) console.warn('[ai auto-reply] conversation_typing upsert failed:', error.message)
+        })
+    } catch (err) {
+      console.warn('[ai auto-reply] conversation_typing upsert threw:', err)
+    }
+
     const { text, handoff, usage } = await generateReply({
       config,
       systemPrompt,
