@@ -1175,3 +1175,51 @@ export async function sendConversionEvent(
   const data = await response.json()
   return { eventsReceived: Number(data?.events_received) || 0 }
 }
+
+// ============================================================
+// Typing indicator
+// ============================================================
+
+export interface SendTypingIndicatorArgs {
+  phoneNumberId: string
+  accessToken: string
+  /**
+   * The customer's inbound message this responds to — REQUIRED by
+   * Meta; there is no way to show a typing bubble without referencing
+   * one (confirmed against Meta's docs, Sept 2026 — there is no
+   * "start typing" call independent of an inbound message). Also
+   * marks that message read (double blue checks) as a side effect of
+   * the same call — the first time this codebase sends a read
+   * receipt, since nothing else does.
+   */
+  messageId: string
+}
+
+/**
+ * Show WhatsApp's "typing…" bubble to the customer for up to 25
+ * seconds, or until we actually send a message — whichever comes
+ * first. Used both for a human agent composing a reply and for the
+ * AI auto-reply while it waits on the LLM.
+ */
+export async function sendTypingIndicator(
+  args: SendTypingIndicatorArgs
+): Promise<void> {
+  const { phoneNumberId, accessToken, messageId } = args
+  const url = `${META_API_BASE}/${phoneNumberId}/messages`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      status: 'read',
+      message_id: messageId,
+      typing_indicator: { type: 'text' },
+    }),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
+}

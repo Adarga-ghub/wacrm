@@ -1199,6 +1199,19 @@ export function MessageThread({
               )}
             >
               <UserPlus className="h-3 w-3" />
+              {/* At-a-glance online/away/offline for the assigned agent,
+                  without opening the dropdown — the per-row dots inside
+                  it already cover every teammate. */}
+              {assignedAgentId && (
+                <PresenceDot
+                  status={getPresence(assignedAgentId)}
+                  label={presenceLabel(
+                    getPresence(assignedAgentId),
+                    getRow(assignedAgentId)?.last_seen_at ?? null,
+                    now,
+                  )}
+                />
+              )}
               <span className="hidden sm:inline">{assignLabel}</span>
               <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>

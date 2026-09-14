@@ -173,6 +173,12 @@ export const RATE_LIMITS = {
    *  capping a stampede; excess inbounds simply don't get an auto-reply
    *  (they still land in the inbox for a human). */
   aiAutoReplyAccount: { limit: 30, windowMs: 60_000 },
+  /** Typing-indicator pings, per user. The composer client-side
+   *  throttles to ~1 per 15s while an agent keeps typing (the
+   *  indicator itself lasts up to 25s on WhatsApp's side), so 20/min
+   *  is generous headroom for that pattern while still bounding a
+   *  script hammering the endpoint directly. */
+  typingIndicator: { limit: 20, windowMs: 60_000 },
 } as const;
 
 /** Test-only helper. Clears the in-memory state so unit tests don't

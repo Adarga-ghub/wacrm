@@ -276,12 +276,35 @@ export function MessageComposer({
     [handleSend]
   );
 
+  // Minimum gap between typing-indicator pings. WhatsApp's own bubble
+  // lasts up to 25s, so re-pinging every 15s while the agent keeps
+  // typing keeps it alive continuously without hammering the API on
+  // every keystroke.
+  const TYPING_PING_THROTTLE_MS = 15_000;
+  const lastTypingPingAtRef = useRef(0);
+
+  const pingTyping = useCallback(() => {
+    if (readOnly || sessionExpired) return;
+    const now = Date.now();
+    if (now - lastTypingPingAtRef.current < TYPING_PING_THROTTLE_MS) return;
+    lastTypingPingAtRef.current = now;
+    // Fire-and-forget — a purely cosmetic signal to the customer's
+    // WhatsApp app (migration-free; nothing persisted on our side).
+    // Never worth blocking or surfacing an error for.
+    void fetch("/api/whatsapp/typing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversation_id: conversationId }),
+    }).catch(() => {});
+  }, [readOnly, sessionExpired, conversationId]);
+
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setText(e.target.value);
       adjustHeight();
+      if (e.target.value.trim()) pingTyping();
     },
-    [adjustHeight]
+    [adjustHeight, pingTyping]
   );
 
   // Ask the AI assistant for a suggested reply and drop it into the

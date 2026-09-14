@@ -10,6 +10,7 @@ import { latestUserMessage } from './query'
 import { engineSendText } from '@/lib/flows/meta-send'
 import { dispatchOutboundMessage } from '@/lib/automations/engine'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { sendTypingIndicatorForConversation } from '@/lib/whatsapp/typing-indicator'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -134,6 +135,11 @@ export async function dispatchInboundToAiReply(
       mode: 'auto_reply',
       knowledge,
     })
+
+    // Show WhatsApp's "typing…" bubble while the LLM generates —
+    // same customer-facing signal a human agent gets from composing.
+    // Best-effort: `sendTypingIndicatorForConversation` never throws.
+    void sendTypingIndicatorForConversation({ db, accountId, conversationId })
 
     const { text, handoff, usage } = await generateReply({
       config,
