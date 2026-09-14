@@ -77,6 +77,7 @@ describe("sendMetaConversionEvent", () => {
       access_token: "enc",
       meta_ads_data_sharing_enabled: true,
       meta_dataset_id: null,
+      waba_id: "waba1",
     };
     h.state.contact = { phone: "5215512345678" };
 
@@ -91,11 +92,59 @@ describe("sendMetaConversionEvent", () => {
     expect(sendConversionEventMock).not.toHaveBeenCalled();
   });
 
-  it("sends a hashed phone + ctwa_clid when the contact has an ad referral on record", async () => {
+  it("skips when the account has no WABA id on record", async () => {
+    h.state.config = {
+      access_token: "enc",
+      meta_ads_data_sharing_enabled: true,
+      meta_dataset_id: "ds1",
+      waba_id: null,
+    };
+    h.state.contact = { phone: "5215512345678" };
+
+    const result = await sendMetaConversionEvent({
+      accountId: ACCOUNT,
+      contactId: "c1",
+      eventName: "Purchase",
+    });
+
+    expect(result.sent).toBe(false);
+    expect(result.reason).toMatch(/WhatsApp Business Account/);
+    expect(sendConversionEventMock).not.toHaveBeenCalled();
+  });
+
+  // Confirmed empirically against Meta's live API (error_subcode
+  // 2804071): action_source business_messaging REJECTS the event
+  // outright without a ctwa_clid — it is not an optional attribution
+  // signal for this action_source. A contact who never clicked a
+  // Click-to-WhatsApp ad has nothing Meta will accept, so this must
+  // skip rather than call the API (or fabricate a click id).
+  it("skips when the contact has no ad click on record — Meta requires ctwa_clid", async () => {
     h.state.config = {
       access_token: "enc-token",
       meta_ads_data_sharing_enabled: true,
       meta_dataset_id: "ds1",
+      waba_id: "waba1",
+    };
+    h.state.contact = { phone: "5215512345678" };
+    h.state.conversation = { ad_referral_ctwa_clid: null };
+
+    const result = await sendMetaConversionEvent({
+      accountId: ACCOUNT,
+      contactId: "c1",
+      eventName: "Lead",
+    });
+
+    expect(result.sent).toBe(false);
+    expect(result.reason).toMatch(/no Click-to-WhatsApp ad click on record/);
+    expect(sendConversionEventMock).not.toHaveBeenCalled();
+  });
+
+  it("sends a hashed phone + page_id + ctwa_clid when the contact has an ad referral on record", async () => {
+    h.state.config = {
+      access_token: "enc-token",
+      meta_ads_data_sharing_enabled: true,
+      meta_dataset_id: "ds1",
+      waba_id: "waba1",
     };
     h.state.contact = { phone: "5215512345678" };
     h.state.conversation = { ad_referral_ctwa_clid: "clid-abc" };
@@ -114,33 +163,12 @@ describe("sendMetaConversionEvent", () => {
       accessToken: "decrypted:enc-token",
       eventName: "Purchase",
       hashedPhone: expectedHash,
+      pageId: "waba1",
       ctwaClid: "clid-abc",
       value: 199,
       currency: "MXN",
     });
     expect(result.sent).toBe(true);
     expect(result.reason).toMatch(/attributed via ctwa_clid/);
-  });
-
-  it("still sends (phone match only) when the contact has no ad referral on record", async () => {
-    h.state.config = {
-      access_token: "enc-token",
-      meta_ads_data_sharing_enabled: true,
-      meta_dataset_id: "ds1",
-    };
-    h.state.contact = { phone: "5215512345678" };
-    h.state.conversation = { ad_referral_ctwa_clid: null };
-
-    const result = await sendMetaConversionEvent({
-      accountId: ACCOUNT,
-      contactId: "c1",
-      eventName: "Lead",
-    });
-
-    expect(sendConversionEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ ctwaClid: undefined }),
-    );
-    expect(result.sent).toBe(true);
-    expect(result.reason).toMatch(/phone match only/);
   });
 });

@@ -1033,7 +1033,7 @@
           "Contact": "문의"
         },
         "currencyLabel": "통화",
-        "conversionEventHint": "이 대화를 시작한 광고를 알 수 있는 경우 해당 광고에 귀속되어 Conversions API를 통해 Meta 광고 관리자로 전송됩니다. 설정 → WhatsApp에서 \"Meta 광고 데이터 공유\"를 활성화해야 하며, 그렇지 않으면 이 단계는 건너뜁니다 (실패가 아닌 로그로 기록됩니다)."
+        "conversionEventHint": "Conversions API를 통해 Meta 광고 관리자로 전송됩니다. 설정 → WhatsApp에서 \"Meta 광고 데이터 공유\"를 활성화해야 하며, Click-to-WhatsApp 광고를 통해 유입된 연락처에 대해서만 전송됩니다 — 광고 클릭 기록이 없는 연락처는 Meta가 이 이벤트를 거부합니다. 그 외의 경우 이 단계는 건너뜁니다 (실패가 아닌 로그로 기록됩니다)."
       }
     }
   },

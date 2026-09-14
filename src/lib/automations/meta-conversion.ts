@@ -10,15 +10,26 @@ import { supabaseAdmin } from './admin-client'
 // Conversions API, so Ads Manager can optimize campaigns for
 // customers who actually convert, not just who clicked.
 //
-// Gated on TWO account-level settings, both required:
+// Gated on account-level settings:
 //   - `meta_ads_data_sharing_enabled` — explicit opt-in (default OFF).
 //     Sharing a customer's phone number with Meta is a data-sharing
 //     decision the account owner must make deliberately.
 //   - `meta_dataset_id` — where to send it.
-// Missing either is treated as "not configured", not an error — most
-// accounts won't have this on, and a tag-triggered automation firing
-// for every contact must not spam automation_logs with failures for
-// the common case of a customer who didn't come from an ad.
+//   - `waba_id` — required by Meta as `user_data.page_id` (see
+//     meta-api.ts's SendConversionEventArgs).
+// Missing any of those is treated as "not configured", not an error.
+//
+// ALSO gated on the contact having a `ctwa_clid` on record (migration
+// 042's `conversations.ad_referral_ctwa_clid`) — confirmed empirically
+// against Meta's API (error_subcode 2804071) that `action_source:
+// business_messaging` REJECTS the event outright without one. This
+// action_source exists specifically to attribute ad-driven
+// conversions; a contact who never clicked a Click-to-WhatsApp ad has
+// nothing for Meta to attribute, so there is no legitimate event to
+// send for them. That is the overwhelmingly common case for most
+// businesses (most customers message organically, not via an ad), so
+// this is treated the same as "not configured" — a skipped step
+// logged with a clear reason, never a thrown failure.
 // ------------------------------------------------------------
 
 export interface SendMetaConversionEventArgs {
@@ -42,7 +53,7 @@ export async function sendMetaConversionEvent(
 
   const { data: config, error: configErr } = await db
     .from('whatsapp_config')
-    .select('access_token, meta_ads_data_sharing_enabled, meta_dataset_id')
+    .select('access_token, meta_ads_data_sharing_enabled, meta_dataset_id, waba_id')
     .eq('account_id', args.accountId)
     .maybeSingle()
   if (configErr || !config) {
@@ -56,6 +67,9 @@ export async function sendMetaConversionEvent(
   }
   if (!config.meta_dataset_id) {
     return { sent: false, reason: 'no Meta Dataset ID configured (Settings → WhatsApp)' }
+  }
+  if (!config.waba_id) {
+    return { sent: false, reason: 'no WhatsApp Business Account ID on record for this account' }
   }
 
   const { data: contact, error: contactErr } = await db
@@ -81,6 +95,20 @@ export async function sendMetaConversionEvent(
     .limit(1)
     .maybeSingle()
 
+  // REQUIRED by Meta for action_source: business_messaging — see the
+  // module comment above. No ad click on record means there is
+  // nothing to legitimately report for this contact; skip rather than
+  // let the API call fail (or, worse, fabricate a click id).
+  const ctwaClid = conversation?.ad_referral_ctwa_clid
+  if (!ctwaClid) {
+    return {
+      sent: false,
+      reason:
+        'contact has no Click-to-WhatsApp ad click on record — Meta requires a ctwa_clid ' +
+        'for business_messaging conversion events, so this conversation cannot be attributed',
+    }
+  }
+
   // Meta requires E.164 digits, no leading '+', before hashing.
   const hashedPhone = crypto
     .createHash('sha256')
@@ -94,15 +122,14 @@ export async function sendMetaConversionEvent(
     accessToken,
     eventName: args.eventName,
     hashedPhone,
-    ctwaClid: conversation?.ad_referral_ctwa_clid ?? undefined,
+    pageId: config.waba_id,
+    ctwaClid,
     value: args.value,
     currency: args.currency,
   })
 
   return {
     sent: true,
-    reason: conversation?.ad_referral_ctwa_clid
-      ? `sent '${args.eventName}' (${result.eventsReceived} received, attributed via ctwa_clid)`
-      : `sent '${args.eventName}' (${result.eventsReceived} received, no ad click on record — phone match only)`,
+    reason: `sent '${args.eventName}' (${result.eventsReceived} received, attributed via ctwa_clid)`,
   }
 }

@@ -1033,7 +1033,7 @@
           "Contact": "Contact"
         },
         "currencyLabel": "Currency",
-        "conversionEventHint": "Sent to Meta Ads Manager via the Conversions API, attributed to the ad that started this conversation when known. Requires \"Meta Ads data sharing\" enabled in Settings → WhatsApp; otherwise this step is skipped (logged, not failed)."
+        "conversionEventHint": "Sent to Meta Ads Manager via the Conversions API. Requires \"Meta Ads data sharing\" enabled in Settings → WhatsApp, and only fires for contacts who arrived via a Click-to-WhatsApp ad — Meta rejects this event for a contact with no ad click on record. Otherwise this step is skipped (logged, not failed)."
       }
     }
   },

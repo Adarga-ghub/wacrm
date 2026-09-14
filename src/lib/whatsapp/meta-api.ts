@@ -1069,11 +1069,27 @@ export interface SendConversionEventArgs {
   /** SHA-256 hex digest of the customer's E.164 phone (digits only, no '+'). */
   hashedPhone: string
   /**
-   * Click-to-WhatsApp click id off the referral that started this
-   * conversation. Omit when the contact has no known ad origin — Meta
-   * still accepts the event, just without ad attribution.
+   * WhatsApp Business Account ID (`whatsapp_config.waba_id`). REQUIRED
+   * by Meta for `action_source: business_messaging` — confirmed
+   * empirically: omitting it fails with error_subcode 2804069
+   * ("Falta el identificador de la página"). Despite the wire field
+   * being named `page_id` (shared with the Messenger/Instagram path,
+   * which uses an actual Facebook Page id), WhatsApp events use the
+   * WABA id there instead — there is no separate Page in a WhatsApp-
+   * only integration.
    */
-  ctwaClid?: string
+  pageId: string
+  /**
+   * Click-to-WhatsApp click id off the referral that started this
+   * conversation. REQUIRED by Meta for `action_source:
+   * business_messaging` — confirmed empirically: omitting it fails
+   * with error_subcode 2804071 ("Falta el parámetro Ctwa Clid"). This
+   * action_source exists specifically to attribute ad-driven
+   * conversions, so a contact with no ad click on record has nothing
+   * Meta will accept here — callers must not call this function for
+   * such a contact (see the gate in `meta-conversion.ts`).
+   */
+  ctwaClid: string
   value?: number
   /** ISO 4217 currency code. Meta requires this whenever `value` is set. */
   currency?: string
@@ -1084,9 +1100,10 @@ export interface SendConversionEventArgs {
  * (e.g. a "pedido finalizado" tag mapped to a `Purchase` event).
  *
  * Uses `action_source: 'business_messaging'` — Meta's dedicated path
- * for WhatsApp/Messenger/Instagram DMs, which matches on `ctwa_clid`
- * first and the hashed phone as a fallback signal, rather than the
- * classic website-Pixel flow (event_source_url / fbp / fbc).
+ * for WhatsApp/Messenger/Instagram DMs, which REQUIRES `ctwa_clid` and
+ * `page_id` in `user_data` (see `SendConversionEventArgs`), unlike the
+ * classic website-Pixel flow (event_source_url / fbp / fbc) where an
+ * ad-click id is only ever an optional attribution signal.
  */
 export async function sendConversionEvent(
   args: SendConversionEventArgs
@@ -1097,6 +1114,7 @@ export async function sendConversionEvent(
     eventName,
     eventTime,
     hashedPhone,
+    pageId,
     ctwaClid,
     value,
     currency,
@@ -1112,7 +1130,8 @@ export async function sendConversionEvent(
         messaging_channel: 'whatsapp',
         user_data: {
           ph: [hashedPhone],
-          ...(ctwaClid ? { ctwa_clid: ctwaClid } : {}),
+          page_id: pageId,
+          ctwa_clid: ctwaClid,
         },
         ...((value !== undefined || currency)
           ? {
