@@ -309,6 +309,8 @@
       "startedFromAd": "Meta 광고에서 시작됨",
       "sourceTypeAd": "광고",
       "sourceTypePost": "부스트된 게시물",
+      "adId": "광고 ID",
+      "postId": "게시물 ID",
       "viewAd": "광고 보기"
     }
   },

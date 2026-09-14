@@ -309,6 +309,8 @@
       "startedFromAd": "Started from a Meta ad",
       "sourceTypeAd": "Ad",
       "sourceTypePost": "Boosted post",
+      "adId": "Ad ID",
+      "postId": "Post ID",
       "viewAd": "View ad"
     }
   },

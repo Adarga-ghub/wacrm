@@ -1,7 +1,8 @@
 "use client";
 
-import { Megaphone, ExternalLink } from "lucide-react";
+import { Megaphone, ExternalLink, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import type { AdReferral } from "@/types";
 
 /**
@@ -15,9 +16,24 @@ import type { AdReferral } from "@/types";
  */
 export function AdReferralCard({ referral }: { referral: AdReferral }) {
   const t = useTranslations("Inbox.adReferral");
+  const tActions = useTranslations("Inbox.actions");
   const thumb = referral.thumbnail_url || referral.image_url;
   const sourceLabel =
     referral.source_type === "post" ? t("sourceTypePost") : t("sourceTypeAd");
+  // `source_id` is the ad's numeric id when source_type is "ad" — a
+  // boosted post's id otherwise. Label follows which one it actually is
+  // rather than always saying "Ad ID", so it never mislabels a post.
+  const idLabel = referral.source_type === "post" ? t("postId") : t("adId");
+
+  const handleCopyId = async () => {
+    if (!referral.source_id) return;
+    try {
+      await navigator.clipboard.writeText(referral.source_id);
+      toast.success(tActions("copied"));
+    } catch {
+      toast.error(tActions("copyFailed"));
+    }
+  };
 
   return (
     <div className="mx-auto mb-2 max-w-sm rounded-lg border border-border bg-muted/50 p-3">
@@ -51,6 +67,22 @@ export function AdReferralCard({ referral }: { referral: AdReferral }) {
             <p className="line-clamp-2 text-xs text-muted-foreground">
               {referral.body}
             </p>
+          )}
+          {referral.source_id && (
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+              <span className="truncate">
+                {idLabel}: <span className="font-mono text-foreground">{referral.source_id}</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyId}
+                className="flex-shrink-0 rounded p-0.5 hover:bg-muted hover:text-foreground"
+                aria-label={tActions("copyText")}
+                title={tActions("copyText")}
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+            </div>
           )}
           {referral.source_url && (
             <a
