@@ -70,6 +70,24 @@ interface WhatsAppMessage {
   button?: { text?: string; payload?: string }
   /** Present when the customer swipe-replies to one of our messages. */
   context?: { id: string }
+  /**
+   * Present on the inbound message when the customer tapped a
+   * "Click to WhatsApp" Facebook/Instagram ad (or boosted post) to
+   * start this chat. Not a separate webhook subscription field — it
+   * rides inside the same `messages` payload we already receive.
+   */
+  referral?: {
+    source_url?: string
+    source_id?: string
+    source_type?: string
+    headline?: string
+    body?: string
+    media_type?: string
+    image_url?: string
+    video_url?: string
+    thumbnail_url?: string
+    ctwa_clid?: string
+  }
 }
 
 interface WhatsAppWebhookEntry {
@@ -756,6 +774,10 @@ async function processMessage(
         // the column; null for every other content_type so existing inserts
         // behave identically.
         interactive_reply_id: interactiveReplyId,
+        // Click-to-WhatsApp ad referral, when Meta attached one to this
+        // exact message (migration 042). Null for the overwhelming
+        // majority of inbound messages.
+        referral: message.referral ?? null,
       },
       { onConflict: 'conversation_id,message_id', ignoreDuplicates: true }
     )
@@ -776,6 +798,25 @@ async function processMessage(
       message.id
     )
     return
+  }
+
+  // Mirror the ad referral onto the conversation (migration 042) so the
+  // automation engine / CAPI sender and any list-view badge can read the
+  // MOST RECENT ad click without joining messages. Overwrites on every
+  // new click — full per-click history stays on the messages themselves.
+  // Best-effort: never let this block the main inbound flow.
+  if (message.referral) {
+    const { error: referralError } = await supabaseAdmin()
+      .from('conversations')
+      .update({
+        ad_referral: message.referral,
+        ad_referral_ctwa_clid: message.referral.ctwa_clid ?? null,
+        ad_referral_updated_at: new Date().toISOString(),
+      })
+      .eq('id', conversation.id)
+    if (referralError) {
+      console.error('[webhook] ad referral mirror update failed:', referralError.message)
+    }
   }
 
   // Update conversation. The unread bump is done DB-side (migration 037's

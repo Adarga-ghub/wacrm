@@ -1055,3 +1055,88 @@ export async function downloadMedia(
   const buffer = Buffer.from(await response.arrayBuffer())
   return { buffer, contentType }
 }
+
+// ============================================================
+// Conversions API (Click-to-WhatsApp ad attribution — migration 042)
+// ============================================================
+
+export interface SendConversionEventArgs {
+  datasetId: string
+  accessToken: string
+  eventName: string
+  /** Unix seconds. Defaults to now. */
+  eventTime?: number
+  /** SHA-256 hex digest of the customer's E.164 phone (digits only, no '+'). */
+  hashedPhone: string
+  /**
+   * Click-to-WhatsApp click id off the referral that started this
+   * conversation. Omit when the contact has no known ad origin — Meta
+   * still accepts the event, just without ad attribution.
+   */
+  ctwaClid?: string
+  value?: number
+  /** ISO 4217 currency code. Meta requires this whenever `value` is set. */
+  currency?: string
+}
+
+/**
+ * Send one Conversions API event for a WhatsApp-originated conversion
+ * (e.g. a "pedido finalizado" tag mapped to a `Purchase` event).
+ *
+ * Uses `action_source: 'business_messaging'` — Meta's dedicated path
+ * for WhatsApp/Messenger/Instagram DMs, which matches on `ctwa_clid`
+ * first and the hashed phone as a fallback signal, rather than the
+ * classic website-Pixel flow (event_source_url / fbp / fbc).
+ */
+export async function sendConversionEvent(
+  args: SendConversionEventArgs
+): Promise<{ eventsReceived: number }> {
+  const {
+    datasetId,
+    accessToken,
+    eventName,
+    eventTime,
+    hashedPhone,
+    ctwaClid,
+    value,
+    currency,
+  } = args
+
+  const url = `${META_API_BASE}/${datasetId}/events`
+  const body = {
+    data: [
+      {
+        event_name: eventName,
+        event_time: eventTime ?? Math.floor(Date.now() / 1000),
+        action_source: 'business_messaging',
+        messaging_channel: 'whatsapp',
+        user_data: {
+          ph: [hashedPhone],
+          ...(ctwaClid ? { ctwa_clid: ctwaClid } : {}),
+        },
+        ...((value !== undefined || currency)
+          ? {
+              custom_data: {
+                ...(value !== undefined ? { value } : {}),
+                ...(currency ? { currency } : {}),
+              },
+            }
+          : {}),
+      },
+    ],
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Meta Conversions API error: ${response.status}`)
+  }
+  const data = await response.json()
+  return { eventsReceived: Number(data?.events_received) || 0 }
+}

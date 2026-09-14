@@ -146,6 +146,17 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
     case 'close_conversation':
       // No config required.
       break
+    case 'send_conversion_event':
+      if (!nonEmpty(c.event_name)) {
+        issues.push({ path: `${path}.event_name`, message: 'event name is required' })
+      }
+      if (c.value !== undefined && c.value !== null && c.value !== '' && !nonEmpty(c.currency)) {
+        issues.push({
+          path: `${path}.currency`,
+          message: 'currency is required when a value is set',
+        })
+      }
+      break
     default:
       issues.push({ path, message: `unknown step type: ${step.step_type}` })
   }

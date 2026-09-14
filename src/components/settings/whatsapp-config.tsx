@@ -87,6 +87,17 @@ export function WhatsAppConfig() {
   const [mirrorMedia, setMirrorMedia] = useState(true);
   const [savingMirror, setSavingMirror] = useState(false);
 
+  // Meta Ads customer-data-sharing opt-in (migration 042). Same
+  // direct-write pattern as mirrorMedia above — a boolean the switch
+  // writes straight to the row, gated by canEditSettings via RLS.
+  // The dataset id is plain text (not a secret; the access_token
+  // authenticating the CAPI call is already encrypted at rest) but is
+  // saved explicitly via a button rather than on every keystroke.
+  const [metaAdsSharingEnabled, setMetaAdsSharingEnabled] = useState(false);
+  const [savingMetaAdsToggle, setSavingMetaAdsToggle] = useState(false);
+  const [metaDatasetId, setMetaDatasetId] = useState('');
+  const [savingMetaDatasetId, setSavingMetaDatasetId] = useState(false);
+
   // True once /register has succeeded on Meta's side (timestamp set
   // in the row). When false, the saved config is metadata-only and
   // Meta will silently drop every inbound event — that's the
@@ -141,6 +152,8 @@ export function WhatsAppConfig() {
         // Undefined on a row read before migration 039 — treat that as
         // on, matching the webhook's own default.
         setMirrorMedia(data.mirror_inbound_media !== false);
+        setMetaAdsSharingEnabled(data.meta_ads_data_sharing_enabled === true);
+        setMetaDatasetId(data.meta_dataset_id || '');
       } else {
         setConfig(null);
         setPhoneNumberId('');
@@ -150,6 +163,8 @@ export function WhatsAppConfig() {
         setPin('');
         setTokenEdited(false);
         setMirrorMedia(true);
+        setMetaAdsSharingEnabled(false);
+        setMetaDatasetId('');
       }
       // Clear any stale probe result when reloading the row.
       setRegistrationProbe(null);
@@ -223,6 +238,48 @@ export function WhatsAppConfig() {
       toast.error(t('mirrorInboundSaveFailed'));
     } finally {
       setSavingMirror(false);
+    }
+  }
+
+  async function handleToggleMetaAdsSharing(next: boolean) {
+    if (!config || !accountId || savingMetaAdsToggle) return;
+    const previous = metaAdsSharingEnabled;
+    setMetaAdsSharingEnabled(next);
+    setSavingMetaAdsToggle(true);
+    try {
+      const { error } = await supabase
+        .from('whatsapp_config')
+        .update({ meta_ads_data_sharing_enabled: next })
+        .eq('account_id', accountId);
+      if (error) throw new Error(error.message);
+      setConfig({ ...config, meta_ads_data_sharing_enabled: next });
+    } catch (error) {
+      console.error('Failed to update Meta Ads data-sharing setting:', error);
+      setMetaAdsSharingEnabled(previous);
+      toast.error(t('metaAdsSaveFailed'));
+    } finally {
+      setSavingMetaAdsToggle(false);
+    }
+  }
+
+  async function handleSaveMetaDatasetId() {
+    if (!config || !accountId || savingMetaDatasetId) return;
+    setSavingMetaDatasetId(true);
+    try {
+      const trimmed = metaDatasetId.trim();
+      const { error } = await supabase
+        .from('whatsapp_config')
+        .update({ meta_dataset_id: trimmed || null })
+        .eq('account_id', accountId);
+      if (error) throw new Error(error.message);
+      setConfig({ ...config, meta_dataset_id: trimmed || null });
+      setMetaDatasetId(trimmed);
+      toast.success(t('metaAdsSaved'));
+    } catch (error) {
+      console.error('Failed to update Meta Dataset ID:', error);
+      toast.error(t('metaAdsSaveFailed'));
+    } finally {
+      setSavingMetaDatasetId(false);
     }
   }
 
@@ -759,6 +816,63 @@ export function WhatsAppConfig() {
                   disabled={savingMirror || !canEditSettings}
                   aria-label={t('mirrorInbound')}
                 />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Meta Ads customer-data-sharing opt-in + Dataset ID (migration
+            042). Feeds the "Send Conversion Event" automation step —
+            see src/lib/automations/meta-conversion.ts. */}
+        {config && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">{t('metaAdsTitle')}</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                {t('metaAdsDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {t('metaAdsEnable')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('metaAdsEnableDesc')}
+                  </p>
+                </div>
+                <Switch
+                  checked={metaAdsSharingEnabled}
+                  onCheckedChange={handleToggleMetaAdsSharing}
+                  disabled={savingMetaAdsToggle || !canEditSettings}
+                  aria-label={t('metaAdsEnable')}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">{t('metaDatasetIdLabel')}</Label>
+                <p className="text-xs text-muted-foreground">{t('metaDatasetIdDesc')}</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={metaDatasetId}
+                    onChange={(e) => setMetaDatasetId(e.target.value)}
+                    placeholder={t('metaDatasetIdPlaceholder')}
+                    disabled={!canEditSettings}
+                    className="bg-background border-border text-foreground font-mono text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={handleSaveMetaDatasetId}
+                    disabled={savingMetaDatasetId || !canEditSettings}
+                    className="shrink-0 border-border text-foreground hover:bg-muted"
+                  >
+                    {savingMetaDatasetId ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      t('saveDatasetId')
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -106,9 +106,18 @@ vi.mock("./meta-send", () => ({
   engineSendInteractive: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
 }));
 
+// The gating / hashing / HTTP details of the Meta Conversions API call
+// are covered directly in meta-conversion.test.ts; here we only need to
+// verify the engine wires the step_config through correctly and surfaces
+// the returned reason as the step's log message.
+vi.mock("./meta-conversion", () => ({
+  sendMetaConversionEvent: vi.fn(async () => ({ sent: true, reason: "sent 'Purchase'" })),
+}));
+
 import { runAutomationsForTrigger, triggerMatches, dispatchOutboundMessage } from "./engine";
 import { MAX_OUTBOUND_CHAIN_DEPTH } from "./dispatch-chain";
 import { engineSendText } from "./meta-send";
+import { sendMetaConversionEvent } from "./meta-conversion";
 import type { Automation, KeywordMatchTriggerConfig } from "@/types";
 
 const ACCOUNT = "acct-1";
@@ -280,6 +289,64 @@ describe("update_contact_field — custom fields", () => {
 
     expect(h.state.upsertCalls).toHaveLength(0);
     expect(h.state.updateCalls).toHaveLength(0);
+  });
+});
+
+describe("send_conversion_event", () => {
+  it("passes event_name/value/currency through and logs the reason", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [
+      {
+        id: "s1",
+        automation_id: "a1",
+        step_type: "send_conversion_event",
+        position: 0,
+        parent_step_id: null,
+        step_config: { event_name: "Purchase", value: 199, currency: "MXN" },
+      },
+    ];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "tag_added",
+      contactId: "c1",
+      context: { tag_id: "tag-finalizado" },
+    });
+
+    expect(sendMetaConversionEvent).toHaveBeenCalledWith({
+      accountId: ACCOUNT,
+      contactId: "c1",
+      eventName: "Purchase",
+      value: 199,
+      currency: "MXN",
+    });
+    expect(h.state.logUpdates.at(-1)?.status).toBe("success");
+  });
+
+  it("refuses without a contact", async () => {
+    h.state.owned = null;
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [
+      {
+        id: "s1",
+        automation_id: "a1",
+        step_type: "send_conversion_event",
+        position: 0,
+        parent_step_id: null,
+        step_config: { event_name: "Purchase" },
+      },
+    ];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "tag_added",
+      contactId: "c1",
+      context: {},
+    });
+
+    // Ownership guard fails closed before any step runs.
+    expect(sendMetaConversionEvent).not.toHaveBeenCalled();
   });
 });
 

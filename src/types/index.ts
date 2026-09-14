@@ -10,6 +10,34 @@ export type {
   InteractiveListSection,
 } from "@/lib/whatsapp/interactive";
 
+// ============================================================
+// Click-to-WhatsApp ad referral (migration 042)
+// ============================================================
+
+/**
+ * Meta's `referral` object off a Click-to-WhatsApp ad click, as it
+ * arrives on the inbound message's payload. All fields are optional —
+ * Meta only guarantees `source_url`/`source_type`; the rest depend on
+ * the ad format (image vs video ad, boosted post vs ad).
+ */
+export interface AdReferral {
+  source_url?: string;
+  /** The ad (or post) id. */
+  source_id?: string;
+  source_type?: "ad" | "post" | string;
+  headline?: string;
+  body?: string;
+  media_type?: "image" | "video" | string;
+  image_url?: string;
+  video_url?: string;
+  thumbnail_url?: string;
+  /**
+   * Click-to-WhatsApp click id — the key Meta's Conversions API needs
+   * to attribute a conversion event back to this ad.
+   */
+  ctwa_clid?: string;
+}
+
 export interface Profile {
   id: string;
   user_id: string;
@@ -181,6 +209,17 @@ export interface Conversation {
   ai_autoreply_disabled?: boolean;
   ai_reply_count?: number;
   ai_handoff_summary?: string | null;
+  /**
+   * Mirror of the most recent Click-to-WhatsApp ad referral seen on
+   * this conversation (migration 042) — overwritten, not merged, when
+   * a newer ad click arrives. `ad_referral_ctwa_clid` is the same
+   * value promoted for indexed lookups (the "Send Conversion Event"
+   * automation step reads it to attribute the event back to Meta).
+   * Full per-click history lives on the individual messages instead.
+   */
+  ad_referral?: AdReferral | null;
+  ad_referral_ctwa_clid?: string | null;
+  ad_referral_updated_at?: string | null;
 }
 
 // ============================================================
@@ -252,6 +291,13 @@ export interface Message {
    */
   interactive_reply_id?: string;
   /**
+   * Meta's Click-to-WhatsApp ad referral, when this message is the
+   * one that carried it (migration 042). Renders as an inline "from
+   * this ad" card above the message, mirroring the WhatsApp Business
+   * mobile app. NULL for the overwhelming majority of messages.
+   */
+  referral?: AdReferral | null;
+  /**
    * Structured payload of an OUTBOUND interactive message (reply
    * buttons or list) we sent. Lets the thread re-render the buttons /
    * rows, not just the body text. Only set when `content_type ===
@@ -305,6 +351,19 @@ export interface WhatsAppConfig {
    * inbound attachments expire. Migration 039.
    */
   mirror_inbound_media?: boolean;
+  /**
+   * Opt-in for sharing customer conversation activity (hashed phone +
+   * ctwa_clid) with Meta via the Conversions API, for ad campaign
+   * optimization. Defaults OFF (migration 042) — a "Send Conversion
+   * Event" automation step silently no-ops while this is false.
+   */
+  meta_ads_data_sharing_enabled?: boolean;
+  /**
+   * Meta Dataset ID (Events Manager) that conversion events are sent
+   * to. Required (together with the opt-in above) for "Send
+   * Conversion Event" automation steps to actually fire.
+   */
+  meta_dataset_id?: string | null;
 }
 
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)
@@ -487,7 +546,8 @@ export type AutomationStepType =
   | 'wait'
   | 'condition'
   | 'send_webhook'
-  | 'close_conversation';
+  | 'close_conversation'
+  | 'send_conversion_event';
 
 export type AutomationLogStatus = 'success' | 'partial' | 'failed';
 
@@ -607,6 +667,23 @@ export interface SendWebhookStepConfig {
   body_template?: string;
 }
 
+/**
+ * "Send Conversion Event" — fires a Meta Conversions API event
+ * (`action_source: business_messaging`) for the contact, typically
+ * chained after `tag_added` (e.g. tag "pedido finalizado" → Purchase).
+ * No-ops (logged, not thrown) when the account hasn't opted into
+ * `whatsapp_config.meta_ads_data_sharing_enabled` or has no
+ * `meta_dataset_id` set — see `src/lib/automations/meta-conversion.ts`.
+ */
+export interface SendConversionEventStepConfig {
+  /** A Meta standard event name (e.g. "Purchase", "Lead") or a custom one. */
+  event_name: string;
+  /** Fixed value for this step — entered per-rule, not pulled from a deal. */
+  value?: number;
+  /** ISO 4217 currency code, required by Meta whenever `value` is set. */
+  currency?: string;
+}
+
 export type AutomationStepConfig =
   | SendMessageStepConfig
   | SendButtonsStepConfig
@@ -619,6 +696,7 @@ export type AutomationStepConfig =
   | WaitStepConfig
   | ConditionStepConfig
   | SendWebhookStepConfig
+  | SendConversionEventStepConfig
   | Record<string, never>
   | Record<string, unknown>;
 

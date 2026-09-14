@@ -27,6 +27,7 @@ import {
   GitBranch,
   Webhook,
   CircleSlash,
+  Megaphone,
   Zap,
   Loader2,
   ArrowDown,
@@ -120,6 +121,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   condition: { label: "condition", icon: GitBranch, border: "border-l-amber-500" },
   send_webhook: { label: "send_webhook", icon: Webhook, border: "border-l-primary" },
   close_conversation: { label: "close_conversation", icon: CircleSlash, border: "border-l-primary" },
+  send_conversion_event: { label: "send_conversion_event", icon: Megaphone, border: "border-l-primary" },
 }
 
 const ADDABLE_STEPS: AutomationStepType[] = [
@@ -136,6 +138,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "condition",
   "send_webhook",
   "close_conversation",
+  "send_conversion_event",
 ]
 
 const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
@@ -197,6 +200,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { url: "", headers: {}, body_template: "" }
     case "close_conversation":
       return {}
+    case "send_conversion_event":
+      return { event_name: "Purchase", value: undefined, currency: "" }
     default:
       return {}
   }
@@ -1529,6 +1534,49 @@ function StepEditor({
           {t("config.closeConversationHint", { defaultValue: "Sets the conversation status to \"closed\". No configuration needed." })}
         </p>
       )
+    case "send_conversion_event":
+      return (
+        <>
+          <FieldBlock label={t("config.eventNameLabel")}>
+            <select
+              value={(cfg.event_name as string) ?? "Purchase"}
+              onChange={(e) => set({ event_name: e.target.value })}
+              className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
+            >
+              <option value="Purchase">{t("config.eventNames.Purchase")}</option>
+              <option value="Lead">{t("config.eventNames.Lead")}</option>
+              <option value="Schedule">{t("config.eventNames.Schedule")}</option>
+              <option value="CompleteRegistration">{t("config.eventNames.CompleteRegistration")}</option>
+              <option value="Contact">{t("config.eventNames.Contact")}</option>
+            </select>
+          </FieldBlock>
+          <div className="grid grid-cols-2 gap-2">
+            <FieldBlock label={t("config.valueLabel")}>
+              <Input
+                type="number"
+                value={(cfg.value as number) ?? ""}
+                onChange={(e) =>
+                  set({ value: e.target.value === "" ? undefined : Number(e.target.value) })
+                }
+                placeholder="0.00"
+                className="bg-muted text-foreground"
+              />
+            </FieldBlock>
+            <FieldBlock label={t("config.currencyLabel")}>
+              <Input
+                value={(cfg.currency as string) ?? ""}
+                onChange={(e) => set({ currency: e.target.value.toUpperCase() })}
+                placeholder="MXN"
+                maxLength={3}
+                className="bg-muted text-foreground"
+              />
+            </FieldBlock>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("config.conversionEventHint")}
+          </p>
+        </>
+      )
     default:
       return null
   }
@@ -1564,6 +1612,12 @@ function previewFor(step: BuilderStep): string {
       return `when ${step.step_config.subject ?? "?"}`
     case "send_webhook":
       return (step.step_config.url as string) || "no url"
+    case "send_conversion_event": {
+      const name = (step.step_config.event_name as string) || "Purchase"
+      const value = step.step_config.value
+      const currency = step.step_config.currency as string | undefined
+      return value != null && currency ? `${name} — ${value} ${currency}` : name
+    }
     default:
       return ""
   }

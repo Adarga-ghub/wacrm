@@ -25,8 +25,40 @@ describe("validateStepsForActivation", () => {
       },
       { step_type: "add_tag", step_config: { tag_id: "tag-uuid" } },
       { step_type: "close_conversation", step_config: {} },
+      {
+        step_type: "send_conversion_event",
+        step_config: { event_name: "Purchase", value: 199, currency: "MXN" },
+      },
     ]);
     expect(issues).toEqual([]);
+  });
+
+  it("send_conversion_event requires a currency whenever a value is set", () => {
+    expect(
+      validateStepsForActivation([
+        { step_type: "send_conversion_event", step_config: { event_name: "" } },
+      ]),
+    ).toEqual([
+      { path: "steps[0].event_name", message: "event name is required" },
+    ]);
+
+    expect(
+      validateStepsForActivation([
+        {
+          step_type: "send_conversion_event",
+          step_config: { event_name: "Purchase", value: 199 },
+        },
+      ]),
+    ).toEqual([
+      { path: "steps[0].currency", message: "currency is required when a value is set" },
+    ]);
+
+    // No value at all — currency is optional (e.g. a plain Lead event).
+    expect(
+      validateStepsForActivation([
+        { step_type: "send_conversion_event", step_config: { event_name: "Lead" } },
+      ]),
+    ).toEqual([]);
   });
 
   it("flags every required field that is missing", () => {

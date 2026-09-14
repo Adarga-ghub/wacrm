@@ -299,6 +299,12 @@
       "resumed": "AI resumed.",
       "updateError": "Couldn’t update the AI assistant.",
       "networkError": "Couldn’t reach the server."
+    },
+    "adReferral": {
+      "startedFromAd": "Started from a Meta ad",
+      "sourceTypeAd": "Ad",
+      "sourceTypePost": "Boosted post",
+      "viewAd": "View ad"
     }
   },
   "Contacts": {
@@ -872,7 +878,8 @@
         "wait": "Wait",
         "condition": "Condition (If/Else)",
         "send_webhook": "Send Webhook",
-        "close_conversation": "Close Conversation"
+        "close_conversation": "Close Conversation",
+        "send_conversion_event": "Send Conversion Event (Meta Ads)"
       },
       "triggers": {
         "new_message_received": {
@@ -1016,7 +1023,17 @@
         "directionInbound": "Inbound (from the customer)",
         "directionOutbound": "Outbound (sent by the CRM)",
         "directionHint": "Outbound matches any message the CRM sends the customer — typed by an agent, sent by an Automation or Flow step, or an AI agent auto-reply.",
-        "closeConversationHint": "Sets the conversation status to \"closed\". No configuration needed."
+        "closeConversationHint": "Sets the conversation status to \"closed\". No configuration needed.",
+        "eventNameLabel": "Meta event",
+        "eventNames": {
+          "Purchase": "Purchase",
+          "Lead": "Lead",
+          "Schedule": "Schedule",
+          "CompleteRegistration": "Complete Registration",
+          "Contact": "Contact"
+        },
+        "currencyLabel": "Currency",
+        "conversionEventHint": "Sent to Meta Ads Manager via the Conversions API, attributed to the ad that started this conversation when known. Requires \"Meta Ads data sharing\" enabled in Settings → WhatsApp; otherwise this step is skipped (logged, not failed)."
       }
     }
   },
@@ -1516,6 +1533,16 @@
       "mirrorInboundDesc": "Save a copy of every photo, video, voice note and document customers send. Uses your Supabase storage; files over 16 MB are skipped.",
       "mirrorInboundOffWarning": "New attachments will stop being copied and will become unavailable about 30 days after they arrive.",
       "mirrorInboundSaveFailed": "Could not update the attachment setting.",
+      "metaAdsTitle": "Meta Ads Data Sharing",
+      "metaAdsDesc": "Share hashed customer phone numbers and ad-click ids with Meta's Conversions API so campaigns can be optimized for customers who actually convert. Off by default — this shares data with Meta.",
+      "metaAdsEnable": "Share customer data for Meta ad-related activities",
+      "metaAdsEnableDesc": "Required for the \"Send Conversion Event\" automation step to actually send anything.",
+      "metaDatasetIdLabel": "Meta Dataset ID",
+      "metaDatasetIdDesc": "From Meta Events Manager. Conversion events from automations are posted to this dataset.",
+      "metaDatasetIdPlaceholder": "e.g. 1234567890123456",
+      "metaAdsSaveFailed": "Could not update the Meta Ads data-sharing setting.",
+      "metaAdsSaved": "Meta Ads settings saved.",
+      "saveDatasetId": "Save",
       "saving": "Saving...",
       "saveConfig": "Save Configuration",
       "testing": "Testing...",

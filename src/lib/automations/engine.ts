@@ -17,12 +17,14 @@ import type {
   WaitStepConfig,
   CreateDealStepConfig,
   AssignConversationStepConfig,
+  SendConversionEventStepConfig,
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
 import { MAX_TAG_CHAIN_DEPTH, getTagChainDepth } from '@/lib/contacts/tag-chain'
 import { MAX_OUTBOUND_CHAIN_DEPTH, getOutboundChainDepth } from './dispatch-chain'
 import { engineSendText, engineSendTemplate, engineSendInteractive } from './meta-send'
+import { sendMetaConversionEvent } from './meta-conversion'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
 
@@ -682,6 +684,20 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       })
       if (!res.ok) throw new Error(`webhook returned ${res.status}`)
       return `webhook ${res.status}`
+    }
+
+    case 'send_conversion_event': {
+      const cfg = step.step_config as SendConversionEventStepConfig
+      if (!args.contactId) throw new Error('send_conversion_event needs a contact')
+      if (!cfg.event_name) throw new Error('send_conversion_event needs event_name')
+      const result = await sendMetaConversionEvent({
+        accountId: args.automation.account_id,
+        contactId: args.contactId,
+        eventName: cfg.event_name,
+        value: cfg.value,
+        currency: cfg.currency,
+      })
+      return result.reason
     }
 
     case 'close_conversation': {
