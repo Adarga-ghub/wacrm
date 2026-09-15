@@ -11,6 +11,7 @@ import type {
   SendButtonsStepConfig,
   SendListStepConfig,
   SendTemplateStepConfig,
+  SendAudioStepConfig,
   SendWebhookStepConfig,
   TagStepConfig,
   UpdateContactFieldStepConfig,
@@ -23,7 +24,7 @@ import { supabaseAdmin } from './admin-client'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
 import { MAX_TAG_CHAIN_DEPTH, getTagChainDepth } from '@/lib/contacts/tag-chain'
 import { MAX_OUTBOUND_CHAIN_DEPTH, getOutboundChainDepth } from './dispatch-chain'
-import { engineSendText, engineSendTemplate, engineSendInteractive } from './meta-send'
+import { engineSendText, engineSendTemplate, engineSendInteractive, engineSendAudio } from './meta-send'
 import { sendMetaConversionEvent } from './meta-conversion'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
@@ -545,6 +546,21 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         chainDepth: getOutboundChainDepth(args.context),
       })
       return `template sent via Meta (${whatsapp_message_id})`
+    }
+
+    case 'send_audio': {
+      const cfg = step.step_config as SendAudioStepConfig
+      if (!args.contactId) throw new Error('send_audio needs a contact')
+      if (!cfg.media_url) throw new Error('send_audio needs an uploaded audio file')
+      const conversationId = await resolveConversationId(args)
+      const { whatsapp_message_id } = await engineSendAudio({
+        accountId: args.automation.account_id,
+        userId: args.automation.user_id,
+        conversationId,
+        contactId: args.contactId,
+        mediaUrl: cfg.media_url,
+      })
+      return `audio sent via Meta (${whatsapp_message_id})`
     }
 
     case 'add_tag': {

@@ -65,13 +65,26 @@ describe("validateStepsForActivation", () => {
     const issues = validateStepsForActivation([
       { step_type: "send_message", step_config: { text: "  " } },
       { step_type: "send_template", step_config: {} },
+      { step_type: "send_audio", step_config: {} },
       { step_type: "add_tag", step_config: { tag_id: "" } },
     ]);
     expect(issues.map((i) => i.path)).toEqual([
       "steps[0].text",
       "steps[1].template_name",
-      "steps[2].tag_id",
+      "steps[2].media_url",
+      "steps[3].tag_id",
     ]);
+  });
+
+  it("passes a send_audio step once a file has been uploaded", () => {
+    expect(
+      validateStepsForActivation([
+        {
+          step_type: "send_audio",
+          step_config: { media_url: "https://example.com/voice.ogg" },
+        },
+      ]),
+    ).toEqual([]);
   });
 
   it("checks wait amount and unit boundaries", () => {

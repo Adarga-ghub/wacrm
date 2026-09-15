@@ -555,6 +555,7 @@ export type AutomationStepType =
   | 'send_buttons'
   | 'send_list'
   | 'send_template'
+  | 'send_audio'
   | 'add_tag'
   | 'remove_tag'
   | 'assign_conversation'
@@ -628,6 +629,20 @@ export interface SendTemplateStepConfig {
   template_name: string;
   language?: string;
   variables?: Record<string, string>;
+}
+
+/**
+ * "Send Audio" — sends a voice note via the WhatsApp Cloud API.
+ * `media_url` is a public URL into the CRM's own storage (uploaded via
+ * `uploadAccountMedia`, same convention as Flows' `send_media`), not an
+ * externally supplied link. Meta rejects both `caption` and `filename`
+ * on audio messages (see `sendMediaMessage` in `@/lib/whatsapp/meta-api`),
+ * so `filename` here is display-only — the original upload's name shown
+ * in the builder, never sent to Meta.
+ */
+export interface SendAudioStepConfig {
+  media_url: string;
+  filename?: string;
 }
 
 export interface TagStepConfig {
@@ -706,6 +721,7 @@ export type AutomationStepConfig =
   | SendButtonsStepConfig
   | SendListStepConfig
   | SendTemplateStepConfig
+  | SendAudioStepConfig
   | TagStepConfig
   | AssignConversationStepConfig
   | UpdateContactFieldStepConfig

@@ -877,6 +877,7 @@
         "send_buttons": "버튼 보내기",
         "send_list": "목록 보내기",
         "send_template": "템플릿 보내기",
+        "send_audio": "오디오 보내기",
         "add_tag": "태그 추가",
         "remove_tag": "태그 제거",
         "assign_conversation": "대화 담당자 지정",
@@ -1040,7 +1041,12 @@
           "Contact": "문의"
         },
         "currencyLabel": "통화",
-        "conversionEventHint": "Conversions API를 통해 Meta 광고 관리자로 전송됩니다. 설정 → WhatsApp에서 \"Meta 광고 데이터 공유\"를 활성화해야 하며, Click-to-WhatsApp 광고를 통해 유입된 연락처에 대해서만 전송됩니다 — 광고 클릭 기록이 없는 연락처는 Meta가 이 이벤트를 거부합니다. 그 외의 경우 이 단계는 건너뜁니다 (실패가 아닌 로그로 기록됩니다)."
+        "conversionEventHint": "Conversions API를 통해 Meta 광고 관리자로 전송됩니다. 설정 → WhatsApp에서 \"Meta 광고 데이터 공유\"를 활성화해야 하며, Click-to-WhatsApp 광고를 통해 유입된 연락처에 대해서만 전송됩니다 — 광고 클릭 기록이 없는 연락처는 Meta가 이 이벤트를 거부합니다. 그 외의 경우 이 단계는 건너뜁니다 (실패가 아닌 로그로 기록됩니다).",
+        "audioFileLabel": "오디오 파일",
+        "clickToUploadAudio": "음성 메모 업로드하기 (최대 16MB — OGG, MP3, AAC, M4A 또는 AMR)",
+        "uploadingAudio": "업로드 중…",
+        "removeAudioFile": "오디오 파일 제거",
+        "audioFileHint": "WhatsApp 음성 메모로 전송됩니다. Meta는 오디오 메시지에 캡션을 지원하지 않으므로 캡션 텍스트 없이 재생됩니다."
       }
     }
   },

@@ -877,6 +877,7 @@
         "send_buttons": "Send Buttons",
         "send_list": "Send List",
         "send_template": "Send Template",
+        "send_audio": "Send Audio",
         "add_tag": "Add Tag",
         "remove_tag": "Remove Tag",
         "assign_conversation": "Assign Conversation",
@@ -1040,7 +1041,12 @@
           "Contact": "Contact"
         },
         "currencyLabel": "Currency",
-        "conversionEventHint": "Sent to Meta Ads Manager via the Conversions API. Requires \"Meta Ads data sharing\" enabled in Settings → WhatsApp, and only fires for contacts who arrived via a Click-to-WhatsApp ad — Meta rejects this event for a contact with no ad click on record. Otherwise this step is skipped (logged, not failed)."
+        "conversionEventHint": "Sent to Meta Ads Manager via the Conversions API. Requires \"Meta Ads data sharing\" enabled in Settings → WhatsApp, and only fires for contacts who arrived via a Click-to-WhatsApp ad — Meta rejects this event for a contact with no ad click on record. Otherwise this step is skipped (logged, not failed).",
+        "audioFileLabel": "Audio file",
+        "clickToUploadAudio": "Click to upload voice note (max 16 MB — OGG, MP3, AAC, M4A or AMR)",
+        "uploadingAudio": "Uploading…",
+        "removeAudioFile": "Remove audio file",
+        "audioFileHint": "Sent as a WhatsApp voice note. Meta doesn't support captions on audio messages, so it plays with no caption text."
       }
     }
   },

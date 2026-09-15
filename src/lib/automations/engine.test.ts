@@ -124,6 +124,7 @@ vi.mock("./meta-send", () => ({
   engineSendText: vi.fn(async () => ({ whatsapp_message_id: "m1", content_text: "" })),
   engineSendTemplate: vi.fn(async () => ({ whatsapp_message_id: "m1", content_text: "" })),
   engineSendInteractive: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
+  engineSendAudio: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
 }));
 
 // The gating / hashing / HTTP details of the Meta Conversions API call
@@ -141,7 +142,7 @@ import {
   resumePendingExecution,
 } from "./engine";
 import { MAX_OUTBOUND_CHAIN_DEPTH } from "./dispatch-chain";
-import { engineSendText } from "./meta-send";
+import { engineSendText, engineSendAudio } from "./meta-send";
 import { sendMetaConversionEvent } from "./meta-conversion";
 import type { Automation, KeywordMatchTriggerConfig } from "@/types";
 
@@ -160,6 +161,7 @@ beforeEach(() => {
   h.state.logInserts = [];
   h.state.logUpdates = [];
   vi.mocked(engineSendText).mockClear();
+  vi.mocked(engineSendAudio).mockClear();
 });
 
 describe("runAutomationsForTrigger — tenant isolation", () => {
@@ -373,6 +375,69 @@ describe("send_conversion_event", () => {
 
     // Ownership guard fails closed before any step runs.
     expect(sendMetaConversionEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("send_audio", () => {
+  it("sends the uploaded file's media_url as a voice note", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [
+      {
+        id: "s1",
+        automation_id: "a1",
+        step_type: "send_audio",
+        position: 0,
+        parent_step_id: null,
+        step_config: {
+          media_url: "https://example.com/storage/account-1/voice.ogg",
+          filename: "voice.ogg",
+        },
+      },
+    ];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(engineSendAudio).toHaveBeenCalledWith({
+      accountId: ACCOUNT,
+      userId: "u1",
+      conversationId: "conv1",
+      contactId: "c1",
+      mediaUrl: "https://example.com/storage/account-1/voice.ogg",
+    });
+    expect(h.state.logUpdates.at(-1)?.status).toBe("success");
+  });
+
+  it("refuses without an uploaded file", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [
+      {
+        id: "s1",
+        automation_id: "a1",
+        step_type: "send_audio",
+        position: 0,
+        parent_step_id: null,
+        step_config: {},
+      },
+    ];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(engineSendAudio).not.toHaveBeenCalled();
+    expect(h.state.logUpdates.at(-1)?.status).toBe("failed");
   });
 });
 

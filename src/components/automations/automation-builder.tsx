@@ -2,8 +2,10 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -34,6 +36,10 @@ import {
   ArrowUp,
   MousePointerClick,
   List,
+  Mic,
+  Upload,
+  Paperclip,
+  X,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -63,6 +69,7 @@ import {
 } from "@/components/interactive/interactive-builder"
 import { interactivePayloadPreviewText } from "@/lib/whatsapp/interactive"
 import { createClient } from "@/lib/supabase/client"
+import { uploadAccountMedia, MEDIA_MAX_BYTES_BY_KIND } from "@/lib/storage/upload-media"
 import {
   childPath,
   insertAt,
@@ -112,6 +119,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   send_buttons: { label: "send_buttons", icon: MousePointerClick, border: "border-l-primary" },
   send_list: { label: "send_list", icon: List, border: "border-l-primary" },
   send_template: { label: "send_template", icon: FileText, border: "border-l-primary" },
+  send_audio: { label: "send_audio", icon: Mic, border: "border-l-primary" },
   add_tag: { label: "add_tag", icon: Tag, border: "border-l-primary" },
   remove_tag: { label: "remove_tag", icon: TagIcon, border: "border-l-primary" },
   assign_conversation: { label: "assign_conversation", icon: UserCheck, border: "border-l-primary" },
@@ -129,6 +137,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "send_buttons",
   "send_list",
   "send_template",
+  "send_audio",
   "add_tag",
   "remove_tag",
   "assign_conversation",
@@ -183,6 +192,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return toStepConfig(blankListPayload())
     case "send_template":
       return { template_name: "", language: "en_US" }
+    case "send_audio":
+      return { media_url: "", filename: "" }
     case "add_tag":
     case "remove_tag":
       return { tag_id: "" }
@@ -629,6 +640,118 @@ function SendTemplateFields({
           </option>
         )}
       </select>
+    </FieldBlock>
+  )
+}
+
+// Audio uploads reuse the inbox's chat-media bucket — it already allows
+// the WhatsApp-accepted voice-note MIME types (migration 023) and there
+// is no dedicated automation-media bucket. See uploadAccountMedia for
+// the account-scoped path convention this depends on.
+const AUTOMATION_AUDIO_BUCKET = "chat-media"
+const AUDIO_ACCEPT = "audio/ogg,audio/mpeg,audio/aac,audio/mp4,audio/amr"
+
+function SendAudioFields({
+  mediaUrl,
+  filename,
+  onChange,
+  t,
+}: {
+  mediaUrl: string
+  filename: string
+  onChange: (patch: Record<string, unknown>) => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
+  const displayName = filename || (mediaUrl ? mediaUrl.split("/").pop() ?? "" : "")
+
+  const handleFile = useCallback(
+    async (file: File) => {
+      const limit = MEDIA_MAX_BYTES_BY_KIND.audio
+      if (file.size > limit) {
+        toast.error(
+          `File is ${(file.size / 1024 / 1024).toFixed(1)} MB — limit is ${limit / 1024 / 1024} MB.`,
+        )
+        return
+      }
+      setUploading(true)
+      try {
+        const { publicUrl } = await uploadAccountMedia(AUTOMATION_AUDIO_BUCKET, file)
+        // Patch both fields in one call so the form doesn't re-render
+        // with a half-uploaded state.
+        onChange({ media_url: publicUrl, filename: file.name })
+        toast.success("File uploaded.")
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Upload failed."
+        toast.error(msg)
+      } finally {
+        setUploading(false)
+      }
+    },
+    [onChange],
+  )
+
+  const handleClear = () => onChange({ media_url: "", filename: "" })
+
+  return (
+    <FieldBlock label={t("config.audioFileLabel")}>
+      {mediaUrl ? (
+        <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-xs">
+          <Paperclip className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
+          <a
+            href={mediaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-w-0 flex-1 truncate text-foreground hover:text-cyan-300"
+            title={displayName || mediaUrl}
+          >
+            {displayName || mediaUrl}
+          </a>
+          <button
+            type="button"
+            onClick={handleClear}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={t("config.removeAudioFile")}
+            disabled={uploading}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-card px-3 py-4 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {t("config.uploadingAudio")}
+            </>
+          ) : (
+            <>
+              <Upload className="h-3.5 w-3.5" />
+              {t("config.clickToUploadAudio")}
+            </>
+          )}
+        </button>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={AUDIO_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) void handleFile(f)
+          // Reset so picking the same file twice still fires onChange.
+          e.target.value = ""
+        }}
+      />
+      <p className="mt-1 text-[11px] text-muted-foreground">{t("config.audioFileHint")}</p>
     </FieldBlock>
   )
 }
@@ -1361,6 +1484,15 @@ function StepEditor({
           t={t}
         />
       )
+    case "send_audio":
+      return (
+        <SendAudioFields
+          mediaUrl={(cfg.media_url as string) ?? ""}
+          filename={(cfg.filename as string) ?? ""}
+          onChange={(patch) => set(patch)}
+          t={t}
+        />
+      )
     case "add_tag":
     case "remove_tag":
       return (
@@ -1606,6 +1738,11 @@ function previewFor(step: BuilderStep): string {
       return interactivePayloadPreviewText(asInteractive(step.step_config)) || "no body yet"
     case "send_template":
       return (step.step_config.template_name as string) || "pick a template"
+    case "send_audio":
+      return (
+        (step.step_config.filename as string) ||
+        (step.step_config.media_url ? "audio file" : "no audio yet")
+      )
     case "wait":
       return `${step.step_config.amount ?? "?"} ${step.step_config.unit ?? ""}`
     case "condition":
