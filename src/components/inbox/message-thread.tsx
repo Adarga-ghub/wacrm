@@ -30,6 +30,7 @@ import {
   PanelRightOpen,
   PanelRightClose,
   Tag as TagIcon,
+  AlertTriangle,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInHours } from "date-fns";
 import { useTranslations } from "next-intl";
@@ -1064,7 +1065,18 @@ export function MessageThread({
           </div>
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-foreground">{displayName}</h2>
-            <p className="truncate text-xs text-muted-foreground">{contact.phone}</p>
+            {contact.phone ? (
+              <p className="truncate text-xs text-muted-foreground">{contact.phone}</p>
+            ) : (
+              // No phone on file (see ContactSidebar's matching banner for
+              // why) — flagged here too since this header is visible even
+              // when the sidebar is collapsed, and it's the first thing an
+              // agent sees before trying to reply.
+              <p className="flex items-center gap-1 truncate text-xs text-amber-500">
+                <AlertTriangle className="h-3 w-3 shrink-0" />
+                {t("noPhone")}
+              </p>
+            )}
             {/* Customer's own last-activity ("Activo hace…"), derived
                 from their most recent inbound message — not
                 WhatsApp's real presence, which Meta never exposes to

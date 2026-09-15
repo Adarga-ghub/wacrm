@@ -204,9 +204,11 @@ vi.mock('@/lib/webhooks/deliver', () => ({
 
 import { POST } from './route'
 import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
+import { findExistingContact } from '@/lib/contacts/dedupe'
 
 const mockGetMediaUrl = vi.mocked(getMediaUrl)
 const mockDownloadMedia = vi.mocked(downloadMedia)
+const mockFindExistingContact = vi.mocked(findExistingContact)
 
 const TEXT_MESSAGE = {
   id: 'wamid.TEST1',
@@ -216,7 +218,12 @@ const TEXT_MESSAGE = {
   text: { body: 'hello' },
 }
 
-function inboundRequest(message: Record<string, unknown> = TEXT_MESSAGE) {
+function inboundRequest(
+  message: Record<string, unknown> = TEXT_MESSAGE,
+  contacts: Record<string, unknown>[] = [
+    { wa_id: '15551230000', profile: { name: 'Ada' } },
+  ],
+) {
   const body = {
     entry: [
       {
@@ -225,7 +232,7 @@ function inboundRequest(message: Record<string, unknown> = TEXT_MESSAGE) {
             field: 'messages',
             value: {
               metadata: { phone_number_id: 'pn-1' },
-              contacts: [{ wa_id: '15551230000', profile: { name: 'Ada' } }],
+              contacts,
               messages: [message],
             },
           },
@@ -239,8 +246,11 @@ function inboundRequest(message: Record<string, unknown> = TEXT_MESSAGE) {
   } as unknown as Request
 }
 
-async function runWebhook(message?: Record<string, unknown>) {
-  const res = await POST(inboundRequest(message))
+async function runWebhook(
+  message?: Record<string, unknown>,
+  contacts?: Record<string, unknown>[],
+) {
+  const res = await POST(inboundRequest(message, contacts))
   // Drain the after() callback exactly as the runtime would.
   for (const cb of h.state.afterCallbacks) await cb()
   return res
@@ -280,6 +290,48 @@ beforeEach(() => {
         resolve()
       }, 0)
     })
+  })
+})
+
+describe('inbound webhook: phone number extraction falls back to contacts[].wa_id', () => {
+  it('uses message.from when present (the common case)', async () => {
+    await runWebhook()
+
+    expect(mockFindExistingContact).toHaveBeenCalledWith(
+      expect.anything(),
+      'acc-1',
+      '15551230000',
+    )
+  })
+
+  it('falls back to contacts[].wa_id when message.from is empty — the Click-to-WhatsApp-ad case that created unmessageable contacts', async () => {
+    await runWebhook(
+      { ...TEXT_MESSAGE, from: '' },
+      [{ wa_id: '15559998888', profile: { name: 'Arlene' } }],
+    )
+
+    expect(mockFindExistingContact).toHaveBeenCalledWith(
+      expect.anything(),
+      'acc-1',
+      '15559998888',
+    )
+  })
+
+  it('logs a CRITICAL error instead of silently creating an orphan when neither source has a usable phone', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await runWebhook(
+        { ...TEXT_MESSAGE, from: '' },
+        [{ wa_id: '', profile: { name: 'Ghost' } }],
+      )
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('CRITICAL'),
+        expect.anything(),
+      )
+    } finally {
+      errorSpy.mockRestore()
+    }
   })
 })
 

@@ -15,6 +15,7 @@ import {
   DollarSign,
   StickyNote,
   Plus,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -167,18 +168,32 @@ export function ContactSidebar({ contact, tagsRefreshToken }: ContactSidebarProp
 
           {/* Phone */}
           <div className="mt-4 space-y-2">
-            <button
-              onClick={handleCopyPhone}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
-            >
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <span className="flex-1 text-left">{contact.phone}</span>
-              {copied ? (
-                <Check className="h-3 w-3 text-primary" />
-              ) : (
-                <Copy className="h-3 w-3 text-muted-foreground" />
-              )}
-            </button>
+            {contact.phone ? (
+              <button
+                onClick={handleCopyPhone}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
+              >
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <span className="flex-1 text-left">{contact.phone}</span>
+                {copied ? (
+                  <Check className="h-3 w-3 text-primary" />
+                ) : (
+                  <Copy className="h-3 w-3 text-muted-foreground" />
+                )}
+              </button>
+            ) : (
+              // No phone on file — almost always a Click-to-WhatsApp-ad
+              // inbound message where Meta's payload didn't carry a
+              // usable wa_id (see the webhook handler's fallback +
+              // logging). Surfaced here instead of silently rendering
+              // nothing, because a contact in this state can't be
+              // messaged at all — manual send, automations, and
+              // broadcasts all need a valid phone number.
+              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-500">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span className="flex-1 text-left">{tSidebar("noPhone")}</span>
+              </div>
+            )}
 
             {contact.email && (
               <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground">

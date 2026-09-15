@@ -152,6 +152,7 @@
       "unknown": "알 수 없음"
     },
     "messageThread": {
+      "noPhone": "전화번호가 없습니다 — 이 연락처에는 메시지를 보낼 수 없습니다",
       "backToConversations": "대화 목록으로 돌아가기",
       "hideContactPanel": "연락처 패널 숨기기",
       "showContactPanel": "연락처 패널 표시",
@@ -293,7 +294,8 @@
       "deals": "딜",
       "noTags": "태그 없음",
       "noDeals": "딜 없음",
-      "addNotePlaceholder": "메모 추가..."
+      "addNotePlaceholder": "메모 추가...",
+      "noPhone": "전화번호가 없습니다 — Click-to-WhatsApp 광고 클릭 과정에서 유실되었을 가능성이 높습니다. 고객이 다시 메시지를 보내기 전까지는 연락할 수 없습니다."
     },
     "aiBanner": {
       "pausedTitle": "이 대화에서 AI 어시스턴트가 일시 중지됨",

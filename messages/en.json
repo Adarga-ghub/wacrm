@@ -152,6 +152,7 @@
       "unknown": "Unknown"
     },
     "messageThread": {
+      "noPhone": "No phone number on file — this contact can't be messaged",
       "backToConversations": "Back to conversations",
       "hideContactPanel": "Hide contact panel",
       "showContactPanel": "Show contact panel",
@@ -293,7 +294,8 @@
       "deals": "Deals",
       "noTags": "No tags",
       "noDeals": "No deals",
-      "addNotePlaceholder": "Add a note..."
+      "addNotePlaceholder": "Add a note...",
+      "noPhone": "No phone number on file — likely lost on a Click-to-WhatsApp ad click. This contact can't be messaged until they write in again."
     },
     "aiBanner": {
       "pausedTitle": "AI assistant is paused here",

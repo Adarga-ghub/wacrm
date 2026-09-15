@@ -645,7 +645,33 @@ async function processMessage(
   // See parseMessageContent for what it turns off.
   mirrorMedia: boolean
 ) {
-  const senderPhone = normalizePhone(message.from)
+  // The phone number SHOULD be on `message.from`, and normally is. But
+  // for some Click-to-WhatsApp-ad-originated messages, Meta has been
+  // observed delivering a payload where `messages[].from` is missing
+  // even though `contacts[].wa_id` — the field literally named for this
+  // — is populated right next to it. Relying on `message.from` alone
+  // silently created a real, empty-string-phone "orphan" contact (no
+  // way to message them back, automations dead) every time that
+  // happened; `contacts[].wa_id` is tried as a fallback so a gap in
+  // either field alone no longer loses the number. If Meta ever omits
+  // BOTH, the loud error below is what future-proofs this: it puts the
+  // full raw message/contact payload in the logs instead of a silent
+  // empty phone, so the actual shape Meta sent is there to diagnose —
+  // which is exactly what today's failures didn't leave behind.
+  const senderPhone = normalizePhone(message.from) || normalizePhone(contact.wa_id)
+  if (!senderPhone) {
+    console.error(
+      '[webhook] CRITICAL: inbound message has no usable phone number on ' +
+        'either message.from or contacts[].wa_id — this WILL create an ' +
+        'unmessageable contact. Raw payload for investigation:',
+      JSON.stringify({ message, contact }),
+    )
+  } else if (!normalizePhone(message.from) && normalizePhone(contact.wa_id)) {
+    console.warn(
+      '[webhook] message.from was empty; recovered phone from contacts[].wa_id instead',
+      { messageId: message.id, hasReferral: !!message.referral },
+    )
+  }
   const contactName = contact.profile.name
 
   // Find or create contact
@@ -1205,6 +1231,21 @@ async function findOrCreateContact(
   phone: string,
   name: string
 ): Promise<ContactOutcome | null> {
+  // Belt-and-braces: `phone` is normally already-resolved by the caller
+  // (processMessage falls back from message.from to contacts[].wa_id),
+  // but this function has no way to know if a FUTURE caller skips that.
+  // An empty phone here means "contacts.phone_normalized" will be ''
+  // — the exact value the dedup unique index (migration 022)
+  // deliberately excludes — so nothing below will ever catch two such
+  // rows as duplicates, and this contact can never be messaged. Log it
+  // loudly rather than let it happen invisibly.
+  if (!normalizePhone(phone)) {
+    console.error(
+      '[webhook] findOrCreateContact called with an empty/unnormalizable phone — creating an unmessageable contact:',
+      { accountId, name },
+    )
+  }
+
   // Find an existing contact for this account by phone. The shared
   // helper pre-filters in SQL by the last-8-digit suffix (so we don't
   // pull every contact on every inbound message) then applies the
