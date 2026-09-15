@@ -12,6 +12,7 @@ import type {
   SendListStepConfig,
   SendTemplateStepConfig,
   SendAudioStepConfig,
+  SendDocumentsStepConfig,
   SendWebhookStepConfig,
   TagStepConfig,
   UpdateContactFieldStepConfig,
@@ -24,7 +25,13 @@ import { supabaseAdmin } from './admin-client'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
 import { MAX_TAG_CHAIN_DEPTH, getTagChainDepth } from '@/lib/contacts/tag-chain'
 import { MAX_OUTBOUND_CHAIN_DEPTH, getOutboundChainDepth } from './dispatch-chain'
-import { engineSendText, engineSendTemplate, engineSendInteractive, engineSendAudio } from './meta-send'
+import {
+  engineSendText,
+  engineSendTemplate,
+  engineSendInteractive,
+  engineSendAudio,
+  engineSendDocument,
+} from './meta-send'
 import { sendMetaConversionEvent } from './meta-conversion'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
@@ -561,6 +568,57 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         mediaUrl: cfg.media_url,
       })
       return `audio sent via Meta (${whatsapp_message_id})`
+    }
+
+    case 'send_documents': {
+      const cfg = step.step_config as SendDocumentsStepConfig
+      if (!args.contactId) throw new Error('send_documents needs a contact')
+      const docs = cfg.documents ?? []
+      if (docs.length === 0) throw new Error('send_documents needs at least one document')
+      const conversationId = await resolveConversationId(args)
+      // Strict one-by-one queue: `docs` is exactly the builder's final
+      // visual order (reordering already happened client-side before
+      // save). Each document is a separate Meta API call, and — per
+      // Meta's own guidance against firing multiple heavy media sends
+      // concurrently — the loop awaits the PREVIOUS send's success
+      // before starting the next one; nothing here fires in parallel.
+      // A failure partway through stops the queue immediately (no
+      // skip-ahead, no reordering around it), and the thrown message
+      // names which document it stopped on and how many landed before
+      // it, so a failed automation_logs row is enough to diagnose
+      // without a debugger.
+      const sentIds: string[] = []
+      for (const [i, doc] of docs.entries()) {
+        if (!doc.media_url) {
+          throw new Error(
+            `send_documents: stopped at document ${i + 1} of ${docs.length} — missing its uploaded file (${sentIds.length} sent successfully before this)`,
+          )
+        }
+        if (!doc.title?.trim()) {
+          throw new Error(
+            `send_documents: stopped at document ${i + 1} of ${docs.length} — missing a title (${sentIds.length} sent successfully before this)`,
+          )
+        }
+        try {
+          // Awaited — the next iteration does not start until Meta has
+          // confirmed this send (a message id) or thrown.
+          const { whatsapp_message_id } = await engineSendDocument({
+            accountId: args.automation.account_id,
+            userId: args.automation.user_id,
+            conversationId,
+            contactId: args.contactId,
+            mediaUrl: doc.media_url,
+            title: doc.title,
+          })
+          sentIds.push(whatsapp_message_id)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          throw new Error(
+            `send_documents: stopped at document ${i + 1} of ${docs.length} ("${doc.title}") — ${msg} (${sentIds.length} sent successfully before this)`,
+          )
+        }
+      }
+      return `sent ${sentIds.length} document(s) via Meta, in order (${sentIds.join(', ')})`
     }
 
     case 'add_tag': {

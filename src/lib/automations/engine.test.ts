@@ -125,6 +125,9 @@ vi.mock("./meta-send", () => ({
   engineSendTemplate: vi.fn(async () => ({ whatsapp_message_id: "m1", content_text: "" })),
   engineSendInteractive: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
   engineSendAudio: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
+  engineSendDocument: vi.fn(async (args: { title: string }) => ({
+    whatsapp_message_id: `wamid-${args.title}`,
+  })),
 }));
 
 // The gating / hashing / HTTP details of the Meta Conversions API call
@@ -142,7 +145,7 @@ import {
   resumePendingExecution,
 } from "./engine";
 import { MAX_OUTBOUND_CHAIN_DEPTH } from "./dispatch-chain";
-import { engineSendText, engineSendAudio } from "./meta-send";
+import { engineSendText, engineSendAudio, engineSendDocument } from "./meta-send";
 import { sendMetaConversionEvent } from "./meta-conversion";
 import type { Automation, KeywordMatchTriggerConfig } from "@/types";
 
@@ -162,6 +165,7 @@ beforeEach(() => {
   h.state.logUpdates = [];
   vi.mocked(engineSendText).mockClear();
   vi.mocked(engineSendAudio).mockClear();
+  vi.mocked(engineSendDocument).mockClear();
 });
 
 describe("runAutomationsForTrigger — tenant isolation", () => {
@@ -437,6 +441,148 @@ describe("send_audio", () => {
     });
 
     expect(engineSendAudio).not.toHaveBeenCalled();
+    expect(h.state.logUpdates.at(-1)?.status).toBe("failed");
+  });
+});
+
+describe("send_documents", () => {
+  function stepWithDocs(documents: Record<string, unknown>[]) {
+    return {
+      id: "s1",
+      automation_id: "a1",
+      step_type: "send_documents",
+      position: 0,
+      parent_step_id: null,
+      step_config: { documents },
+    };
+  }
+
+  it("sends every document strictly in array order", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [
+      stepWithDocs([
+        { media_url: "https://example.com/a.pdf", title: "Catalog" },
+        { media_url: "https://example.com/b.pdf", title: "Price list" },
+        { media_url: "https://example.com/c.pdf", title: "Terms" },
+      ]),
+    ];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(vi.mocked(engineSendDocument).mock.calls.map((c) => c[0])).toEqual([
+      {
+        accountId: ACCOUNT,
+        userId: "u1",
+        conversationId: "conv1",
+        contactId: "c1",
+        mediaUrl: "https://example.com/a.pdf",
+        title: "Catalog",
+      },
+      {
+        accountId: ACCOUNT,
+        userId: "u1",
+        conversationId: "conv1",
+        contactId: "c1",
+        mediaUrl: "https://example.com/b.pdf",
+        title: "Price list",
+      },
+      {
+        accountId: ACCOUNT,
+        userId: "u1",
+        conversationId: "conv1",
+        contactId: "c1",
+        mediaUrl: "https://example.com/c.pdf",
+        title: "Terms",
+      },
+    ]);
+    const steps = h.state.logUpdates.at(-1)?.steps_executed as Array<{ detail: string }>;
+    expect(steps[0].detail).toBe(
+      "sent 3 document(s) via Meta, in order (wamid-Catalog, wamid-Price list, wamid-Terms)",
+    );
+    expect(h.state.logUpdates.at(-1)?.status).toBe("success");
+  });
+
+  it("stops at the first failure instead of sending the rest out of order", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [
+      stepWithDocs([
+        { media_url: "https://example.com/a.pdf", title: "Catalog" },
+        { media_url: "", title: "Missing file" },
+        { media_url: "https://example.com/c.pdf", title: "Terms" },
+      ]),
+    ];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(vi.mocked(engineSendDocument).mock.calls.map((c) => (c[0] as { title: string }).title)).toEqual([
+      "Catalog",
+    ]);
+    expect(h.state.logUpdates.at(-1)?.status).toBe("failed");
+    const steps = h.state.logUpdates.at(-1)?.steps_executed as Array<{ detail: string }>;
+    expect(steps[0].detail).toBe(
+      "send_documents: stopped at document 2 of 3 — missing its uploaded file (1 sent successfully before this)",
+    );
+  });
+
+  it("names the document and the Meta error, and reports how many landed, when a send itself fails", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [
+      stepWithDocs([
+        { media_url: "https://example.com/a.pdf", title: "Catalog" },
+        { media_url: "https://example.com/b.pdf", title: "Price list" },
+      ]),
+    ];
+    vi.mocked(engineSendDocument).mockImplementationOnce(async (args: { title: string }) => ({
+      whatsapp_message_id: `wamid-${args.title}`,
+    }));
+    vi.mocked(engineSendDocument).mockImplementationOnce(async () => {
+      throw new Error("Meta API error: 400");
+    });
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(h.state.logUpdates.at(-1)?.status).toBe("failed");
+    const steps = h.state.logUpdates.at(-1)?.steps_executed as Array<{ detail: string }>;
+    expect(steps[0].detail).toBe(
+      'send_documents: stopped at document 2 of 2 ("Price list") — Meta API error: 400 (1 sent successfully before this)',
+    );
+  });
+
+  it("refuses an empty document list", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [stepWithDocs([])];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(engineSendDocument).not.toHaveBeenCalled();
     expect(h.state.logUpdates.at(-1)?.status).toBe("failed");
   });
 });

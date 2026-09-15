@@ -79,6 +79,29 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
         issues.push({ path: `${path}.media_url`, message: 'an audio file is required' })
       }
       break
+    case 'send_documents': {
+      const docs = Array.isArray(c.documents) ? c.documents : []
+      if (docs.length === 0) {
+        issues.push({ path: `${path}.documents`, message: 'at least one document is required' })
+        break
+      }
+      docs.forEach((raw, di) => {
+        const doc = (raw ?? {}) as Record<string, unknown>
+        if (!nonEmpty(doc.media_url)) {
+          issues.push({
+            path: `${path}.documents[${di}].media_url`,
+            message: 'a file is required for every document',
+          })
+        }
+        if (!nonEmpty(doc.title)) {
+          issues.push({
+            path: `${path}.documents[${di}].title`,
+            message: 'a title is required for every document',
+          })
+        }
+      })
+      break
+    }
     case 'add_tag':
     case 'remove_tag':
       if (!nonEmpty(c.tag_id)) {

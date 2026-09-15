@@ -87,6 +87,50 @@ describe("validateStepsForActivation", () => {
     ).toEqual([]);
   });
 
+  it("send_documents requires at least one document, each with a file and a title", () => {
+    expect(
+      validateStepsForActivation([
+        { step_type: "send_documents", step_config: { documents: [] } },
+      ]),
+    ).toEqual([
+      { path: "steps[0].documents", message: "at least one document is required" },
+    ]);
+
+    expect(
+      validateStepsForActivation([
+        {
+          step_type: "send_documents",
+          step_config: {
+            documents: [
+              { media_url: "", title: "" },
+              { media_url: "https://example.com/b.pdf", title: "" },
+              { media_url: "", title: "Price list" },
+            ],
+          },
+        },
+      ]),
+    ).toEqual([
+      { path: "steps[0].documents[0].media_url", message: "a file is required for every document" },
+      { path: "steps[0].documents[0].title", message: "a title is required for every document" },
+      { path: "steps[0].documents[1].title", message: "a title is required for every document" },
+      { path: "steps[0].documents[2].media_url", message: "a file is required for every document" },
+    ]);
+
+    expect(
+      validateStepsForActivation([
+        {
+          step_type: "send_documents",
+          step_config: {
+            documents: [
+              { media_url: "https://example.com/a.pdf", title: "Catalog" },
+              { media_url: "https://example.com/b.pdf", title: "Price list" },
+            ],
+          },
+        },
+      ]),
+    ).toEqual([]);
+  });
+
   it("checks wait amount and unit boundaries", () => {
     const issues = validateStepsForActivation([
       { step_type: "wait", step_config: { amount: 0, unit: "minutes" } },

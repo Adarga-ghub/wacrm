@@ -556,6 +556,7 @@ export type AutomationStepType =
   | 'send_list'
   | 'send_template'
   | 'send_audio'
+  | 'send_documents'
   | 'add_tag'
   | 'remove_tag'
   | 'assign_conversation'
@@ -645,6 +646,28 @@ export interface SendAudioStepConfig {
   filename?: string;
 }
 
+/**
+ * One uploaded PDF within a "Send PDFs" step. `title` is the only
+ * customer-facing label the builder collects — the engine sends it to
+ * Meta as the document's `filename` (what WhatsApp shows next to the
+ * file icon in the customer's chat) and stores it as `content_text` on
+ * the CRM's own `messages` row so the inbox bubble shows the same title
+ * (see `engineSendDocument` in `@/lib/automations/meta-send`).
+ */
+export interface SendDocumentsDocumentItem {
+  media_url: string;
+  title: string;
+  /** Original uploaded file's name — display-only in the builder
+   *  (fallback label before a title is typed), never sent to Meta. */
+  original_filename?: string;
+}
+
+/** "Send PDFs" — sends one or more uploaded documents, strictly in
+ *  array order, as separate WhatsApp document messages. */
+export interface SendDocumentsStepConfig {
+  documents: SendDocumentsDocumentItem[];
+}
+
 export interface TagStepConfig {
   tag_id: string;
 }
@@ -722,6 +745,7 @@ export type AutomationStepConfig =
   | SendListStepConfig
   | SendTemplateStepConfig
   | SendAudioStepConfig
+  | SendDocumentsStepConfig
   | TagStepConfig
   | AssignConversationStepConfig
   | UpdateContactFieldStepConfig

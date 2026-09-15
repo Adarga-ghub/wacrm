@@ -878,6 +878,7 @@
         "send_list": "Send List",
         "send_template": "Send Template",
         "send_audio": "Send Audio",
+        "send_documents": "Send PDFs",
         "add_tag": "Add Tag",
         "remove_tag": "Remove Tag",
         "assign_conversation": "Assign Conversation",
@@ -1046,7 +1047,18 @@
         "clickToUploadAudio": "Click to upload voice note (max 16 MB — OGG, MP3, AAC, M4A or AMR)",
         "uploadingAudio": "Uploading…",
         "removeAudioFile": "Remove audio file",
-        "audioFileHint": "Sent as a WhatsApp voice note. Meta doesn't support captions on audio messages, so it plays with no caption text."
+        "audioFileHint": "Sent as a WhatsApp voice note. Meta doesn't support captions on audio messages, so it plays with no caption text.",
+        "documentsLabel": "Documents ({count})",
+        "documentIndex": "Document {index}",
+        "addDocument": "Add PDF",
+        "moveDocumentUp": "Move up",
+        "moveDocumentDown": "Move down",
+        "removeDocument": "Remove this document",
+        "removeDocumentFile": "Remove file",
+        "clickToUploadDocument": "Click to upload PDF",
+        "uploadingDocument": "Uploading…",
+        "documentSizeLimit": "Maximum file size: {limit} MB",
+        "documentTitlePlaceholder": "Title shown to the customer (e.g. Price List 2026)"
       }
     }
   },

@@ -40,6 +40,8 @@ import {
   Upload,
   Paperclip,
   X,
+  Files,
+  AlertCircle,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -120,6 +122,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   send_list: { label: "send_list", icon: List, border: "border-l-primary" },
   send_template: { label: "send_template", icon: FileText, border: "border-l-primary" },
   send_audio: { label: "send_audio", icon: Mic, border: "border-l-primary" },
+  send_documents: { label: "send_documents", icon: Files, border: "border-l-primary" },
   add_tag: { label: "add_tag", icon: Tag, border: "border-l-primary" },
   remove_tag: { label: "remove_tag", icon: TagIcon, border: "border-l-primary" },
   assign_conversation: { label: "assign_conversation", icon: UserCheck, border: "border-l-primary" },
@@ -138,6 +141,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "send_list",
   "send_template",
   "send_audio",
+  "send_documents",
   "add_tag",
   "remove_tag",
   "assign_conversation",
@@ -194,6 +198,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { template_name: "", language: "en_US" }
     case "send_audio":
       return { media_url: "", filename: "" }
+    case "send_documents":
+      return { documents: [] }
     case "add_tag":
     case "remove_tag":
       return { tag_id: "" }
@@ -753,6 +759,246 @@ function SendAudioFields({
       />
       <p className="mt-1 text-[11px] text-muted-foreground">{t("config.audioFileHint")}</p>
     </FieldBlock>
+  )
+}
+
+// Documents reuse the same chat-media bucket as audio (it already
+// allows application/pdf — migration 023) rather than a dedicated
+// bucket. Scoped to PDF only, matching the step's "Send PDFs" label.
+const AUTOMATION_DOCUMENT_BUCKET = "chat-media"
+const DOCUMENT_ACCEPT = "application/pdf"
+
+interface DocumentItem {
+  media_url: string
+  title: string
+  original_filename?: string
+}
+
+function SendDocumentsFields({
+  documents,
+  onChange,
+  t,
+}: {
+  documents: DocumentItem[]
+  onChange: (documents: DocumentItem[]) => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  const update = (idx: number, patch: Partial<DocumentItem>) =>
+    onChange(documents.map((d, i) => (i === idx ? { ...d, ...patch } : d)))
+  const add = () =>
+    onChange([...documents, { media_url: "", title: "", original_filename: "" }])
+  const remove = (idx: number) => onChange(documents.filter((_, i) => i !== idx))
+  const move = (idx: number, direction: -1 | 1) => {
+    const next = idx + direction
+    if (next < 0 || next >= documents.length) return
+    const copy = [...documents]
+    const [item] = copy.splice(idx, 1)
+    copy.splice(next, 0, item)
+    onChange(copy)
+  }
+
+  return (
+    <FieldBlock label={t("config.documentsLabel", { count: documents.length })}>
+      <div className="flex flex-col gap-2">
+        {documents.map((doc, i) => (
+          <DocumentRow
+            key={i}
+            index={i}
+            total={documents.length}
+            doc={doc}
+            onUpdate={(patch) => update(i, patch)}
+            onRemove={() => remove(i)}
+            onMoveUp={() => move(i, -1)}
+            onMoveDown={() => move(i, 1)}
+            t={t}
+          />
+        ))}
+      </div>
+      <Button variant="ghost" size="sm" onClick={add} className="mt-2">
+        <Plus className="h-3.5 w-3.5" />
+        {t("config.addDocument")}
+      </Button>
+    </FieldBlock>
+  )
+}
+
+function DocumentRow({
+  index,
+  total,
+  doc,
+  onUpdate,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+  t,
+}: {
+  index: number
+  total: number
+  doc: DocumentItem
+  onUpdate: (patch: Partial<DocumentItem>) => void
+  onRemove: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  // Persists until the next pick/removal — unlike the toast, this stays
+  // on screen so a rejected file is never a blink-and-miss-it moment.
+  const [sizeError, setSizeError] = useState<string | null>(null)
+
+  const displayName =
+    doc.original_filename || (doc.media_url ? doc.media_url.split("/").pop() ?? "" : "")
+  const limitBytes = MEDIA_MAX_BYTES_BY_KIND.document
+  const limitMb = limitBytes / 1024 / 1024
+
+  const handleFile = useCallback(
+    async (file: File) => {
+      setSizeError(null)
+      if (file.size > limitBytes) {
+        // Blocked BEFORE it ever reaches uploadAccountMedia/Storage — an
+        // oversized file must never start uploading.
+        const message = `"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB, which exceeds the ${limitMb} MB limit for documents.`
+        setSizeError(message)
+        toast.error(message)
+        return
+      }
+      setUploading(true)
+      try {
+        const { publicUrl } = await uploadAccountMedia(AUTOMATION_DOCUMENT_BUCKET, file)
+        onUpdate({ media_url: publicUrl, original_filename: file.name })
+        toast.success("File uploaded.")
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Upload failed."
+        toast.error(msg)
+      } finally {
+        setUploading(false)
+      }
+    },
+    [onUpdate, limitBytes, limitMb],
+  )
+
+  return (
+    <div className="rounded-md border border-border bg-muted/40 p-2">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          {t("config.documentIndex", { index: index + 1 })}
+        </span>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            disabled={index === 0}
+            aria-label={t("config.moveDocumentUp")}
+            onClick={onMoveUp}
+          >
+            <ArrowUp className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            disabled={index === total - 1}
+            aria-label={t("config.moveDocumentDown")}
+            onClick={onMoveDown}
+          >
+            <ArrowDown className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+            aria-label={t("config.removeDocument")}
+            onClick={onRemove}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {doc.media_url ? (
+        <div className="mb-2 flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs">
+          <Paperclip className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
+          <a
+            href={doc.media_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-w-0 flex-1 truncate text-foreground hover:text-cyan-300"
+            title={displayName || doc.media_url}
+          >
+            {displayName || doc.media_url}
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              setSizeError(null)
+              onUpdate({ media_url: "", original_filename: "" })
+            }}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={t("config.removeDocumentFile")}
+            disabled={uploading}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className={cn(
+            "mb-1 flex w-full items-center justify-center gap-2 rounded-md border border-dashed bg-card px-3 py-3 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60",
+            sizeError ? "border-red-500/60" : "border-border hover:border-border",
+          )}
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {t("config.uploadingDocument")}
+            </>
+          ) : (
+            <>
+              <Upload className="h-3.5 w-3.5" />
+              {t("config.clickToUploadDocument")}
+            </>
+          )}
+        </button>
+      )}
+
+      {/* Always visible — before AND after a file is attached — so the
+          limit is never something the user only sees once, right before
+          picking a file that turns out to be too big. */}
+      <p className="mb-2 text-[11px] text-muted-foreground">
+        {t("config.documentSizeLimit", { limit: limitMb })}
+      </p>
+
+      {sizeError && (
+        <div className="mb-2 flex items-start gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1.5 text-[11px] text-red-400">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{sizeError}</span>
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={DOCUMENT_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) void handleFile(f)
+          e.target.value = ""
+        }}
+      />
+
+      <Input
+        value={doc.title}
+        onChange={(e) => onUpdate({ title: e.target.value })}
+        placeholder={t("config.documentTitlePlaceholder")}
+        className="bg-card text-xs"
+      />
+    </div>
   )
 }
 
@@ -1493,6 +1739,14 @@ function StepEditor({
           t={t}
         />
       )
+    case "send_documents":
+      return (
+        <SendDocumentsFields
+          documents={(cfg.documents as DocumentItem[]) ?? []}
+          onChange={(documents) => set({ documents })}
+          t={t}
+        />
+      )
     case "add_tag":
     case "remove_tag":
       return (
@@ -1743,6 +1997,13 @@ function previewFor(step: BuilderStep): string {
         (step.step_config.filename as string) ||
         (step.step_config.media_url ? "audio file" : "no audio yet")
       )
+    case "send_documents": {
+      const docs = (step.step_config.documents as DocumentItem[] | undefined) ?? []
+      if (docs.length === 0) return "no documents yet"
+      return `${docs.length} document${docs.length === 1 ? "" : "s"}: ${docs
+        .map((d) => d.title || "untitled")
+        .join(", ")}`
+    }
     case "wait":
       return `${step.step_config.amount ?? "?"} ${step.step_config.unit ?? ""}`
     case "condition":

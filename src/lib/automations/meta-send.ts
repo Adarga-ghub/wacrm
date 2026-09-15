@@ -173,6 +173,141 @@ export async function engineSendAudio(
   return { whatsapp_message_id: waMessageId }
 }
 
+/**
+ * Best-effort filename for a "Send PDFs" document: the user's title,
+ * sanitized of path-hostile characters, with the uploaded file's real
+ * extension appended if the title doesn't already end with it. This is
+ * what WhatsApp displays next to the document icon in the customer's
+ * chat — the whole reason the builder collects a title per file instead
+ * of sending the raw uploaded filename (e.g. `1789-invoice.pdf`).
+ */
+function documentFilename(title: string, mediaUrl: string): string {
+  let ext = '.pdf'
+  try {
+    const pathname = new URL(mediaUrl).pathname
+    const match = /\.[^./]+$/.exec(pathname)
+    if (match) ext = match[0].toLowerCase()
+  } catch {
+    // Malformed URL (shouldn't happen — it's our own storage's public
+    // URL) — fall back to .pdf.
+  }
+  const safe = title.trim().replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'document'
+  return safe.toLowerCase().endsWith(ext) ? safe : `${safe}${ext}`
+}
+
+interface SendDocumentArgs {
+  accountId: string
+  userId: string
+  conversationId: string
+  contactId: string
+  /** Public URL into the CRM's own storage (chat-media bucket). */
+  mediaUrl: string
+  /** User-set title from the builder — becomes the document's filename
+   *  on the wire and `content_text` in our own `messages` row. */
+  title: string
+}
+
+/**
+ * Send one document from a "Send PDFs" automation step.
+ *
+ * Mirrors `engineSendAudio`'s shape (same contact/config lookup +
+ * phone-variant retry). Unlike audio, Meta accepts a `filename` for
+ * document messages — the title is sent as exactly that (what the
+ * customer sees next to the file icon), and persisted verbatim as
+ * `content_text` so the CRM's own inbox bubble (`MediaDocumentBubble`,
+ * which reads `message.content_text`) shows the same title.
+ */
+export async function engineSendDocument(
+  args: SendDocumentArgs,
+): Promise<{ whatsapp_message_id: string }> {
+  const db = supabaseAdmin()
+
+  const { data: contact, error: contactErr } = await db
+    .from('contacts')
+    .select('id, phone')
+    .eq('id', args.contactId)
+    .eq('account_id', args.accountId)
+    .maybeSingle()
+  if (contactErr || !contact?.phone) {
+    throw new Error('contact not found for this account')
+  }
+
+  const sanitized = sanitizePhoneForMeta(contact.phone)
+  if (!isValidE164(sanitized)) {
+    throw new Error(`contact phone invalid: ${contact.phone}`)
+  }
+
+  const { data: config, error: configErr } = await db
+    .from('whatsapp_config')
+    .select('*')
+    .eq('account_id', args.accountId)
+    .single()
+  if (configErr || !config) {
+    throw new Error('WhatsApp not configured for this account')
+  }
+
+  const accessToken = decrypt(config.access_token)
+  const filename = documentFilename(args.title, args.mediaUrl)
+
+  const attempt = async (phone: string): Promise<string> => {
+    const r = await sendMediaMessage({
+      phoneNumberId: config.phone_number_id,
+      accessToken,
+      to: phone,
+      kind: 'document',
+      link: args.mediaUrl,
+      filename,
+    })
+    return r.messageId
+  }
+
+  const variants = phoneVariants(sanitized)
+  let workingPhone = sanitized
+  let waMessageId = ''
+  let lastError: unknown = null
+  for (const v of variants) {
+    try {
+      waMessageId = await attempt(v)
+      workingPhone = v
+      lastError = null
+      break
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!isRecipientNotAllowedError(msg)) throw err
+      lastError = err
+    }
+  }
+  if (lastError) throw lastError
+
+  if (workingPhone !== sanitized) {
+    await db.from('contacts').update({ phone: workingPhone }).eq('id', contact.id)
+  }
+
+  const { error: msgErr } = await db.from('messages').insert({
+    conversation_id: args.conversationId,
+    sender_type: 'bot',
+    content_type: 'document',
+    content_text: args.title,
+    media_url: args.mediaUrl,
+    message_id: waMessageId,
+    status: 'sent',
+  })
+  if (msgErr) {
+    throw new Error(`sent to Meta but DB insert failed: ${msgErr.message}`)
+  }
+
+  await db
+    .from('conversations')
+    .update({
+      last_message_text: args.title,
+      last_message_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', args.conversationId)
+
+  return { whatsapp_message_id: waMessageId }
+}
+
 interface SendInteractiveArgs {
   accountId: string
   userId: string

@@ -878,6 +878,7 @@
         "send_list": "목록 보내기",
         "send_template": "템플릿 보내기",
         "send_audio": "오디오 보내기",
+        "send_documents": "PDF 보내기",
         "add_tag": "태그 추가",
         "remove_tag": "태그 제거",
         "assign_conversation": "대화 담당자 지정",
@@ -1046,7 +1047,18 @@
         "clickToUploadAudio": "음성 메모 업로드하기 (최대 16MB — OGG, MP3, AAC, M4A 또는 AMR)",
         "uploadingAudio": "업로드 중…",
         "removeAudioFile": "오디오 파일 제거",
-        "audioFileHint": "WhatsApp 음성 메모로 전송됩니다. Meta는 오디오 메시지에 캡션을 지원하지 않으므로 캡션 텍스트 없이 재생됩니다."
+        "audioFileHint": "WhatsApp 음성 메모로 전송됩니다. Meta는 오디오 메시지에 캡션을 지원하지 않으므로 캡션 텍스트 없이 재생됩니다.",
+        "documentsLabel": "문서 ({count})",
+        "documentIndex": "문서 {index}",
+        "addDocument": "PDF 추가",
+        "moveDocumentUp": "위로 이동",
+        "moveDocumentDown": "아래로 이동",
+        "removeDocument": "이 문서 제거",
+        "removeDocumentFile": "파일 제거",
+        "clickToUploadDocument": "PDF 업로드하기",
+        "uploadingDocument": "업로드 중…",
+        "documentSizeLimit": "최대 파일 크기: {limit}MB",
+        "documentTitlePlaceholder": "고객에게 표시될 제목 (예: 2026년 가격표)"
       }
     }
   },
