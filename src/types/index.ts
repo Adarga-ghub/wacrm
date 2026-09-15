@@ -773,6 +773,10 @@ export interface Automation {
   is_active: boolean;
   execution_count: number;
   last_executed_at?: string | null;
+  /** Manual sort order for the /automations list (migration 047),
+   *  account-scoped — lower sorts first. Not tied to created_at; a
+   *  drag-and-drop reorder rewrites this for every affected row. */
+  position: number;
   created_at: string;
   updated_at: string;
 }

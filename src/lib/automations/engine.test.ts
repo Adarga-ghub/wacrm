@@ -770,6 +770,7 @@ describe("triggerMatches — interactive_reply", () => {
       trigger_config: { reply_ids },
       is_active: true,
       execution_count: 0,
+      position: 0,
       created_at: "",
       updated_at: "",
     };
@@ -810,6 +811,7 @@ describe("triggerMatches — tag_added", () => {
       trigger_config: tagId ? { tag_id: tagId } : {},
       is_active: true,
       execution_count: 0,
+      position: 0,
       created_at: "",
       updated_at: "",
     };

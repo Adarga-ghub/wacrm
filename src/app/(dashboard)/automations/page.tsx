@@ -4,6 +4,21 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import {
   Zap,
   Plus,
   MoreVertical,
@@ -16,6 +31,7 @@ import {
   Users,
   PhoneCall,
   Loader2,
+  GripVertical,
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
@@ -73,7 +89,7 @@ export default function AutomationsPage() {
       const { data, error: fetchErr } = await supabase
         .from("automations")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("position", { ascending: true })
       if (fetchErr) throw fetchErr
       setAutomations((data ?? []) as Automation[])
     } catch (err) {
@@ -84,6 +100,42 @@ export default function AutomationsPage() {
   useEffect(() => {
     load()
   }, [])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  )
+
+  async function handleReorder(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setAutomations((prev) => {
+      if (!prev) return prev
+      const oldIndex = prev.findIndex((a) => a.id === active.id)
+      const newIndex = prev.findIndex((a) => a.id === over.id)
+      if (oldIndex < 0 || newIndex < 0) return prev
+
+      const reordered = arrayMove(prev, oldIndex, newIndex)
+      // Fire-and-persist: the drag already gave the user its feedback
+      // (the card animated into place), so the save happens in the
+      // background rather than blocking on a spinner. A failure rolls
+      // the list back to its pre-drag order and surfaces a toast.
+      persistOrder(reordered, prev)
+      return reordered
+    })
+  }
+
+  async function persistOrder(next: Automation[], previous: Automation[]) {
+    const res = await fetch("/api/automations/reorder", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ordered_ids: next.map((a) => a.id) }),
+    })
+    if (!res.ok) {
+      setAutomations(previous)
+      const body = await res.json().catch(() => ({}))
+      toast.error(body?.error ?? t("toasts.reorderError"))
+    }
+  }
 
   async function toggleActive(a: Automation, next: boolean) {
     // Optimistic flip so the switch feels instant.
@@ -214,20 +266,31 @@ export default function AutomationsPage() {
           </p>
         </div>
       ) : (
-        <ul className="space-y-3">
-          {automations.map((a) => (
-            <AutomationCard
-              key={a.id}
-              automation={a}
-              onToggle={(next) => toggleActive(a, next)}
-              onEdit={() => router.push(`/automations/${a.id}/edit`)}
-              onDuplicate={() => duplicate(a)}
-              onLogs={() => router.push(`/automations/${a.id}/logs`)}
-              onDelete={() => setPendingDelete(a)}
-              t={t}
-            />
-          ))}
-        </ul>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleReorder}
+        >
+          <SortableContext
+            items={automations.map((a) => a.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul className="space-y-3">
+              {automations.map((a) => (
+                <AutomationCard
+                  key={a.id}
+                  automation={a}
+                  onToggle={(next) => toggleActive(a, next)}
+                  onEdit={() => router.push(`/automations/${a.id}/edit`)}
+                  onDuplicate={() => duplicate(a)}
+                  onLogs={() => router.push(`/automations/${a.id}/logs`)}
+                  onDelete={() => setPendingDelete(a)}
+                  t={t}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
 
       <Dialog open={!!pendingDelete} onOpenChange={(v) => !v && setPendingDelete(null)}>
@@ -279,9 +342,30 @@ function AutomationCard({
   t: ReturnType<typeof useTranslations>
 }) {
   const meta = triggerMeta(automation.trigger_type)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: automation.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
   return (
-    <li className="rounded-xl border border-border bg-card transition-colors hover:border-border">
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="rounded-xl border border-border bg-card transition-colors hover:border-border"
+    >
       <div className="flex items-center gap-4 p-4">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          aria-label={t("dragToReorder")}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+
         <div
           className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10"
           aria-hidden

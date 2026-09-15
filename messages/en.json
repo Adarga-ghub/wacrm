@@ -839,6 +839,7 @@
       "cancel": "Cancel",
       "deleteTitle": "Delete automation",
       "deleteDesc": "This permanently removes {name} and its execution history. This cannot be undone.",
+      "dragToReorder": "Drag to reorder",
       "toasts": {
         "activated": "Automation activated",
         "paused": "Automation paused",
@@ -846,7 +847,8 @@
         "deleted": "Automation deleted",
         "updateError": "Failed to update",
         "duplicateError": "Failed to duplicate",
-        "deleteError": "Failed to delete"
+        "deleteError": "Failed to delete",
+        "reorderError": "Failed to save the new order"
       }
     },
     "edit": {

@@ -19,7 +19,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from('automations')
     .select('*')
-    .order('created_at', { ascending: false })
+    .order('position', { ascending: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ automations: data ?? [] })
 }
@@ -105,6 +105,16 @@ export async function POST(request: Request) {
   }
 
   const admin = supabaseAdmin()
+
+  // New automations append to the end of the account's list (same
+  // convention as pipeline_stages' handleAddStage: position = current
+  // count) rather than defaulting to 0, which would collide with
+  // whatever the account already has in the top slot.
+  const { count: existingCount } = await admin
+    .from('automations')
+    .select('id', { count: 'exact', head: true })
+    .eq('account_id', accountId)
+
   const { data: automation, error: insertErr } = await admin
     .from('automations')
     .insert({
@@ -115,6 +125,7 @@ export async function POST(request: Request) {
       trigger_type: effectiveTriggerType,
       trigger_config: effectiveTriggerConfig ?? {},
       is_active: !!is_active,
+      position: existingCount ?? 0,
     })
     .select()
     .single()
