@@ -35,6 +35,7 @@ import {
 import { sendMetaConversionEvent } from './meta-conversion'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
+import { MAX_INLINE_WAIT_SECONDS } from './validate'
 
 // ------------------------------------------------------------
 // Public API
@@ -378,8 +379,26 @@ async function executeStepsFrom(args: ExecuteArgs): Promise<void> {
   let errorMessage: string | null = null
 
   for (const step of steps as AutomationStep[]) {
-    // `wait` is the suspension point: enqueue and stop processing this
-    // scope. The cron endpoint will pick it up later.
+    // `wait` with unit `seconds` is a short, in-process pause: sleep
+    // right here and fall through to the next step in this same loop
+    // iteration. It never touches `automation_pending_executions` or the
+    // cron — the whole point is to smooth out message bursts on a live
+    // run without parking the run or relying on the 5-minute cron tick.
+    if (step.step_type === 'wait' && (step.step_config as WaitStepConfig).unit === 'seconds') {
+      const cfg = step.step_config as WaitStepConfig
+      const ms = waitInlineMs(cfg)
+      await sleep(ms)
+      results.push({
+        step_id: step.id,
+        step_type: step.step_type,
+        status: 'success',
+        detail: `waited ${cfg.amount}s`,
+      })
+      continue
+    }
+
+    // `wait` (minutes/hours/days) is the suspension point: enqueue and
+    // stop processing this scope. The cron endpoint will pick it up later.
     if (step.step_type === 'wait') {
       const cfg = step.step_config as WaitStepConfig
       const ms = waitMs(cfg)
@@ -996,6 +1015,22 @@ async function evaluateCondition(cfg: ConditionStepConfig, args: ExecuteArgs): P
 function waitMs(cfg: WaitStepConfig): number {
   const unitMs = cfg.unit === 'days' ? 86_400_000 : cfg.unit === 'hours' ? 3_600_000 : 60_000
   return Math.max(1_000, cfg.amount * unitMs)
+}
+
+/**
+ * Delay for a `seconds`-unit wait step, run inline by `executeStepsFrom`.
+ * Clamped to `MAX_INLINE_WAIT_SECONDS` as defense-in-depth — activation
+ * validation (`validateStepsForActivation`) already rejects configs above
+ * that cap, but this also covers automations saved before that cap
+ * existed, or written directly through the API bypassing validation.
+ */
+function waitInlineMs(cfg: WaitStepConfig): number {
+  const seconds = Math.min(Math.max(cfg.amount, 0), MAX_INLINE_WAIT_SECONDS)
+  return seconds * 1_000
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function interpolate(s: string, args: ExecuteArgs): string {

@@ -699,7 +699,14 @@ export interface CreateDealStepConfig {
 
 export interface WaitStepConfig {
   amount: number;
-  unit: 'minutes' | 'hours' | 'days';
+  /**
+   * `seconds` is handled with a local, in-process delay inside the
+   * execution engine (`waitInline` in `@/lib/automations/engine`) — it
+   * never touches `automation_pending_executions` or the 5-minute cron.
+   * `minutes` / `hours` / `days` still park the run via the pending-
+   * executions table for the cron to resume, unchanged.
+   */
+  unit: 'seconds' | 'minutes' | 'hours' | 'days';
 }
 
 export type ConditionSubject =

@@ -15,6 +15,14 @@ import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 // surface at save time.
 // ------------------------------------------------------------
 
+/**
+ * Upper bound for a `wait` step's `seconds` unit. Shared with the engine's
+ * inline-delay clamp (`@/lib/automations/engine`) so a config that slips
+ * past activation-time validation (e.g. written directly via the API)
+ * can't block a live request for longer than a "short pause" is meant to.
+ */
+export const MAX_INLINE_WAIT_SECONDS = 120
+
 export interface ValidationIssue {
   /** Dot-path for the UI to highlight; stable enough to build a table. */
   path: string
@@ -138,11 +146,20 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
     case 'wait':
       if (typeof c.amount !== 'number' || !Number.isFinite(c.amount) || c.amount <= 0) {
         issues.push({ path: `${path}.amount`, message: 'wait amount must be greater than 0' })
+      } else if (c.unit === 'seconds' && c.amount > MAX_INLINE_WAIT_SECONDS) {
+        // `seconds` blocks the live request (see `waitInline` in engine.ts) —
+        // capped so a mistyped value can't hang a trigger for minutes.
+        // Longer pauses belong in the `minutes` unit, which suspends via
+        // the cron instead of holding the connection open.
+        issues.push({
+          path: `${path}.amount`,
+          message: `wait in seconds must be ${MAX_INLINE_WAIT_SECONDS} or less — use minutes for longer pauses`,
+        })
       }
-      if (!['minutes', 'hours', 'days'].includes(String(c.unit))) {
+      if (!['seconds', 'minutes', 'hours', 'days'].includes(String(c.unit))) {
         issues.push({
           path: `${path}.unit`,
-          message: 'wait unit must be minutes, hours, or days',
+          message: 'wait unit must be seconds, minutes, hours, or days',
         })
       }
       break

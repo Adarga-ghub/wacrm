@@ -70,6 +70,7 @@ import {
   blankListPayload,
 } from "@/components/interactive/interactive-builder"
 import { interactivePayloadPreviewText } from "@/lib/whatsapp/interactive"
+import { MAX_INLINE_WAIT_SECONDS } from "@/lib/automations/validate"
 import { createClient } from "@/lib/supabase/client"
 import { uploadAccountMedia, MEDIA_MAX_BYTES_BY_KIND } from "@/lib/storage/upload-media"
 import {
@@ -1828,31 +1829,45 @@ function StepEditor({
           </FieldBlock>
         </>
       )
-    case "wait":
+    case "wait": {
+      const isSeconds = ((cfg.unit as string) ?? "hours") === "seconds"
       return (
-        <div className="grid grid-cols-2 gap-2">
-          <FieldBlock label={t("config.amountLabel")}>
-            <Input
-              type="number"
-              min={1}
-              value={(cfg.amount as number) ?? 1}
-              onChange={(e) => set({ amount: Math.max(1, Number(e.target.value)) })}
-              className="bg-muted text-foreground"
-            />
-          </FieldBlock>
-          <FieldBlock label={t("config.unitLabel")}>
-            <select
-              value={(cfg.unit as string) ?? "hours"}
-              onChange={(e) => set({ unit: e.target.value })}
-              className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
-            >
-              <option value="minutes">{t("config.units.minutes")}</option>
-              <option value="hours">{t("config.units.hours")}</option>
-              <option value="days">{t("config.units.days")}</option>
-            </select>
-          </FieldBlock>
+        <div>
+          <div className="grid grid-cols-2 gap-2">
+            <FieldBlock label={t("config.amountLabel")}>
+              <Input
+                type="number"
+                min={1}
+                max={isSeconds ? MAX_INLINE_WAIT_SECONDS : undefined}
+                value={(cfg.amount as number) ?? 1}
+                onChange={(e) => {
+                  const raw = Math.max(1, Number(e.target.value))
+                  set({ amount: isSeconds ? Math.min(raw, MAX_INLINE_WAIT_SECONDS) : raw })
+                }}
+                className="bg-muted text-foreground"
+              />
+            </FieldBlock>
+            <FieldBlock label={t("config.unitLabel")}>
+              <select
+                value={(cfg.unit as string) ?? "hours"}
+                onChange={(e) => set({ unit: e.target.value })}
+                className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
+              >
+                <option value="seconds">{t("config.units.seconds")}</option>
+                <option value="minutes">{t("config.units.minutes")}</option>
+                <option value="hours">{t("config.units.hours")}</option>
+                <option value="days">{t("config.units.days")}</option>
+              </select>
+            </FieldBlock>
+          </div>
+          {isSeconds && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {t("config.waitSecondsHint", { max: MAX_INLINE_WAIT_SECONDS })}
+            </p>
+          )}
         </div>
       )
+    }
     case "condition":
       return (
         <>

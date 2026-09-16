@@ -134,7 +134,7 @@ describe("validateStepsForActivation", () => {
   it("checks wait amount and unit boundaries", () => {
     const issues = validateStepsForActivation([
       { step_type: "wait", step_config: { amount: 0, unit: "minutes" } },
-      { step_type: "wait", step_config: { amount: 5, unit: "seconds" } },
+      { step_type: "wait", step_config: { amount: 5, unit: "weeks" } },
       { step_type: "wait", step_config: { amount: -1, unit: "hours" } },
       {
         step_type: "wait",
@@ -146,6 +146,25 @@ describe("validateStepsForActivation", () => {
       "steps[1].unit",
       "steps[2].amount",
       "steps[3].amount",
+    ]);
+  });
+
+  it("accepts a seconds wait within the inline-delay cap and rejects one above it", () => {
+    expect(
+      validateStepsForActivation([
+        { step_type: "wait", step_config: { amount: 5, unit: "seconds" } },
+      ]),
+    ).toEqual([]);
+
+    expect(
+      validateStepsForActivation([
+        { step_type: "wait", step_config: { amount: 121, unit: "seconds" } },
+      ]),
+    ).toEqual([
+      {
+        path: "steps[0].amount",
+        message: "wait in seconds must be 120 or less — use minutes for longer pauses",
+      },
     ]);
   });
 

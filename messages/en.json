@@ -1016,10 +1016,12 @@
         "amountLabel": "Amount",
         "unitLabel": "Unit",
         "units": {
+          "seconds": "Seconds",
           "minutes": "Minutes",
           "hours": "Hours",
           "days": "Days"
         },
+        "waitSecondsHint": "Short pause (up to {max}s), applied instantly during the run — doesn't use the cron schedule.",
         "subjectLabel": "Subject",
         "subjects": {
           "tag_presence": "Tag presence",

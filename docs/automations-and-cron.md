@@ -10,19 +10,42 @@ nothing is blocked waiting for it. It is instead parked in the
 database and only resumes when something polls for due work. That
 poll is what this doc covers.
 
+The one exception is a `Wait` step in **`seconds`** — see
+[Seconds is the exception](#seconds-is-the-exception) below.
+
 ## What gets parked, and where
 
-- **Automation `Wait` steps.** When an automation's step list hits a
-  `wait` step, `runAutomationsForTrigger` (see
-  `src/lib/automations/engine.ts`) inserts a row into
-  `automation_pending_executions` with `run_at` set to
-  `now() + <wait duration>` and `status = 'pending'`, then stops. The
+- **Automation `Wait` steps (`minutes` / `hours` / `days`).** When an
+  automation's step list hits a `wait` step in one of these units,
+  `runAutomationsForTrigger` (see `src/lib/automations/engine.ts`)
+  inserts a row into `automation_pending_executions` with `run_at` set
+  to `now() + <wait duration>` and `status = 'pending'`, then stops. The
   automation's remaining steps (e.g. the recovery message) are _not_
   executed yet — they are `next_step_position` on that row, waiting.
 - **Flow timeouts.** A `flow_runs` row stays `status = 'active'` until
   either the contact replies (normal advance) or it is swept as
   `timed_out` after `fallback_policy.on_timeout_hours` (24h by
   default). Nothing marks it `timed_out` on its own.
+
+## Seconds is the exception
+
+A `Wait` step in **`seconds`** never touches
+`automation_pending_executions` and never waits on either cron
+endpoint. `executeStepsFrom` (`src/lib/automations/engine.ts`) instead
+`await`s an in-process `setTimeout` right where it is — a few seconds
+of the live run parked in memory, not the database — then falls
+through to the next step in the same call. This exists so a chain of
+`send_message` steps can be spaced out (avoid landing on the customer
+as a burst) without waiting up to a full 5-minute cron tick for a
+1-second pause, and without changing the cron's own interval.
+
+Because the delay blocks whatever request is running the automation
+(the webhook handler, the manual `/api/automations/engine` trigger,
+tag-add dispatch, …), it is capped at `MAX_INLINE_WAIT_SECONDS` (120s,
+`src/lib/automations/validate.ts`) — both at activation-time validation
+and again as a defense-in-depth clamp in the engine itself. A pause
+longer than that belongs in the `minutes` unit, which parks the run
+instead of holding a connection open.
 
 ## The two cron endpoints
 

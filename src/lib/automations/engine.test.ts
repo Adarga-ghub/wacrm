@@ -715,6 +715,42 @@ describe("send_webhook — SSRF guard (GHSA-8jqh-598v-rfxc)", () => {
   });
 });
 
+describe("wait step — seconds unit runs inline, no cron", () => {
+  it("sleeps in-process then continues to the next step, without touching automation_pending_executions", async () => {
+    vi.useFakeTimers();
+    try {
+      h.state.owned = { id: "c1" };
+      h.state.automations = [automationWithUpdateStep()];
+      h.state.steps = [
+        {
+          id: "s1",
+          automation_id: "a1",
+          step_type: "wait",
+          position: 0,
+          parent_step_id: null,
+          step_config: { amount: 5, unit: "seconds" },
+        },
+        { ...updateStep(), id: "s2", position: 1 },
+      ];
+
+      const done = runAutomationsForTrigger({
+        accountId: ACCOUNT,
+        triggerType: "new_message_received",
+        contactId: "c1",
+        context: {},
+      });
+
+      await vi.runAllTimersAsync();
+      await done;
+
+      expect(h.state.fromCalls).not.toContain("automation_pending_executions");
+      expect(h.state.updateCalls).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 function webhookStep(url: string) {
   return {
     id: "s1",

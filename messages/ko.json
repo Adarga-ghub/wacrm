@@ -1016,10 +1016,12 @@
         "amountLabel": "수치",
         "unitLabel": "단위",
         "units": {
+          "seconds": "초",
           "minutes": "분",
           "hours": "시간",
           "days": "일"
         },
+        "waitSecondsHint": "짧은 대기(최대 {max}초)로, 실행 중 즉시 적용되며 크론 일정을 사용하지 않습니다.",
         "subjectLabel": "대상",
         "subjects": {
           "tag_presence": "태그 존재 여부",
