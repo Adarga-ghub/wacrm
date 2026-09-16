@@ -30,12 +30,23 @@ const PRESET_COLORS = [
   { name: 'red', value: '#ef4444' },
   { name: 'orange', value: '#f97316' },
   { name: 'amber', value: '#f59e0b' },
+  { name: 'yellow', value: '#eab308' },
+  { name: 'lime', value: '#84cc16' },
   { name: 'emerald', value: '#10b981' },
+  { name: 'green', value: '#22c55e' },
+  { name: 'teal', value: '#14b8a6' },
   { name: 'cyan', value: '#06b6d4' },
+  { name: 'sky', value: '#0ea5e9' },
   { name: 'blue', value: '#3b82f6' },
+  { name: 'indigo', value: '#6366f1' },
   { name: 'violet', value: '#8b5cf6' },
+  { name: 'fuchsia', value: '#d946ef' },
   { name: 'pink', value: '#ec4899' },
+  { name: 'rose', value: '#f43f5e' },
+  { name: 'slate', value: '#64748b' },
 ];
+
+const DEFAULT_COLOR = PRESET_COLORS.find((c) => c.name === 'emerald')!.value;
 
 /**
  * Tags card — colour-coded contact labels. Creation is an inline row
@@ -54,7 +65,12 @@ export function TagManager() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [newTagName, setNewTagName] = useState('');
-  const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[3].value);
+  const [selectedColor, setSelectedColor] = useState(DEFAULT_COLOR);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [tagToEdit, setTagToEdit] = useState<Tag | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState(DEFAULT_COLOR);
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -111,7 +127,7 @@ export function TagManager() {
 
       toast.success(t('tagCreated'));
       setNewTagName('');
-      setSelectedColor(PRESET_COLORS[3].value);
+      setSelectedColor(DEFAULT_COLOR);
       await fetchTags(user.id);
     } catch (err) {
       console.error('Create error:', err);
@@ -150,6 +166,52 @@ export function TagManager() {
     }
   }
 
+  function openEdit(tag: Tag) {
+    setTagToEdit(tag);
+    setEditName(tag.name);
+    setEditColor(tag.color);
+    setEditDialogOpen(true);
+  }
+
+  // Updates by id, so every join (`contact_tags`, the inbox pickers, the
+  // contact sidebar badges, automation/flow "has tag" conditions) picks up
+  // the new name/colour the next time it fetches — nothing else stores a
+  // denormalized copy of a tag's name or colour.
+  async function handleSaveEdit() {
+    if (!tagToEdit) return;
+    const trimmedName = editName.trim();
+    if (!trimmedName) {
+      toast.error(t('nameRequired'));
+      return;
+    }
+
+    try {
+      setEditSaving(true);
+      const { error } = await supabase
+        .from('tags')
+        .update({ name: trimmedName, color: editColor })
+        .eq('id', tagToEdit.id);
+
+      if (error) throw error;
+
+      setTags((prev) =>
+        prev.map((tag) =>
+          tag.id === tagToEdit.id
+            ? { ...tag, name: trimmedName, color: editColor }
+            : tag,
+        ),
+      );
+      toast.success(t('tagUpdated'));
+      setEditDialogOpen(false);
+      setTagToEdit(null);
+    } catch (err) {
+      console.error('Update error:', err);
+      toast.error(t('failedToUpdateTag'));
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -173,7 +235,17 @@ export function TagManager() {
                 {tags.map((tag) => (
                   <span
                     key={tag.id}
-                    className="group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openEdit(tag)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openEdit(tag);
+                      }
+                    }}
+                    aria-label={t('editAria', { name: tag.name })}
+                    className="group inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors hover:brightness-95"
                     style={{
                       backgroundColor: `${tag.color}20`,
                       color: tag.color,
@@ -187,7 +259,10 @@ export function TagManager() {
                     {tag.name}
                     <button
                       type="button"
-                      onClick={() => confirmDelete(tag)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        confirmDelete(tag);
+                      }}
                       aria-label={t('deleteAria', { name: tag.name })}
                       className="ml-0.5 rounded-full p-0.5 opacity-60 transition-opacity hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/10"
                     >
@@ -280,6 +355,65 @@ export function TagManager() {
                 </>
               ) : (
                 t('deleteTag')
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit name/colour — updates the row in place (same id), so every
+          view that joins on tag_id picks up the change on its next fetch. */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('editTag')}</DialogTitle>
+            <DialogDescription>{t('editTagDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveEdit();
+              }}
+              disabled={editSaving}
+              maxLength={40}
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {PRESET_COLORS.map((color) => (
+                <button
+                  key={color.value}
+                  type="button"
+                  onClick={() => setEditColor(color.value)}
+                  aria-label={t('useColor', { color: t(`colors.${color.name}` as Parameters<typeof t>[0]) })}
+                  aria-pressed={editColor === color.value}
+                  className={cn(
+                    'size-6 rounded-md transition-transform hover:scale-110',
+                    editColor === color.value &&
+                      'outline outline-2 outline-offset-2 outline-primary',
+                  )}
+                  style={{ backgroundColor: color.value }}
+                  title={t(`colors.${color.name}` as Parameters<typeof t>[0])}
+                />
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setEditDialogOpen(false)}
+              disabled={editSaving}
+            >
+              {t('cancel')}
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={editSaving || !editName.trim()}>
+              {editSaving ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  {t('saving')}
+                </>
+              ) : (
+                t('saveChanges')
               )}
             </Button>
           </DialogFooter>
