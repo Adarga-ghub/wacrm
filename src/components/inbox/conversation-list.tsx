@@ -9,8 +9,8 @@ import {
 } from "@/lib/inbox/conversations";
 import { cn } from "@/lib/utils";
 import type { Conversation, ConversationStatus, Tag } from "@/types";
-import { Search, ChevronDown, X } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Search, ChevronDown, X, Calendar } from "lucide-react";
+import { formatDistanceToNow, isToday, isYesterday, startOfDay, subDays } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,6 +46,9 @@ const STATUS_COLORS: Record<ConversationStatus, string> = {
 
 type InboxFilter = ConversationStatus | "all" | "unread";
 
+/** When a contact "entered" the inbox — filtered against `conversation.created_at`. */
+type DateRangeFilter = "all" | "today" | "yesterday" | "last7days";
+
 export function ConversationList({
   activeConversationId,
   onSelect,
@@ -63,8 +66,16 @@ export function ConversationList({
     { label: t("filterClosed"), value: "closed" },
   ], [t]);
 
+  const DATE_RANGE_OPTIONS: { label: string; value: DateRangeFilter }[] = useMemo(() => [
+    { label: t("dateAll"), value: "all" },
+    { label: t("dateToday"), value: "today" },
+    { label: t("dateYesterday"), value: "yesterday" },
+    { label: t("dateLast7Days"), value: "last7days" },
+  ], [t]);
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
+  const [dateRange, setDateRange] = useState<DateRangeFilter>("all");
   const [loading, setLoading] = useState(true);
   // Contact-based filters (issue #272). Tags use OR logic (a conversation
   // matches if its contact carries any selected tag), consistent with
@@ -167,6 +178,19 @@ export function ConversationList({
       result = result.filter((c) => c.status === filter);
     }
 
+    // Temporal filter — when the contact entered the inbox, based on the
+    // conversation's creation time (the first time they wrote in).
+    if (dateRange !== "all") {
+      result = result.filter((c) => {
+        if (!c.created_at) return false;
+        const createdAt = new Date(c.created_at);
+        if (dateRange === "today") return isToday(createdAt);
+        if (dateRange === "yesterday") return isYesterday(createdAt);
+        // Rolling 7-day window: today plus the previous 6 days.
+        return createdAt >= subDays(startOfDay(new Date()), 6);
+      });
+    }
+
     // Contact-based filters (tags via OR logic, exact company match).
     if (selectedTagIds.length > 0 || selectedCompany !== null) {
       result = result.filter((c) =>
@@ -188,7 +212,7 @@ export function ConversationList({
     }
 
     return result;
-  }, [conversations, filter, search, selectedTagIds, selectedCompany]);
+  }, [conversations, filter, dateRange, search, selectedTagIds, selectedCompany]);
 
   const toggleTag = useCallback((id: string) => {
     setSelectedTagIds((prev) =>
@@ -199,9 +223,11 @@ export function ConversationList({
   const clearContactFilters = useCallback(() => {
     setSelectedTagIds([]);
     setSelectedCompany(null);
+    setDateRange("all");
   }, []);
 
-  const hasContactFilters = selectedTagIds.length > 0 || selectedCompany !== null;
+  const hasContactFilters =
+    selectedTagIds.length > 0 || selectedCompany !== null || dateRange !== "all";
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,6 +244,7 @@ export function ConversationList({
   );
 
   const activeFilter = FILTER_OPTIONS.find((o) => o.value === filter);
+  const activeDateFilter = DATE_RANGE_OPTIONS.find((o) => o.value === dateRange);
 
   return (
     // w-full on mobile so the list occupies the whole viewport when it's
@@ -253,6 +280,43 @@ export function ConversationList({
                   className={cn(
                     "text-sm",
                     filter === opt.value
+                      ? "text-primary"
+                      : "text-popover-foreground"
+                  )}
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Temporal filter (issue: agents want to see who just came in
+              without scanning the whole list) — filters conversations by
+              when the contact first entered, i.e. `conversation.created_at`. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                dateRange !== "all"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Calendar className="h-3 w-3" />
+              {dateRange === "all" ? t("dateFilterLabel") : activeDateFilter?.label}
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="border-border bg-popover"
+            >
+              {DATE_RANGE_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => setDateRange(opt.value)}
+                  className={cn(
+                    "text-sm",
+                    dateRange === opt.value
                       ? "text-primary"
                       : "text-popover-foreground"
                   )}
@@ -354,6 +418,15 @@ export function ConversationList({
 
         {hasContactFilters && (
           <div className="flex flex-wrap items-center gap-1">
+            {dateRange !== "all" && (
+              <button
+                onClick={() => setDateRange("all")}
+                className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground hover:bg-muted/70"
+              >
+                <span className="max-w-24 truncate">{activeDateFilter?.label}</span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
             {selectedTagIds.map((id) => {
               const tag = tagsById.get(id);
               return (

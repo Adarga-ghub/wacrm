@@ -31,18 +31,34 @@ import {
   PanelRightClose,
   Tag as TagIcon,
   AlertTriangle,
+  GripVertical,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInHours } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { addContactTag, deleteContactTag } from "@/lib/contacts/tag-api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
@@ -168,6 +184,17 @@ const STATUS_OPTIONS: { label: string; value: ConversationStatus; color: string 
  */
 const DOODLE_BG_CLASSES =
   "bg-background bg-[url('/inbox-doodle.svg')] bg-repeat";
+
+// Header tags panel: drag-to-reorder + resize preferences, device-scoped.
+const TAGS_ORDER_STORAGE_KEY = "wacrm:inbox:tags-panel-order";
+const TAGS_PANEL_SIZE_STORAGE_KEY = "wacrm:inbox:tags-panel-size";
+const TAGS_PANEL_DEFAULT_SIZE = { width: 224, height: 256 };
+const TAGS_PANEL_MIN_SIZE = { width: 180, height: 160 };
+const TAGS_PANEL_MAX_SIZE = { width: 480, height: 640 };
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
 
 export function MessageThread({
   conversation,
@@ -315,6 +342,144 @@ export function MessageThread({
       }
     },
     [contactId, contactTagIds, onTagsChange],
+  );
+
+  // Drag-to-reorder + persistent resize for the header's tags panel.
+  // Order and size are device-scoped display preferences (not shared
+  // across users/tabs), so localStorage is enough — no DB round-trip.
+  const [tagOrder, setTagOrder] = useState<string[]>([]);
+  const [tagsPanelSize, setTagsPanelSize] = useState(TAGS_PANEL_DEFAULT_SIZE);
+
+  useEffect(() => {
+    try {
+      const storedOrder = localStorage.getItem(TAGS_ORDER_STORAGE_KEY);
+      if (storedOrder) {
+        const parsed = JSON.parse(storedOrder);
+        if (Array.isArray(parsed)) setTagOrder(parsed.filter((id) => typeof id === "string"));
+      }
+      const storedSize = localStorage.getItem(TAGS_PANEL_SIZE_STORAGE_KEY);
+      if (storedSize) {
+        const parsed = JSON.parse(storedSize);
+        if (typeof parsed?.width === "number" && typeof parsed?.height === "number") {
+          setTagsPanelSize({
+            width: clamp(parsed.width, TAGS_PANEL_MIN_SIZE.width, TAGS_PANEL_MAX_SIZE.width),
+            height: clamp(parsed.height, TAGS_PANEL_MIN_SIZE.height, TAGS_PANEL_MAX_SIZE.height),
+          });
+        }
+      }
+    } catch {
+      // localStorage can throw in private-browsing / sandboxed contexts.
+    }
+  }, []);
+
+  // `allTags` sorted by the user's saved drag order; tags that aren't in
+  // the saved order yet (new tags, or first run) keep their fetched
+  // (alphabetical) order and are appended after the ones the user placed.
+  const orderedTags = useMemo(() => {
+    if (tagOrder.length === 0) return allTags;
+    const byId = new Map(allTags.map((tag) => [tag.id, tag]));
+    const ordered: Tag[] = [];
+    for (const id of tagOrder) {
+      const tag = byId.get(id);
+      if (tag) {
+        ordered.push(tag);
+        byId.delete(id);
+      }
+    }
+    for (const tag of allTags) {
+      if (byId.has(tag.id)) ordered.push(tag);
+    }
+    return ordered;
+  }, [allTags, tagOrder]);
+
+  const tagsDragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleTagsDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      setTagOrder((prev) => {
+        const base = prev.length > 0 ? prev : orderedTags.map((tag) => tag.id);
+        const oldIndex = base.indexOf(String(active.id));
+        const newIndex = base.indexOf(String(over.id));
+        if (oldIndex < 0 || newIndex < 0) return prev;
+        const next = arrayMove(base, oldIndex, newIndex);
+        try {
+          localStorage.setItem(TAGS_ORDER_STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // Persistence is best-effort; ignore storage failures.
+        }
+        return next;
+      });
+    },
+    [orderedTags],
+  );
+
+  // Manual resize (dnd-kit only handles reordering, not resizing) — a
+  // pointer-drag on an edge/corner handle tracks movement via document
+  // listeners so it keeps working even if the cursor leaves the panel.
+  const tagsResizeRef = useRef<{
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    axis: "x" | "y" | "xy";
+  } | null>(null);
+
+  const handleTagsResizeStart = useCallback(
+    (axis: "x" | "y" | "xy") => (e: React.PointerEvent) => {
+      e.preventDefault();
+      tagsResizeRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startWidth: tagsPanelSize.width,
+        startHeight: tagsPanelSize.height,
+        axis,
+      };
+
+      const handleMove = (ev: PointerEvent) => {
+        const state = tagsResizeRef.current;
+        if (!state) return;
+        setTagsPanelSize((prev) => ({
+          width:
+            state.axis === "y"
+              ? prev.width
+              : clamp(
+                  state.startWidth + (ev.clientX - state.startX),
+                  TAGS_PANEL_MIN_SIZE.width,
+                  TAGS_PANEL_MAX_SIZE.width,
+                ),
+          height:
+            state.axis === "x"
+              ? prev.height
+              : clamp(
+                  state.startHeight + (ev.clientY - state.startY),
+                  TAGS_PANEL_MIN_SIZE.height,
+                  TAGS_PANEL_MAX_SIZE.height,
+                ),
+        }));
+      };
+
+      const handleUp = () => {
+        tagsResizeRef.current = null;
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+        setTagsPanelSize((current) => {
+          try {
+            localStorage.setItem(TAGS_PANEL_SIZE_STORAGE_KEY, JSON.stringify(current));
+          } catch {
+            // Persistence is best-effort; ignore storage failures.
+          }
+          return current;
+        });
+      };
+
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
+    },
+    [tagsPanelSize],
   );
 
   // 24-hour session timer
@@ -1157,12 +1322,16 @@ export function MessageThread({
             </button>
           )}
 
-          {/* Tags dropdown — quick add/remove without leaving the chat
+          {/* Tags panel — quick add/remove without leaving the chat
               (issue: tagging previously required opening the contact
               record from Contacts). Mirrors the contact sidebar's tag
-              list and the conversation list's tag-filter picker. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
+              list and the conversation list's tag-filter picker. Built on
+              Popover rather than the Menu-based DropdownMenu because it
+              needs free-form pointer interaction inside it (drag-to-reorder
+              + resize handles) that a menu's item-selection semantics would
+              fight with. */}
+          <Popover>
+            <PopoverTrigger
               className={cn(
                 "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
                 contactTagIds.length > 0 ? "text-primary" : "text-muted-foreground"
@@ -1176,35 +1345,67 @@ export function MessageThread({
                 </span>
               )}
               <ChevronDown className="h-3 w-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
+            </PopoverTrigger>
+            <PopoverContent
               align="end"
-              className="max-h-64 w-56 border-border bg-popover"
+              className="relative flex w-auto flex-col gap-0 overflow-hidden border-border bg-popover p-0"
+              style={{ width: tagsPanelSize.width, height: tagsPanelSize.height }}
             >
               {allTags.length === 0 ? (
-                <DropdownMenuItem disabled className="text-sm text-muted-foreground">
+                <p className="p-3 text-sm text-muted-foreground">
                   {t("noTagsAvailable")}
-                </DropdownMenuItem>
+                </p>
               ) : (
-                allTags.map((tag) => (
-                  <DropdownMenuCheckboxItem
-                    key={tag.id}
-                    checked={contactTagIds.includes(tag.id)}
-                    onCheckedChange={() => handleToggleContactTag(tag.id)}
-                    className="text-sm text-popover-foreground"
+                <ScrollArea className="min-h-0 flex-1 p-1">
+                  <DndContext
+                    sensors={tagsDragSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleTagsDragEnd}
                   >
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <span className="truncate">{tag.name}</span>
-                    </span>
-                  </DropdownMenuCheckboxItem>
-                ))
+                    <SortableContext
+                      items={orderedTags.map((tag) => tag.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        {orderedTags.map((tag) => (
+                          <SortableTagRow
+                            key={tag.id}
+                            tag={tag}
+                            checked={contactTagIds.includes(tag.id)}
+                            onToggle={() => handleToggleContactTag(tag.id)}
+                            dragLabel={t("dragToReorder")}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </ScrollArea>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+              {/* Resize handles — right edge (width), bottom edge (height),
+                  and the corner (both at once). Sizes persist to
+                  localStorage on pointerup so the panel reopens at
+                  whatever size the user last left it. */}
+              <div
+                onPointerDown={handleTagsResizeStart("x")}
+                className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize touch-none"
+                aria-label={t("resizeTagsPanelWidth")}
+                role="separator"
+              />
+              <div
+                onPointerDown={handleTagsResizeStart("y")}
+                className="absolute bottom-0 left-0 h-1.5 w-full cursor-ns-resize touch-none"
+                aria-label={t("resizeTagsPanelHeight")}
+                role="separator"
+              />
+              <div
+                onPointerDown={handleTagsResizeStart("xy")}
+                className="absolute bottom-0 right-0 h-3 w-3 cursor-nwse-resize touch-none"
+                aria-label={t("resizeTagsPanel")}
+                role="separator"
+              />
+            </PopoverContent>
+          </Popover>
 
           {/* Status dropdown */}
           <DropdownMenu>
@@ -1458,6 +1659,58 @@ export function MessageThread({
         onActiveIdChange={handleMediaChange}
         contactLabel={contactDisplayName}
       />
+    </div>
+  );
+}
+
+/**
+ * One row in the header's tags panel. The grip icon carries dnd-kit's
+ * drag listeners; the rest of the row is a plain toggle button, so
+ * clicking the tag name never gets mistaken for a drag start.
+ */
+function SortableTagRow({
+  tag,
+  checked,
+  onToggle,
+  dragLabel,
+}: {
+  tag: Tag;
+  checked: boolean;
+  onToggle: () => void;
+  dragLabel: string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: tag.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-1">
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="cursor-grab touch-none px-0.5 text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        aria-label={dragLabel}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex flex-1 items-center gap-2 rounded-md py-1 pr-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+      >
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: tag.color }}
+        />
+        <span className="flex-1 truncate text-left">{tag.name}</span>
+        {checked && <Check className="h-3.5 w-3.5 shrink-0" />}
+      </button>
     </div>
   );
 }
