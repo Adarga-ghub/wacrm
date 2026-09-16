@@ -226,7 +226,7 @@ export interface Conversation {
 // Notifications (migration 027)
 // ============================================================
 
-export type NotificationType = 'conversation_assigned';
+export type NotificationType = 'conversation_assigned' | 'contact_phone_missing';
 
 export interface Notification {
   id: string;

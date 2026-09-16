@@ -343,7 +343,13 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
           // Default ON: the column is NOT NULL DEFAULT TRUE, but a row
           // read before migration 039 lands would have it undefined,
           // and losing attachments is the failure mode worth avoiding.
-          config.mirror_inbound_media !== false
+          config.mirror_inbound_media !== false,
+          // Correlation ids for webhook_phone_capture_failures — only
+          // used on the (rare) path where neither phone source
+          // resolves, so we can point at the exact WABA/number in a
+          // Meta support ticket.
+          entry.id,
+          phoneNumberId
         )
       }
     }
@@ -643,7 +649,11 @@ async function processMessage(
   accessToken: string,
   // Per-account opt-out for the inbound-media mirror (migration 039).
   // See parseMessageContent for what it turns off.
-  mirrorMedia: boolean
+  mirrorMedia: boolean,
+  // Correlation ids for webhook_phone_capture_failures (migration 048) —
+  // only read on the phone-unresolved path below.
+  wabaId: string,
+  phoneNumberId: string
 ) {
   // The phone number SHOULD be on `message.from`, and normally is. But
   // for some Click-to-WhatsApp-ad-originated messages, Meta has been
@@ -658,8 +668,19 @@ async function processMessage(
   // full raw message/contact payload in the logs instead of a silent
   // empty phone, so the actual shape Meta sent is there to diagnose —
   // which is exactly what today's failures didn't leave behind.
+  //
+  // Confirmed against a real occurrence (contact "Zenovia", 2026-09-16):
+  // the delivery carried a genuine ad referral (with text) but NEITHER
+  // message.from NOR contacts[].wa_id held a value — Meta simply never
+  // sent the number in that webhook body. There is no third field in
+  // the documented payload to fall back to; when this branch fires the
+  // number was never delivered to us at all, so `phoneUnresolved` below
+  // drives a permanent DB record (migration 048) instead of only a
+  // console line, since that is the only way to recover evidence for a
+  // Meta support ticket after the fact.
   const senderPhone = normalizePhone(message.from) || normalizePhone(contact.wa_id)
-  if (!senderPhone) {
+  const phoneUnresolved = !senderPhone
+  if (phoneUnresolved) {
     console.error(
       '[webhook] CRITICAL: inbound message has no usable phone number on ' +
         'either message.from or contacts[].wa_id — this WILL create an ' +
@@ -692,6 +713,30 @@ async function processMessage(
   )
   if (!convResult) return
   const conversation = convResult.conversation
+
+  // Persist forensic evidence + alert the account the moment Meta fails
+  // to deliver a phone number on either source field (migration 048).
+  // Best-effort and never blocks the main inbound flow — losing this
+  // record would only make the NEXT occurrence harder to diagnose, it
+  // must not lose the message itself.
+  if (phoneUnresolved) {
+    await recordPhoneCaptureFailure({
+      accountId,
+      contactId: contactRecord.id,
+      conversationId: conversation.id,
+      wabaId,
+      phoneNumberId,
+      message,
+      contact,
+    })
+    await notifyPhoneMissing({
+      accountId,
+      recipientUserId: configOwnerUserId,
+      contactId: contactRecord.id,
+      conversationId: conversation.id,
+      contactName,
+    })
+  }
 
   // Emit conversation.created as soon as the thread is opened — BEFORE
   // the reaction short-circuit below — so a conversation first opened by
@@ -1007,6 +1052,95 @@ async function processMessage(
     content_type: contentType,
     text: contentText,
   })
+}
+
+/**
+ * Permanent forensic record for the "Meta sent neither message.from nor
+ * contacts[].wa_id" case (migration 048). A console.error alone is
+ * gone once the hosting platform's log retention window rolls over —
+ * this survives, and is queryable from the DB by account, so the next
+ * occurrence leaves real evidence (the exact raw payload, plus which
+ * WABA/phone number ID received it, for a Meta support ticket) instead
+ * of relying on catching it live in hosting logs.
+ *
+ * Best-effort: never let a logging failure take down the main inbound
+ * flow that already succeeded (contact + conversation exist).
+ */
+async function recordPhoneCaptureFailure({
+  accountId,
+  contactId,
+  conversationId,
+  wabaId,
+  phoneNumberId,
+  message,
+  contact,
+}: {
+  accountId: string
+  contactId: string
+  conversationId: string
+  wabaId: string
+  phoneNumberId: string
+  message: WhatsAppMessage
+  contact: { profile: { name: string }; wa_id: string }
+}) {
+  try {
+    const { error } = await supabaseAdmin()
+      .from('webhook_phone_capture_failures')
+      .insert({
+        account_id: accountId,
+        contact_id: contactId,
+        conversation_id: conversationId,
+        waba_id: wabaId,
+        phone_number_id: phoneNumberId,
+        meta_message_id: message.id,
+        raw_message: message,
+        raw_contact: contact,
+      })
+    if (error) {
+      console.error('[webhook] failed to record phone capture failure:', error.message)
+    }
+  } catch (err) {
+    console.error('[webhook] recordPhoneCaptureFailure threw:', err)
+  }
+}
+
+/**
+ * In-app alert (notification bell, realtime) for the same case — so
+ * the account finds out the moment it happens instead of discovering
+ * an unmessageable contact days later while browsing the inbox.
+ * Best-effort: never blocks the main inbound flow.
+ */
+async function notifyPhoneMissing({
+  accountId,
+  recipientUserId,
+  contactId,
+  conversationId,
+  contactName,
+}: {
+  accountId: string
+  recipientUserId: string
+  contactId: string
+  conversationId: string
+  contactName: string
+}) {
+  try {
+    const { error } = await supabaseAdmin().from('notifications').insert({
+      account_id: accountId,
+      user_id: recipientUserId,
+      type: 'contact_phone_missing',
+      conversation_id: conversationId,
+      contact_id: contactId,
+      title: 'Contact created without a phone number',
+      body:
+        `Meta didn't include a phone number for "${contactName || 'a new contact'}" on a ` +
+        `Click-to-WhatsApp ad click — this contact can't be messaged back until it's fixed.`,
+    })
+    if (error) {
+      console.error('[webhook] failed to create phone-missing notification:', error.message)
+    }
+  } catch (err) {
+    console.error('[webhook] notifyPhoneMissing threw:', err)
+  }
 }
 
 async function parseMessageContent(

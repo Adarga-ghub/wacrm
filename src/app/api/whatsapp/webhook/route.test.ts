@@ -29,6 +29,10 @@ const h = vi.hoisted(() => ({
     }[],
     /** Error the next storage upload resolves with, if any. */
     storageUploadError: null as { message: string } | null,
+    /** Rows inserted into webhook_phone_capture_failures (migration 048). */
+    phoneCaptureFailureInserts: [] as Record<string, unknown>[],
+    /** Rows inserted into notifications. */
+    notificationInserts: [] as Record<string, unknown>[],
   },
 }))
 
@@ -134,6 +138,27 @@ vi.mock('@supabase/supabase-js', () => ({
                     error: null,
                   }),
               }
+            },
+          }
+        case 'contacts':
+          // findOrCreateContact's "name changed" update: update().eq()
+          return {
+            update: () => ({
+              eq: () => Promise.resolve({ error: null }),
+            }),
+          }
+        case 'webhook_phone_capture_failures':
+          return {
+            insert: (row: Record<string, unknown>) => {
+              h.state.phoneCaptureFailureInserts.push(row)
+              return Promise.resolve({ error: null })
+            },
+          }
+        case 'notifications':
+          return {
+            insert: (row: Record<string, unknown>) => {
+              h.state.notificationInserts.push(row)
+              return Promise.resolve({ error: null })
             },
           }
         default:
@@ -270,6 +295,8 @@ beforeEach(() => {
   h.state.mirrorInboundMedia = true
   h.state.storageUploads = []
   h.state.storageUploadError = null
+  h.state.phoneCaptureFailureInserts = []
+  h.state.notificationInserts = []
   mockGetMediaUrl.mockResolvedValue({
     url: 'https://lookaside.fbsbx.com/whatsapp/abc',
     mimeType: 'image/jpeg',
@@ -315,6 +342,11 @@ describe('inbound webhook: phone number extraction falls back to contacts[].wa_i
       'acc-1',
       '15559998888',
     )
+    // The recovered-phone path is not a failure — no forensic row or
+    // alert should be raised for it (migration 048 is for the case
+    // where BOTH sources come back empty).
+    expect(h.state.phoneCaptureFailureInserts).toHaveLength(0)
+    expect(h.state.notificationInserts).toHaveLength(0)
   })
 
   it('logs a CRITICAL error instead of silently creating an orphan when neither source has a usable phone', async () => {
@@ -332,6 +364,30 @@ describe('inbound webhook: phone number extraction falls back to contacts[].wa_i
     } finally {
       errorSpy.mockRestore()
     }
+  })
+
+  it('records a permanent forensic row and notifies the account when neither phone source resolves (migration 048)', async () => {
+    await runWebhook(
+      { ...TEXT_MESSAGE, from: '' },
+      [{ wa_id: '', profile: { name: 'Ghost' } }],
+    )
+
+    expect(h.state.phoneCaptureFailureInserts).toHaveLength(1)
+    expect(h.state.phoneCaptureFailureInserts[0]).toMatchObject({
+      account_id: 'acc-1',
+      contact_id: 'contact-1',
+      conversation_id: 'conv-1',
+      meta_message_id: TEXT_MESSAGE.id,
+    })
+
+    expect(h.state.notificationInserts).toHaveLength(1)
+    expect(h.state.notificationInserts[0]).toMatchObject({
+      account_id: 'acc-1',
+      user_id: 'user-1',
+      type: 'contact_phone_missing',
+      contact_id: 'contact-1',
+      conversation_id: 'conv-1',
+    })
   })
 })
 
