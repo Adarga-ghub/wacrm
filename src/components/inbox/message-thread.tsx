@@ -32,10 +32,21 @@ import {
   Tag as TagIcon,
   AlertTriangle,
   GripVertical,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInHours } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -141,6 +152,15 @@ interface MessageThreadProps {
    * existing callers keep working.
    */
   onTagsChange?: () => void;
+  /**
+   * Fired after the header's delete-contact action successfully removes
+   * the active contact. The page owns the selected-conversation state,
+   * so it's the one that clears the thread view (there's nothing left to
+   * show — the conversation cascade-deleted along with the contact).
+   * Optional so existing callers keep working; the delete button only
+   * renders when this is provided.
+   */
+  onContactDeleted?: () => void;
 }
 
 function formatDateSeparator(dateStr: string, t: ReturnType<typeof useTranslations>): string {
@@ -211,6 +231,7 @@ export function MessageThread({
   contactPanelOpen,
   onToggleContactPanel,
   onTagsChange,
+  onContactDeleted,
 }: MessageThreadProps) {
   const t = useTranslations("Inbox.messageThread");
   const tTimer = useTranslations("Inbox.sessionTimer");
@@ -344,6 +365,32 @@ export function MessageThread({
     [contactId, contactTagIds, onTagsChange],
   );
 
+  // Delete-contact confirmation, triggered from the header. Deleting the
+  // contact row cascades (ON DELETE CASCADE, migration 001) to its
+  // conversations/messages/tags, so a single delete is enough here — the
+  // parent just needs to clear the now-nonexistent conversation out of
+  // its view via `onContactDeleted`.
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeletingContact, setIsDeletingContact] = useState(false);
+
+  const handleDeleteContact = useCallback(async () => {
+    if (!contactId) return;
+    setIsDeletingContact(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("contacts").delete().eq("id", contactId);
+      if (error) throw error;
+      toast.success(t("contactDeleted"));
+      setDeleteConfirmOpen(false);
+      onContactDeleted?.();
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "unknown error";
+      toast.error(`${t("contactDeleteFailed")}: ${reason}`);
+    } finally {
+      setIsDeletingContact(false);
+    }
+  }, [contactId, onContactDeleted, t]);
+
   // Drag-to-reorder + persistent resize for the header's tags panel.
   // Order and size are device-scoped display preferences (not shared
   // across users/tabs), so localStorage is enough — no DB round-trip.
@@ -400,19 +447,22 @@ export function MessageThread({
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
-      setTagOrder((prev) => {
-        const base = prev.length > 0 ? prev : orderedTags.map((tag) => tag.id);
-        const oldIndex = base.indexOf(String(active.id));
-        const newIndex = base.indexOf(String(over.id));
-        if (oldIndex < 0 || newIndex < 0) return prev;
-        const next = arrayMove(base, oldIndex, newIndex);
-        try {
-          localStorage.setItem(TAGS_ORDER_STORAGE_KEY, JSON.stringify(next));
-        } catch {
-          // Persistence is best-effort; ignore storage failures.
-        }
-        return next;
-      });
+      // Base off `orderedTags` (not the raw `tagOrder`) so tags that were
+      // never dragged before — including ones just created, which only
+      // exist implicitly appended at the end of `orderedTags` — are found
+      // at their rendered index instead of being missing from the base
+      // array entirely (which silently aborted the reorder).
+      const base = orderedTags.map((tag) => tag.id);
+      const oldIndex = base.indexOf(String(active.id));
+      const newIndex = base.indexOf(String(over.id));
+      if (oldIndex < 0 || newIndex < 0) return;
+      const next = arrayMove(base, oldIndex, newIndex);
+      try {
+        localStorage.setItem(TAGS_ORDER_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Persistence is best-effort; ignore storage failures.
+      }
+      setTagOrder(next);
     },
     [orderedTags],
   );
@@ -1509,8 +1559,58 @@ export function MessageThread({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Delete contact — surfaces the action here so agents don't
+              have to leave the thread and go to Contacts just to remove
+              one. Gated behind a confirmation dialog since it's
+              irreversible (cascade-deletes the conversation/messages
+              too). Only rendered when the page wires up
+              `onContactDeleted`. */}
+          {onContactDeleted && (
+            <button
+              type="button"
+              onClick={() => setDeleteConfirmOpen(true)}
+              aria-label={t("deleteContact")}
+              title={t("deleteContact")}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Delete-contact confirmation */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-popover-foreground">
+              {t("deleteContactTitle")}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              {t("deleteContactDesc", { name: displayName })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={isDeletingContact}
+              className="border-border text-muted-foreground hover:bg-muted"
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteContact}
+              disabled={isDeletingContact}
+            >
+              {isDeletingContact && <Loader2 className="size-4 animate-spin" />}
+              {t("deleteContactConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">

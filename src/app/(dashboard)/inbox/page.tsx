@@ -512,6 +512,28 @@ function InboxPageInner() {
     router.replace("/inbox", { scroll: false });
   }, [router]);
 
+  /**
+   * The header's delete-contact action (MessageThread) cascade-deletes the
+   * active conversation along with the contact, so there's nothing left
+   * to show — same cleanup as the mobile "back" button, plus dropping the
+   * now-nonexistent conversation from the list. Done optimistically here
+   * (rather than waiting on a resync) since there's no realtime handler
+   * for conversation DELETE events.
+   */
+  const handleContactDeleted = useCallback(() => {
+    const deletedConversationId = activeConversation?.id;
+    setActiveConversation(null);
+    setActiveContact(null);
+    setMessages([]);
+    autoSelectedForDeepLinkRef.current = null;
+    if (deletedConversationId) {
+      setConversations((prev) =>
+        prev.filter((c) => c.id !== deletedConversationId),
+      );
+    }
+    router.replace("/inbox", { scroll: false });
+  }, [activeConversation?.id, router]);
+
 
   const handleMessagesLoaded = useCallback((loaded: Message[]) => {
     setMessages(loaded);
@@ -635,6 +657,7 @@ function InboxPageInner() {
             contactPanelOpen={contactPanelOpen}
             onToggleContactPanel={handleToggleContactPanel}
             onTagsChange={handleTagsChange}
+            onContactDeleted={handleContactDeleted}
           />
         </div>
 

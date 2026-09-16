@@ -147,6 +147,7 @@
       "dateAll": "모든 날짜",
       "dateToday": "오늘",
       "dateYesterday": "어제",
+      "dateLast3Days": "최근 3일",
       "dateLast7Days": "최근 7일",
       "tags": "태그",
       "company": "회사",
@@ -185,7 +186,14 @@
       "selectConversation": "대화를 선택하세요",
       "selectConversationHint": "왼쪽에서 대화를 선택해 메시지를 시작하세요",
       "today": "오늘",
-      "yesterday": "어제"
+      "yesterday": "어제",
+      "deleteContact": "연락처 삭제",
+      "deleteContactTitle": "연락처를 삭제하시겠습니까?",
+      "deleteContactDesc": "{name} 연락처와 전체 대화 기록이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "deleteContactConfirm": "삭제",
+      "cancel": "취소",
+      "contactDeleted": "연락처가 삭제되었습니다",
+      "contactDeleteFailed": "연락처를 삭제하지 못했습니다"
     },
     "sessionTimer": {
       "expired": "만료됨",

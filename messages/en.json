@@ -147,6 +147,7 @@
       "dateAll": "All dates",
       "dateToday": "Today",
       "dateYesterday": "Yesterday",
+      "dateLast3Days": "Last 3 days",
       "dateLast7Days": "Last 7 days",
       "tags": "Tags",
       "company": "Company",
@@ -185,7 +186,14 @@
       "selectConversation": "Select a conversation",
       "selectConversationHint": "Choose a conversation from the left to start messaging",
       "today": "Today",
-      "yesterday": "Yesterday"
+      "yesterday": "Yesterday",
+      "deleteContact": "Delete contact",
+      "deleteContactTitle": "Delete contact?",
+      "deleteContactDesc": "This will permanently delete {name} and their entire conversation history. This can't be undone.",
+      "deleteContactConfirm": "Delete",
+      "cancel": "Cancel",
+      "contactDeleted": "Contact deleted",
+      "contactDeleteFailed": "Failed to delete contact"
     },
     "sessionTimer": {
       "expired": "Expired",

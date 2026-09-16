@@ -47,7 +47,7 @@ const STATUS_COLORS: Record<ConversationStatus, string> = {
 type InboxFilter = ConversationStatus | "all" | "unread";
 
 /** When a contact "entered" the inbox — filtered against `conversation.created_at`. */
-type DateRangeFilter = "all" | "today" | "yesterday" | "last7days";
+type DateRangeFilter = "all" | "today" | "yesterday" | "last3days" | "last7days";
 
 export function ConversationList({
   activeConversationId,
@@ -70,6 +70,7 @@ export function ConversationList({
     { label: t("dateAll"), value: "all" },
     { label: t("dateToday"), value: "today" },
     { label: t("dateYesterday"), value: "yesterday" },
+    { label: t("dateLast3Days"), value: "last3days" },
     { label: t("dateLast7Days"), value: "last7days" },
   ], [t]);
 
@@ -186,6 +187,8 @@ export function ConversationList({
         const createdAt = new Date(c.created_at);
         if (dateRange === "today") return isToday(createdAt);
         if (dateRange === "yesterday") return isYesterday(createdAt);
+        // Rolling 3-day window: today plus the previous 2 days.
+        if (dateRange === "last3days") return createdAt >= subDays(startOfDay(new Date()), 2);
         // Rolling 7-day window: today plus the previous 6 days.
         return createdAt >= subDays(startOfDay(new Date()), 6);
       });
