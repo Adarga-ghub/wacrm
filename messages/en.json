@@ -153,6 +153,9 @@
       "company": "Company",
       "allCompanies": "All companies",
       "clearAll": "Clear all",
+      "filteredCount": "{count} {count, plural, =1 {contact} other {contacts}}",
+      "filteredCountTooltip": "Contacts matching the current filters",
+      "toggleFilteredCount": "Show contact count",
       "noConversations": "No conversations found",
       "noMessagesYet": "No messages yet",
       "unknown": "Unknown"

@@ -21,6 +21,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
+
+// Whether the filtered-contacts count badge is shown next to the
+// filter row. Device-scoped display preference, like the tags-panel
+// order/size prefs — no DB round-trip needed.
+const SHOW_FILTERED_COUNT_STORAGE_KEY = "wacrm:inbox:show-filtered-count";
 
 interface ConversationListProps {
   activeConversationId: string | null;
@@ -84,6 +90,33 @@ export function ConversationList({
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+
+  // Filtered-contacts count badge — on by default, restored from
+  // localStorage after mount (not in the initializer, to avoid a
+  // hydration mismatch between the server-rendered default and a
+  // stored `false`).
+  const [showFilteredCount, setShowFilteredCount] = useState(true);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(SHOW_FILTERED_COUNT_STORAGE_KEY);
+      // One-time reconciliation against localStorage post-mount,
+      // deliberately not a lazy initializer (see comment above) to avoid
+      // a hydration mismatch.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (stored !== null) setShowFilteredCount(stored === "true");
+    } catch {
+      // localStorage can throw in private-browsing / sandboxed contexts.
+    }
+  }, []);
+
+  const handleToggleFilteredCount = useCallback((checked: boolean) => {
+    setShowFilteredCount(checked);
+    try {
+      localStorage.setItem(SHOW_FILTERED_COUNT_STORAGE_KEY, String(checked));
+    } catch {
+      // Persistence is best-effort; ignore storage failures.
+    }
+  }, []);
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -417,6 +450,29 @@ export function ConversationList({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+          {/* Quick stats — live count of conversations matching the
+              active filters (status, date range, tags, company, search),
+              so agents can see e.g. how many contacts came in "Today" or
+              "Last 3 days" without scrolling the list. The switch lets
+              agents who don't want it hide the badge; the preference is
+              device-scoped, like the tags-panel prefs above. */}
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            {showFilteredCount && (
+              <span
+                title={t("filteredCountTooltip")}
+                className="inline-flex h-6 items-center rounded-full bg-muted px-2 text-[11px] font-medium text-foreground"
+              >
+                {t("filteredCount", { count: filtered.length })}
+              </span>
+            )}
+            <Switch
+              checked={showFilteredCount}
+              onCheckedChange={handleToggleFilteredCount}
+              aria-label={t("toggleFilteredCount")}
+              title={t("toggleFilteredCount")}
+            />
+          </div>
         </div>
 
         {hasContactFilters && (

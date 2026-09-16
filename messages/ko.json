@@ -153,6 +153,9 @@
       "company": "회사",
       "allCompanies": "전체 회사",
       "clearAll": "모두 지우기",
+      "filteredCount": "연락처 {count}개",
+      "filteredCountTooltip": "현재 필터와 일치하는 연락처",
+      "toggleFilteredCount": "연락처 수 표시",
       "noConversations": "대화를 찾을 수 없습니다",
       "noMessagesYet": "아직 메시지가 없습니다",
       "unknown": "알 수 없음"
