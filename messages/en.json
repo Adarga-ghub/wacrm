@@ -25,6 +25,7 @@
     "automations": "Automations",
     "flows": "Flows",
     "aiAgents": "AI Agents",
+    "payments": "Payments",
     "settings": "Settings",
     "beta": "Beta",
     "unreadConversations": "{count} unread {count, plural, =1 {conversation} other {conversations}}",
@@ -946,6 +947,10 @@
         "time_based": {
           "label": "Time-Based",
           "hint": "On a recurring schedule"
+        },
+        "payment_received": {
+          "label": "Payment Received",
+          "hint": "A PayPal payment on one of your payment forms was confirmed"
         }
       },
       "trigger": "Trigger",
@@ -1086,6 +1091,134 @@
         "documentSizeLimit": "Maximum file size: {limit} MB",
         "documentTitlePlaceholder": "Title shown to the customer (e.g. Price List 2026)"
       }
+    }
+  },
+  "Payments": {
+    "list": {
+      "title": "Billing & Payments",
+      "subtitle": "Build PayPal checkout forms and send files automatically when a payment is confirmed.",
+      "configureGateway": "Configure PayPal",
+      "transactions": "Transactions",
+      "newForm": "New form",
+      "emptyTitle": "No payment forms yet",
+      "emptyDesc": "Create your first checkout form, connect PayPal, and wire it to an automation.",
+      "loadFailed": "Could not load your payment forms.",
+      "duplicateFailed": "Could not duplicate the form.",
+      "duplicateSuccess": "Form duplicated.",
+      "archiveFailed": "Could not archive the form.",
+      "archiveSuccess": "Form archived.",
+      "archiveTitle": "Archive this form?",
+      "archiveDesc": "\"{name}\" will stop accepting new payments. Existing transaction history is kept.",
+      "cancel": "Cancel",
+      "table": {
+        "name": "Name",
+        "status": "Status",
+        "amount": "Amount",
+        "created": "Created",
+        "variableAmount": "Variable"
+      },
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "archived": "Archived"
+      },
+      "actions": {
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "archive": "Archive",
+        "menu": "Open menu"
+      }
+    },
+    "new": {
+      "title": "New payment form",
+      "nameLabel": "Form name",
+      "namePlaceholder": "e.g. Advanced Course — full payment",
+      "cancel": "Cancel",
+      "create": "Create",
+      "createFailed": "Could not create the form."
+    },
+    "editor": {
+      "back": "Payment forms",
+      "loadFailed": "Could not load the payment form.",
+      "saveFailed": "Could not save the form.",
+      "saveSuccess": "Form saved.",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "publishSuccess": "Form published.",
+      "unpublishSuccess": "Form unpublished.",
+      "save": "Save",
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "archived": "Archived"
+      },
+      "tabs": {
+        "fields": "Fields",
+        "payment": "Payment",
+        "automation": "Automation",
+        "behaviour": "Behaviour",
+        "share": "Share",
+        "design": "Design"
+      },
+      "amountType": {
+        "fixed": "Fixed",
+        "variable": "Variable",
+        "product_list": "Product list"
+      },
+      "productNamePlaceholder": "Product name",
+      "productAdd": "Add product",
+      "accentColorLabel": "Accent color",
+      "logoUrlLabel": "Logo URL",
+      "amountLabel": "Amount",
+      "minAmountLabel": "Minimum amount",
+      "minAmountHint": "The payer can enter any amount at or above this minimum.",
+      "automationLabel": "Automation to run on payment",
+      "automationNone": "No automation",
+      "automationEmptyHint": "You don't have any automation set up for Payment Received yet.",
+      "automationCreate": "Create one",
+      "sendAutomationDefaultLabel": "Send automation by default",
+      "sendAutomationDefaultHint": "Default state of the \"send automation\" toggle when you generate a payment link from this form — turn off for links to customers you already sent files to.",
+      "redirectLabel": "Redirect URL (Thank You page)",
+      "inlineMessageLabel": "Inline success message",
+      "inlineMessagePlaceholder": "Thanks for your payment! We'll be in touch on WhatsApp shortly.",
+      "inlineMessageHint": "Shown when no redirect URL is set.",
+      "limitLabel": "Submission limit",
+      "limitPlaceholder": "No limit",
+      "fieldLabelPlaceholder": "Field label",
+      "fieldType": {
+        "text": "Text",
+        "email": "Email",
+        "textarea": "Long text"
+      },
+      "fieldRequired": "Required",
+      "fieldRemove": "Remove field",
+      "fieldAdd": "Add field"
+    },
+    "gateway": {
+      "title": "Payment Gateway",
+      "description": "Connect PayPal so your checkout forms can accept real payments.",
+      "cardDescription": "Enter the Client ID and Secret from your PayPal app for each environment.",
+      "sandbox": "Sandbox",
+      "live": "Live",
+      "clientId": "Client ID",
+      "clientSecret": "Client Secret",
+      "secretSavedPlaceholder": "•••••••• (saved)",
+      "secretKeepHint": "Leave blank to keep the secret already saved.",
+      "currencyLabel": "Currency",
+      "notificationEmailLabel": "Notification email",
+      "notificationEmailHint": "We'll email this address every time a payment is confirmed.",
+      "webhookRegistered": "Webhook registered with PayPal",
+      "webhookPending": "Webhook not registered yet — save valid credentials to register it",
+      "adminOnlyHint": "Only account admins can edit this.",
+      "saving": "Saving…",
+      "save": "Save",
+      "disconnect": "Disconnect",
+      "loadFailed": "Could not load the payment gateway configuration.",
+      "clientIdRequired": "Client ID is required.",
+      "saveFailed": "Could not save the configuration.",
+      "saveSuccess": "PayPal configuration saved.",
+      "disconnectFailed": "Could not disconnect PayPal.",
+      "disconnectSuccess": "PayPal disconnected."
     }
   },
   "Flows": {

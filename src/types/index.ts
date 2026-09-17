@@ -548,7 +548,11 @@ export type AutomationTriggerType =
   | 'time_based'
   /** Customer tapped a reply button / list row whose id matches; lets
    *  multi-step menus be chained across automations. */
-  | 'interactive_reply';
+  | 'interactive_reply'
+  /** A PayPal payment against a payment_forms checkout was confirmed
+   *  by the webhook. Only fired when the triggering transaction has
+   *  `send_automation = true` — see src/app/api/payments/paypal/webhook. */
+  | 'payment_received';
 
 export type AutomationStepType =
   | 'send_message'
@@ -839,4 +843,133 @@ export interface QuickReply {
   interactive_payload?: InteractiveMessagePayload | null;
   created_at: string;
   updated_at: string;
+}
+
+// ============================================================
+// Payments — "Facturación y Pagos" module
+// ============================================================
+
+export type PaymentFormStatus = 'draft' | 'published' | 'archived';
+
+export type PaymentAmountType = 'fixed' | 'variable' | 'product_list';
+
+/**
+ * Only 'text' | 'email' | 'phone' render in the Fase 2 field builder.
+ * 'phone' is reserved for the always-present, always-required WhatsApp
+ * field injected on every form — it's not offered as an addable type.
+ */
+export type PaymentFieldType = 'text' | 'email' | 'phone' | 'textarea';
+
+export interface PaymentFormField {
+  /** Stable key: 'name' | 'email' | 'whatsapp_phone' for built-ins, `custom_<id>` otherwise. */
+  id: string;
+  type: PaymentFieldType;
+  label: string;
+  required: boolean;
+  /** True only for the injected WhatsApp field — the editor renders it non-removable, always-required. */
+  locked?: boolean;
+}
+
+export interface PaymentFormProduct {
+  id: string;
+  name: string;
+  price: number;
+}
+
+/** Purely cosmetic, read only by the public checkout page — see migration 052. */
+export interface PaymentFormDesign {
+  accent_color?: string;
+  logo_url?: string;
+}
+
+export interface PaymentForm {
+  id: string;
+  account_id: string;
+  created_by: string | null;
+  name: string;
+  slug: string;
+  status: PaymentFormStatus;
+  fields: PaymentFormField[];
+  amount_type: PaymentAmountType;
+  amount: number | null;
+  min_amount: number | null;
+  products: PaymentFormProduct[] | null;
+  currency: string;
+  /** Automation to run on `payment_received` for this form's payments. Null = no automation wired up. */
+  automation_id: string | null;
+  /** Default "send automation on payment" state for links generated from this form (see `payment_links`). */
+  send_automation_default: boolean;
+  redirect_url: string | null;
+  inline_success_message: string | null;
+  submission_limit: number | null;
+  design: PaymentFormDesign;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Public-safe projection served by `GET /api/public/payments/forms/[slug]` — never account_id/automation_id. */
+export interface PublicPaymentForm {
+  name: string;
+  status: PaymentFormStatus;
+  fields: PaymentFormField[];
+  amount_type: PaymentAmountType;
+  amount: number | null;
+  min_amount: number | null;
+  products: PaymentFormProduct[] | null;
+  currency: string;
+  design: PaymentFormDesign;
+  /** The account's active-environment PayPal Client ID — safe to expose (it's designed to ship in client-side JS). Null when the merchant hasn't connected PayPal yet. */
+  paypal_client_id: string | null;
+}
+
+export type PaymentLinkStatus = 'active' | 'revoked';
+
+export interface PaymentLink {
+  id: string;
+  account_id: string;
+  form_id: string;
+  code: string;
+  contact_id: string | null;
+  /** Fixed at creation time — the "cobrar sin automatización" choice for this specific link. */
+  send_automation: boolean;
+  amount_override: number | null;
+  status: PaymentLinkStatus;
+  expires_at: string | null;
+  created_at: string;
+  created_by: string | null;
+  /** Embedded via the API's `contact:contacts(name, phone)` select. */
+  contact?: { name: string | null; phone: string } | null;
+}
+
+export type PaymentTransactionStatus =
+  | 'created'
+  | 'approved'
+  | 'completed'
+  | 'failed'
+  | 'refunded';
+
+export interface PaymentTransaction {
+  id: string;
+  account_id: string;
+  form_id: string | null;
+  link_id: string | null;
+  contact_id: string | null;
+  paypal_order_id: string;
+  paypal_capture_id: string | null;
+  status: PaymentTransactionStatus;
+  amount: number;
+  currency: string;
+  payer_name: string | null;
+  payer_email: string | null;
+  whatsapp_phone: string | null;
+  form_field_values: Record<string, string>;
+  send_automation: boolean;
+  automation_id: string | null;
+  automation_dispatched_at: string | null;
+  receipt_sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Embedded via the API's select. */
+  form?: { name: string } | null;
+  contact?: { name: string | null; phone: string } | null;
 }

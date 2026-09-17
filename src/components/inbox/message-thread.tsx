@@ -87,6 +87,7 @@ import { AiThreadBanner } from "./ai-thread-banner";
 import { AdReferralCard } from "./ad-referral-card";
 import { buildReplyPreview } from "./reply-quote";
 import { renderTemplateBody } from "@/lib/whatsapp/template-body";
+import { ChargeFromConversationDialog } from "@/components/payments/charge-from-conversation-dialog";
 import { toast } from "sonner";
 
 interface ReplyDraft {
@@ -1370,6 +1371,18 @@ export function MessageThread({
                 className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")}
               />
             </button>
+          )}
+
+          {/* Payments module's Inbox entry point — generates a
+              payment link prefilled with this contact and sends it
+              right here, in the same conversation the agent is
+              already in. Needs a resolved contact to attach the link
+              to, same gate the tag picker below uses. */}
+          {contactId && (
+            <ChargeFromConversationDialog
+              contactId={contactId}
+              conversationId={conversation.id}
+            />
           )}
 
           {/* Tags panel — quick add/remove without leaving the chat

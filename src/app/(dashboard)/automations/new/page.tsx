@@ -22,9 +22,28 @@ export default function NewAutomationPage() {
   )
 }
 
+const VALID_TRIGGERS: AutomationTriggerType[] = [
+  "new_message_received",
+  "first_inbound_message",
+  "keyword_match",
+  "new_contact_created",
+  "conversation_assigned",
+  "tag_added",
+  "time_based",
+  "interactive_reply",
+  "payment_received",
+]
+
 function NewAutomationPageInner() {
   const params = useSearchParams()
   const template = params.get("template") as TemplateSlug | null
+  // `?trigger=payment_received` — used by the Payments module's
+  // "Crear nueva automatización" shortcut so the builder opens with
+  // the right trigger preselected instead of the generic default.
+  // Ignored when `?template=` is also present (template wins).
+  const triggerParam = params.get("trigger") as AutomationTriggerType | null
+  const presetTrigger =
+    triggerParam && VALID_TRIGGERS.includes(triggerParam) ? triggerParam : null
 
   const initial: BuilderInitial = useMemo(() => {
     if (template && AUTOMATION_TEMPLATES[template]) {
@@ -50,12 +69,12 @@ function NewAutomationPageInner() {
     return {
       name: "",
       description: "",
-      trigger_type: "new_message_received" as AutomationTriggerType,
+      trigger_type: presetTrigger ?? ("new_message_received" as AutomationTriggerType),
       trigger_config: {},
       is_active: false,
       steps: [],
     }
-  }, [template])
+  }, [template, presetTrigger])
 
   return <AutomationBuilder initial={initial} />
 }

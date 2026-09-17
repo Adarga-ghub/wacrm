@@ -25,6 +25,7 @@
     "automations": "자동화",
     "flows": "플로우",
     "aiAgents": "AI 에이전트",
+    "payments": "결제",
     "settings": "설정",
     "beta": "베타",
     "unreadConversations": "읽지 않은 대화 {count}건",
@@ -946,6 +947,10 @@
         "time_based": {
           "label": "시간 기반",
           "hint": "반복 일정에 따라"
+        },
+        "payment_received": {
+          "label": "결제 수신",
+          "hint": "결제 폼에서 PayPal 결제가 확인되었을 때"
         }
       },
       "trigger": "트리거",
@@ -1086,6 +1091,134 @@
         "documentSizeLimit": "최대 파일 크기: {limit}MB",
         "documentTitlePlaceholder": "고객에게 표시될 제목 (예: 2026년 가격표)"
       }
+    }
+  },
+  "Payments": {
+    "list": {
+      "title": "결제 및 청구",
+      "subtitle": "PayPal 결제 폼을 만들고 결제가 확인되면 자동으로 파일을 전송하세요.",
+      "configureGateway": "PayPal 설정",
+      "transactions": "거래 내역",
+      "newForm": "새 폼",
+      "emptyTitle": "아직 결제 폼이 없습니다",
+      "emptyDesc": "첫 결제 폼을 만들고, PayPal을 연결하고, 자동화에 연결하세요.",
+      "loadFailed": "결제 폼을 불러올 수 없습니다.",
+      "duplicateFailed": "폼을 복제할 수 없습니다.",
+      "duplicateSuccess": "폼이 복제되었습니다.",
+      "archiveFailed": "폼을 보관 처리할 수 없습니다.",
+      "archiveSuccess": "폼이 보관 처리되었습니다.",
+      "archiveTitle": "이 폼을 보관하시겠습니까?",
+      "archiveDesc": "\"{name}\"은(는) 더 이상 결제를 받지 않습니다. 기존 거래 내역은 유지됩니다.",
+      "cancel": "취소",
+      "table": {
+        "name": "이름",
+        "status": "상태",
+        "amount": "금액",
+        "created": "생성일",
+        "variableAmount": "가변"
+      },
+      "status": {
+        "draft": "초안",
+        "published": "게시됨",
+        "archived": "보관됨"
+      },
+      "actions": {
+        "edit": "수정",
+        "duplicate": "복제",
+        "archive": "보관",
+        "menu": "메뉴 열기"
+      }
+    },
+    "new": {
+      "title": "새 결제 폼",
+      "nameLabel": "폼 이름",
+      "namePlaceholder": "예: 심화 과정 — 전액 결제",
+      "cancel": "취소",
+      "create": "만들기",
+      "createFailed": "폼을 만들 수 없습니다."
+    },
+    "editor": {
+      "back": "결제 폼",
+      "loadFailed": "결제 폼을 불러올 수 없습니다.",
+      "saveFailed": "폼을 저장할 수 없습니다.",
+      "saveSuccess": "폼이 저장되었습니다.",
+      "publish": "게시",
+      "unpublish": "게시 중단",
+      "publishSuccess": "폼이 게시되었습니다.",
+      "unpublishSuccess": "폼 게시가 중단되었습니다.",
+      "save": "저장",
+      "status": {
+        "draft": "초안",
+        "published": "게시됨",
+        "archived": "보관됨"
+      },
+      "tabs": {
+        "fields": "필드",
+        "payment": "결제",
+        "automation": "자동화",
+        "behaviour": "동작",
+        "share": "공유",
+        "design": "디자인"
+      },
+      "amountType": {
+        "fixed": "고정",
+        "variable": "가변",
+        "product_list": "상품 목록"
+      },
+      "productNamePlaceholder": "상품명",
+      "productAdd": "상품 추가",
+      "accentColorLabel": "강조 색상",
+      "logoUrlLabel": "로고 URL",
+      "amountLabel": "금액",
+      "minAmountLabel": "최소 금액",
+      "minAmountHint": "결제자는 이 최소 금액 이상의 원하는 금액을 입력할 수 있습니다.",
+      "automationLabel": "결제 시 실행할 자동화",
+      "automationNone": "자동화 없음",
+      "automationEmptyHint": "아직 '결제 수신'용 자동화가 없습니다.",
+      "automationCreate": "만들기",
+      "sendAutomationDefaultLabel": "기본적으로 자동화 전송",
+      "sendAutomationDefaultHint": "이 폼에서 결제 링크를 생성할 때 \"자동화 전송\" 토글의 기본 상태입니다 — 이미 파일을 보낸 고객에게 보낼 링크는 꺼두세요.",
+      "redirectLabel": "리디렉션 URL (감사 페이지)",
+      "inlineMessageLabel": "인라인 완료 메시지",
+      "inlineMessagePlaceholder": "결제해 주셔서 감사합니다! 곧 WhatsApp으로 연락드리겠습니다.",
+      "inlineMessageHint": "리디렉션 URL이 없을 때 표시됩니다.",
+      "limitLabel": "제출 한도",
+      "limitPlaceholder": "제한 없음",
+      "fieldLabelPlaceholder": "필드 라벨",
+      "fieldType": {
+        "text": "텍스트",
+        "email": "이메일",
+        "textarea": "긴 텍스트"
+      },
+      "fieldRequired": "필수",
+      "fieldRemove": "필드 삭제",
+      "fieldAdd": "필드 추가"
+    },
+    "gateway": {
+      "title": "결제 게이트웨이",
+      "description": "PayPal을 연결하면 결제 폼에서 실제 결제를 받을 수 있습니다.",
+      "cardDescription": "각 환경에 맞는 PayPal 앱의 Client ID와 Secret을 입력하세요.",
+      "sandbox": "샌드박스",
+      "live": "라이브",
+      "clientId": "Client ID",
+      "clientSecret": "Client Secret",
+      "secretSavedPlaceholder": "•••••••• (저장됨)",
+      "secretKeepHint": "비워두면 저장된 시크릿을 그대로 유지합니다.",
+      "currencyLabel": "통화",
+      "notificationEmailLabel": "알림 이메일",
+      "notificationEmailHint": "결제가 확인될 때마다 이 주소로 이메일을 보냅니다.",
+      "webhookRegistered": "PayPal에 웹훅이 등록되었습니다",
+      "webhookPending": "웹훅이 아직 등록되지 않았습니다 — 올바른 자격 증명을 저장하면 등록됩니다",
+      "adminOnlyHint": "관리자만 수정할 수 있습니다.",
+      "saving": "저장 중…",
+      "save": "저장",
+      "disconnect": "연결 해제",
+      "loadFailed": "결제 게이트웨이 설정을 불러올 수 없습니다.",
+      "clientIdRequired": "Client ID는 필수입니다.",
+      "saveFailed": "설정을 저장할 수 없습니다.",
+      "saveSuccess": "PayPal 설정이 저장되었습니다.",
+      "disconnectFailed": "PayPal 연결을 해제할 수 없습니다.",
+      "disconnectSuccess": "PayPal 연결이 해제되었습니다."
     }
   },
   "Flows": {

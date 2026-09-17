@@ -63,6 +63,38 @@ const SECURITY_HEADERS = [
   },
 ] as const;
 
+/**
+ * `/pay/[slug]` is the public PayPal checkout page — it needs the
+ * PayPal JS SDK (script + its own iframes for card fields/3DS) and
+ * the `payment` Permissions-Policy feature the blanket policy above
+ * denies. Scoped to this one route rather than loosened globally, so
+ * the rest of the app keeps the stricter defaults.
+ */
+const PAY_SECURITY_HEADERS = [
+  ...SECURITY_HEADERS.filter(
+    (h) => h.key !== "Permissions-Policy" && h.key !== "Content-Security-Policy-Report-Only",
+  ),
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=(self), usb=()",
+  },
+  {
+    key: "Content-Security-Policy-Report-Only",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://www.paypalobjects.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.paypal.com",
+      "frame-src https://www.paypal.com https://www.sandbox.paypal.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; "),
+  },
+] as const;
+
 const nextConfig: NextConfig = {
   // Emit a self-contained server bundle (.next/standalone) so the
   // Docker image can run without node_modules or the Next CLI.
@@ -153,9 +185,15 @@ const nextConfig: NextConfig = {
       {
         // Security headers on every response, including /_next/static
         // assets (nosniff matters there) and /api/* (HSTS + referrer-
-        // policy don't hurt).
-        source: "/:path*",
+        // policy don't hurt). Excludes /pay, which gets its own rule
+        // below — Permissions-Policy can't have two values for the
+        // same feature merged sensibly across two matching rules.
+        source: "/:path((?!pay/).*)",
         headers: [...SECURITY_HEADERS],
+      },
+      {
+        source: "/pay/:path*",
+        headers: [...PAY_SECURITY_HEADERS],
       },
     ];
   },
