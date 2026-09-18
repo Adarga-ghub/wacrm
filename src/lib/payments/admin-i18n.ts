@@ -103,6 +103,15 @@ export interface PaymentsSkinsStrings {
   deleteFailed: string
   deleteSuccess: string
   preview: string
+  uploadImage: string
+  changeImage: string
+  removeImage: string
+  uploadingImage: string
+  recommendedSize: string
+  imageInvalidType: string
+  imageTooLarge: string
+  imageDimensionsExceeded: string
+  imageUploadFailed: string
   table: {
     name: string
     forms: string
@@ -300,6 +309,15 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       deleteFailed: 'Could not delete the skin.',
       deleteSuccess: 'Skin deleted.',
       preview: 'Preview',
+      uploadImage: 'Upload image',
+      changeImage: 'Change image',
+      removeImage: 'Remove',
+      uploadingImage: 'Uploading…',
+      recommendedSize: 'Recommended: {width}×{height}px',
+      imageInvalidType: 'Unsupported format. Use PNG, JPG, WEBP or GIF.',
+      imageTooLarge: 'The file exceeds the maximum size allowed (5 MB).',
+      imageDimensionsExceeded: 'The image exceeds the recommended size ({width}×{height}px). Upload a smaller image.',
+      imageUploadFailed: 'Could not upload the image.',
       table: {
         name: 'Name',
         forms: 'Forms',
@@ -489,6 +507,15 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       deleteFailed: 'No se pudo eliminar la apariencia.',
       deleteSuccess: 'Apariencia eliminada.',
       preview: 'Vista previa',
+      uploadImage: 'Subir imagen',
+      changeImage: 'Cambiar imagen',
+      removeImage: 'Quitar',
+      uploadingImage: 'Subiendo…',
+      recommendedSize: 'Recomendado: {width}×{height}px',
+      imageInvalidType: 'Formato no soportado. Usa PNG, JPG, WEBP o GIF.',
+      imageTooLarge: 'El archivo supera el tamaño máximo permitido (5 MB).',
+      imageDimensionsExceeded: 'La imagen supera el tamaño recomendado ({width}×{height}px). Sube una imagen más pequeña.',
+      imageUploadFailed: 'No se pudo subir la imagen.',
       table: {
         name: 'Nombre',
         forms: 'Formularios',

@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ImageUploadField } from "@/components/payments/image-upload-field"
 import {
   Dialog,
   DialogContent,
@@ -157,25 +158,14 @@ export function SkinEditorDialog({
             </div>
           </div>
 
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground">{t("logoUrlLabel")}</Label>
-            <Input
-              type="url"
-              value={design.logo_url || ""}
-              onChange={(e) =>
-                setDesign((d) => ({ ...d, logo_url: e.target.value || undefined }))
-              }
-              placeholder="https://…/logo.png"
-            />
-            {design.logo_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={design.logo_url}
-                alt=""
-                className="mt-1 h-10 w-auto rounded border border-border object-contain p-1"
-              />
-            )}
-          </div>
+          <ImageUploadField
+            label={t("logoUrlLabel")}
+            value={design.logo_url || ""}
+            onChange={(url) => setDesign((d) => ({ ...d, logo_url: url || undefined }))}
+            maxWidth={200}
+            maxHeight={200}
+            t={t}
+          />
 
           <div className="grid gap-2">
             <Label className="text-muted-foreground">{t("backgroundTitle")}</Label>
@@ -215,11 +205,13 @@ export function SkinEditorDialog({
               </div>
             ) : (
               <div className="space-y-2">
-                <Input
-                  type="url"
+                <ImageUploadField
+                  label={t("backgroundImageLabel")}
                   value={design.background?.image_url || ""}
-                  onChange={(e) => updateBackground({ image_url: e.target.value || undefined })}
-                  placeholder="https://…/fondo.jpg"
+                  onChange={(url) => updateBackground({ image_url: url || undefined })}
+                  maxWidth={1920}
+                  maxHeight={1080}
+                  t={t}
                 />
                 <div className="flex flex-wrap gap-4">
                   <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -251,37 +243,23 @@ export function SkinEditorDialog({
           <div className="grid gap-3 rounded-lg border border-border p-3">
             <Label className="text-muted-foreground">{t("topSectionTitle")}</Label>
 
-            <div className="grid gap-2">
-              <Label className="text-xs text-muted-foreground">{t("bannerImageLabel")}</Label>
-              <Input
-                type="url"
-                value={design.top_section?.banner_image_url || ""}
-                onChange={(e) =>
-                  updateTopSection({ banner_image_url: e.target.value || undefined })
-                }
-                placeholder="https://…/banner.jpg"
-              />
-              {design.top_section?.banner_image_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={design.top_section.banner_image_url}
-                  alt=""
-                  className="h-20 w-full rounded border border-border object-cover"
-                />
-              )}
-            </div>
+            <ImageUploadField
+              label={t("bannerImageLabel")}
+              value={design.top_section?.banner_image_url || ""}
+              onChange={(url) => updateTopSection({ banner_image_url: url || undefined })}
+              maxWidth={1200}
+              maxHeight={400}
+              t={t}
+            />
 
-            <div className="grid gap-2">
-              <Label className="text-xs text-muted-foreground">{t("productImageLabel")}</Label>
-              <Input
-                type="url"
-                value={design.top_section?.product_image_url || ""}
-                onChange={(e) =>
-                  updateTopSection({ product_image_url: e.target.value || undefined })
-                }
-                placeholder="https://…/producto.png"
-              />
-            </div>
+            <ImageUploadField
+              label={t("productImageLabel")}
+              value={design.top_section?.product_image_url || ""}
+              onChange={(url) => updateTopSection({ product_image_url: url || undefined })}
+              maxWidth={600}
+              maxHeight={600}
+              t={t}
+            />
 
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <div className="grid gap-2">
