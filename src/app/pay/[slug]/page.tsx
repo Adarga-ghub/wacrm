@@ -351,6 +351,14 @@ function PublicPaymentFormPageInner() {
 
   const accent = form.design?.accent_color || undefined
   const topSection = form.design?.top_section
+  const product = form.product
+
+  const priceLine =
+    form.amount_type === "fixed" && form.amount != null
+      ? `${form.amount} ${form.currency}`
+      : form.amount_type === "variable"
+        ? t.fromAmount(form.min_amount ?? 0, form.currency)
+        : t.chooseProduct
 
   return (
     <>
@@ -370,16 +378,37 @@ function PublicPaymentFormPageInner() {
             className="mb-2 h-10 w-auto object-contain"
           />
         )}
-        <CardTitle className="flex items-center gap-2">
-          <CreditCard className="size-5 text-primary" style={accent ? { color: accent } : undefined} />
-          {form.name}
-        </CardTitle>
-        <CardDescription>
-          {form.amount_type === "fixed" && form.amount != null
-            ? `${form.amount} ${form.currency}`
-            : form.amount_type === "variable"
-              ? t.fromAmount(form.min_amount ?? 0, form.currency)
-              : t.chooseProduct}
+        {product ? (
+          // Title/description/image/author "halados" from the linked
+          // Producto (migration 054/056) — Hotmart-style — instead of
+          // any per-form/per-skin copy, so the same skin can be
+          // applied to different products without carrying one
+          // product's title baked into shared design.
+          <div className="flex flex-col items-center gap-2 text-center">
+            {product.image_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={product.image_url}
+                alt=""
+                className="size-20 rounded-lg object-cover sm:size-24"
+              />
+            )}
+            <CardTitle className="justify-center">{product.name}</CardTitle>
+            {product.author && (
+              <p className="-mt-1 text-xs text-muted-foreground">{t.byAuthor(product.author)}</p>
+            )}
+            {product.description && (
+              <p className="text-sm text-muted-foreground">{product.description}</p>
+            )}
+          </div>
+        ) : (
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="size-5 text-primary" style={accent ? { color: accent } : undefined} />
+            {form.name}
+          </CardTitle>
+        )}
+        <CardDescription className={product ? "text-center" : undefined}>
+          {priceLine}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -86,6 +86,7 @@ export default function ProductDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: product.name,
+        author: product.author,
         description: product.description,
         image_url: product.image_url,
         default_skin_id: product.default_skin_id,
@@ -187,6 +188,15 @@ export default function ProductDetailPage() {
 
       <Card>
         <CardContent className="space-y-4 pt-6">
+          <div className="grid gap-2">
+            <Label className="text-muted-foreground">{t("wizard.authorLabel")}</Label>
+            <Input
+              value={product.author ?? ""}
+              onChange={(e) => update("author", e.target.value || null)}
+              placeholder={t("wizard.authorPlaceholder")}
+              className="sm:max-w-xs"
+            />
+          </div>
           <div className="grid gap-2">
             <Label className="text-muted-foreground">{t("detail.descriptionLabel")}</Label>
             <Textarea

@@ -54,61 +54,32 @@ export function backgroundStyle(background?: PaymentPageBackground): CSSProperti
 }
 
 export function hasTopSectionContent(topSection?: PaymentPageTopSection): boolean {
-  return !!(
-    topSection?.banner_image_url ||
-    topSection?.product_image_url ||
-    topSection?.title ||
-    topSection?.subtitle
-  )
+  return !!topSection?.banner_image_url
 }
 
-/** "Parte superior" block — banner image, product image, title, subtitle. Renders nothing when empty. */
+/**
+ * "Parte superior" block — a purely decorative marketing banner now
+ * (see `PaymentPageTopSection`'s header comment). The product's
+ * title/description/image/author render separately, driven by the
+ * linked `PublicPaymentProduct` — see `/pay/[slug]/page.tsx`.
+ * Renders nothing when no banner is set.
+ */
 export function TopSectionBlock({ topSection }: { topSection?: PaymentPageTopSection }) {
   if (!hasTopSectionContent(topSection)) return null
   return (
-    <div className="space-y-3 px-4 pt-4 sm:px-6 sm:pt-6">
-      {topSection?.banner_image_url && (
-        // `aspect-[3/1]` matches the editor's recommended 1200×400
-        // upload — fixes the banner's height at a predictable ratio
-        // of whatever width the card renders at (full-bleed on a
-        // phone, ~28rem on desktop) instead of the image's own
-        // natural aspect ratio, which would otherwise make the card
-        // jump to a different height per skin/device.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={topSection.banner_image_url}
-          alt=""
-          className="aspect-[3/1] w-full rounded-lg object-cover"
-        />
-      )}
-      {topSection?.product_image_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={topSection.product_image_url}
-          alt=""
-          className="mx-auto block size-16 rounded-lg object-cover sm:size-20"
-        />
-      )}
-      {topSection?.title && (
-        <h2
-          className="break-words text-center font-bold text-foreground"
-          // `clamp()` keeps the admin's chosen size as the ceiling on
-          // a wide screen but scales it down with viewport width on
-          // a narrow phone, so a 48px title never forces the card
-          // wider than the screen or wraps into a wall of text.
-          style={{ fontSize: `clamp(20px, 7vw, ${topSection.title_size ?? 36}px)` }}
-        >
-          {topSection.title}
-        </h2>
-      )}
-      {topSection?.subtitle && (
-        <p
-          className="break-words text-center text-muted-foreground"
-          style={{ fontSize: `clamp(14px, 4.5vw, ${topSection.subtitle_size ?? 24}px)` }}
-        >
-          {topSection.subtitle}
-        </p>
-      )}
+    <div className="px-4 pt-4 sm:px-6 sm:pt-6">
+      {/* `aspect-[3/1]` matches the editor's recommended 1200×400
+          upload — fixes the banner's height at a predictable ratio of
+          whatever width the card renders at (full-bleed on a phone,
+          ~28rem on desktop) instead of the image's own natural aspect
+          ratio, which would otherwise make the card jump to a
+          different height per skin/device. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={topSection?.banner_image_url}
+        alt=""
+        className="aspect-[3/1] w-full rounded-lg object-cover"
+      />
     </div>
   )
 }

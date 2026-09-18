@@ -79,14 +79,8 @@ export interface PaymentsSkinsStrings {
   backgroundRepeatLabel: string
   backgroundFixedLabel: string
   topSectionTitle: string
+  topSectionHint: string
   bannerImageLabel: string
-  productImageLabel: string
-  titleLabel: string
-  titlePlaceholder: string
-  titleSizeLabel: string
-  subtitleLabel: string
-  subtitlePlaceholder: string
-  subtitleSizeLabel: string
   formsLabel: string
   formsHint: string
   formsEmpty: string
@@ -171,6 +165,8 @@ export interface PaymentsProductsStrings {
     stepAppearance: string
     nameLabel: string
     namePlaceholder: string
+    authorLabel: string
+    authorPlaceholder: string
     descriptionLabel: string
     descriptionPlaceholder: string
     imageUrlLabel: string
@@ -294,14 +290,8 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       backgroundRepeatLabel: 'Repeat background image',
       backgroundFixedLabel: 'Fix image while scrolling',
       topSectionTitle: 'Top section',
+      topSectionHint: 'A decorative banner shown above the checkout — the product title, description, image and price come from the linked Product instead.',
       bannerImageLabel: 'Banner image URL',
-      productImageLabel: 'Product image URL',
-      titleLabel: 'Title',
-      titlePlaceholder: 'Write a title for the page',
-      titleSizeLabel: 'Title size',
-      subtitleLabel: 'Subtitle',
-      subtitlePlaceholder: 'Write a subtitle for the page',
-      subtitleSizeLabel: 'Subtitle size',
       formsLabel: 'Applied to',
       formsHint: 'Select every payment form that should use this appearance.',
       formsEmpty: "You don't have any payment forms yet.",
@@ -385,6 +375,8 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         stepAppearance: 'Appearance',
         nameLabel: 'Product name',
         namePlaceholder: 'e.g. Advanced Course',
+        authorLabel: 'Author (optional)',
+        authorPlaceholder: 'e.g. Jane Smith',
         descriptionLabel: 'Description (optional)',
         descriptionPlaceholder: "What's this product about?",
         imageUrlLabel: 'Cover image (optional)',
@@ -501,14 +493,8 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       backgroundRepeatLabel: 'Repetir imagen de fondo',
       backgroundFixedLabel: 'Fijar imagen durante el desplazamiento',
       topSectionTitle: 'Parte superior',
+      topSectionHint: 'Un banner decorativo que se muestra arriba del checkout — el título, descripción, imagen y precio del producto se toman del Producto vinculado.',
       bannerImageLabel: 'URL de la imagen de la parte superior',
-      productImageLabel: 'URL de la imagen del producto',
-      titleLabel: 'Título',
-      titlePlaceholder: 'Escribe un título para la página',
-      titleSizeLabel: 'Tamaño del título',
-      subtitleLabel: 'Subtítulo',
-      subtitlePlaceholder: 'Escribe un subtítulo para la página',
-      subtitleSizeLabel: 'Tamaño del subtítulo',
       formsLabel: 'Aplicado a',
       formsHint: 'Selecciona los formularios de pago que deben usar esta apariencia.',
       formsEmpty: 'Aún no tienes formularios de pago.',
@@ -592,6 +578,8 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         stepAppearance: 'Apariencia',
         nameLabel: 'Nombre del producto',
         namePlaceholder: 'ej. Curso Avanzado',
+        authorLabel: 'Autor (opcional)',
+        authorPlaceholder: 'ej. Juana Pérez',
         descriptionLabel: 'Descripción (opcional)',
         descriptionPlaceholder: '¿De qué trata este producto?',
         imageUrlLabel: 'Imagen de portada (opcional)',

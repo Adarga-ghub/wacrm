@@ -41,6 +41,7 @@ interface PayPageStrings {
   previewBadge: string
   sampleProductName: string
   previewPayNote: string
+  byAuthor: (author: string) => string
 }
 
 export const payPageStrings: Record<PayLocale, PayPageStrings> = {
@@ -70,6 +71,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     previewBadge: 'Vista previa',
     sampleProductName: 'Producto de ejemplo',
     previewPayNote: 'Esto es una vista previa — no se realizará ningún cobro real.',
+    byAuthor: (author) => `Por ${author}`,
   },
   en: {
     notAvailable: "This payment form isn't available.",
@@ -97,6 +99,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     previewBadge: 'Preview',
     sampleProductName: 'Sample product',
     previewPayNote: "This is a preview — no real charge will happen.",
+    byAuthor: (author) => `By ${author}`,
   },
 }
 

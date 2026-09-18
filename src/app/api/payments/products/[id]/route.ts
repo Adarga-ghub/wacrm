@@ -53,6 +53,7 @@ interface PutBody {
   name?: string
   description?: string | null
   image_url?: string | null
+  author?: string | null
   status?: 'draft' | 'published' | 'archived'
   default_skin_id?: string | null
 }
@@ -88,6 +89,7 @@ export async function PUT(
   }
   if (body.description !== undefined) update.description = body.description || null
   if (body.image_url !== undefined) update.image_url = body.image_url || null
+  if (body.author !== undefined) update.author = body.author || null
 
   if (body.status !== undefined) {
     if (!['draft', 'published', 'archived'].includes(body.status)) {

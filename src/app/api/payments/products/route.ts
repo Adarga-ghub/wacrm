@@ -33,6 +33,7 @@ interface PostBody {
   name?: string
   description?: string | null
   image_url?: string | null
+  author?: string | null
   default_skin_id?: string | null
 }
 
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
       name,
       description: body?.description || null,
       image_url: body?.image_url || null,
+      author: body?.author || null,
       default_skin_id: body?.default_skin_id || null,
       status: 'draft',
     })

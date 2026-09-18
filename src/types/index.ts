@@ -879,11 +879,11 @@ export interface PaymentFormProduct {
 /** Purely cosmetic, read only by the public checkout page — see migration 052. */
 export interface PaymentFormDesign {
   accent_color?: string;
-  /** Legacy single logo shown in the card header — kept for forms/skins that only ever set this; superseded by `top_section.product_image_url` when both are set (see `/pay/[slug]`'s render logic). */
+  /** Logo shown in the card header. */
   logo_url?: string;
   /** "Fondo" block — page-wide background, Hotmart-style (see the Payment Skins builder). */
   background?: PaymentPageBackground;
-  /** "Parte superior" block — the page's hero/banner section. */
+  /** "Parte superior" block — the page's decorative hero banner. */
   top_section?: PaymentPageTopSection;
 }
 
@@ -899,15 +899,15 @@ export interface PaymentPageBackground {
   fixed?: boolean;
 }
 
+/**
+ * Purely decorative marketing banner — the skin's ONLY content in
+ * "Parte superior" now. Product title/description/image/author
+ * moved to `PaymentProduct` (see `PublicPaymentProduct`) so the same
+ * skin can be applied to different products without carrying one
+ * product's copy baked into shared design.
+ */
 export interface PaymentPageTopSection {
   banner_image_url?: string;
-  product_image_url?: string;
-  title?: string;
-  /** px */
-  title_size?: number;
-  subtitle?: string;
-  /** px */
-  subtitle_size?: number;
 }
 
 export interface PaymentForm {
@@ -971,11 +971,26 @@ export interface PaymentProduct {
   name: string;
   description: string | null;
   image_url: string | null;
+  /** Shown on the public checkout page as "Por {author}" — the creator/instructor name, Hotmart-style. */
+  author: string | null;
   status: PaymentFormStatus;
   /** Copied onto a price's own `skin_id` at creation time only — not enforced afterwards. */
   default_skin_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Public-safe projection of a `PaymentProduct`, embedded in
+ * `PublicPaymentForm.product` — only what the checkout page's header
+ * needs to render (name, description, cover image, author). Never
+ * account_id/created_by/status/default_skin_id.
+ */
+export interface PublicPaymentProduct {
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  author: string | null;
 }
 
 /** Public-safe projection served by `GET /api/public/payments/forms/[slug]` — never account_id/automation_id. */
@@ -991,6 +1006,8 @@ export interface PublicPaymentForm {
   design: PaymentFormDesign;
   /** The account's active-environment PayPal Client ID — safe to expose (it's designed to ship in client-side JS). Null when the merchant hasn't connected PayPal yet. */
   paypal_client_id: string | null;
+  /** Set when this price is linked to a Producto (migration 054) — the checkout page renders title/description/image/author from here instead of the bare form/skin fields. Null for a standalone form. */
+  product: PublicPaymentProduct | null;
 }
 
 export type PaymentLinkStatus = 'active' | 'revoked';

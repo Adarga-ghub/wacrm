@@ -51,6 +51,7 @@ export function CreateProductWizard({
 
   const [step, setStep] = useState<Step>("basics")
   const [name, setName] = useState("")
+  const [author, setAuthor] = useState("")
   const [description, setDescription] = useState("")
   const [imageUrl, setImageUrl] = useState("")
   const [priceName, setPriceName] = useState("")
@@ -66,6 +67,7 @@ export function CreateProductWizard({
     if (!open) return
     setStep("basics")
     setName("")
+    setAuthor("")
     setDescription("")
     setImageUrl("")
     setPriceName("")
@@ -110,6 +112,7 @@ export function CreateProductWizard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: name.trim(),
+        author: author.trim() || null,
         description: description.trim() || null,
         image_url: imageUrl.trim() || null,
         default_skin_id: skinId || null,
@@ -187,6 +190,14 @@ export function CreateProductWizard({
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t("wizard.namePlaceholder")}
                 autoFocus
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-muted-foreground">{t("wizard.authorLabel")}</Label>
+              <Input
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                placeholder={t("wizard.authorPlaceholder")}
               />
             </div>
             <div className="grid gap-2">

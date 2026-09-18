@@ -36,7 +36,7 @@ export async function GET(
   const { data, error } = await supabaseAdmin()
     .from('payment_forms')
     .select(
-      'account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id',
+      'account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id, product_id',
     )
     .eq('slug', slug)
     .eq('status', 'published')
@@ -66,6 +66,21 @@ export async function GET(
     if (skin) design = skin.design ?? {}
   }
 
+  // A price linked to a Producto (migration 054) pulls its title,
+  // description, cover image and author from THERE — Hotmart-style —
+  // instead of any per-form/per-skin copy. A standalone form
+  // (`product_id` null) has no product and the checkout page falls
+  // back to `form.name`, exactly as before this existed.
+  let product: PublicPaymentForm['product'] = null
+  if (data.product_id) {
+    const { data: productRow } = await supabaseAdmin()
+      .from('payment_products')
+      .select('name, description, image_url, author')
+      .eq('id', data.product_id)
+      .maybeSingle()
+    if (productRow) product = productRow
+  }
+
   const form: PublicPaymentForm = {
     name: data.name,
     status: data.status,
@@ -77,6 +92,7 @@ export async function GET(
     currency: data.currency,
     design,
     paypal_client_id: gateway?.clientId ?? null,
+    product,
   }
   return NextResponse.json({ form })
 }

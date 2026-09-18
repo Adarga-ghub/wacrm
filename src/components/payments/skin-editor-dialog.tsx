@@ -98,7 +98,17 @@ export function SkinEditorDialog({
     const trimmed = name.trim()
     if (!trimmed) return
     setSaving(true)
-    const body = JSON.stringify({ name: trimmed, design, form_ids: [...selectedFormIds] })
+    // Strips any leftover title/subtitle/product_image_url a skin saved
+    // before those moved to the linked Producto (migration 054/056) —
+    // the renderer already ignores them, this just keeps the stored
+    // jsonb from re-saving stale fields the editor no longer shows.
+    const cleanDesign: PaymentFormDesign = {
+      ...design,
+      top_section: design.top_section?.banner_image_url
+        ? { banner_image_url: design.top_section.banner_image_url }
+        : undefined,
+    }
+    const body = JSON.stringify({ name: trimmed, design: cleanDesign, form_ids: [...selectedFormIds] })
     const res = skin
       ? await fetch(`/api/payments/skins/${skin.id}`, {
           method: "PUT",
@@ -242,6 +252,7 @@ export function SkinEditorDialog({
 
           <div className="grid gap-3 rounded-lg border border-border p-3">
             <Label className="text-muted-foreground">{t("topSectionTitle")}</Label>
+            <p className="-mt-2 text-xs text-muted-foreground">{t("topSectionHint")}</p>
 
             <ImageUploadField
               label={t("bannerImageLabel")}
@@ -251,65 +262,6 @@ export function SkinEditorDialog({
               maxHeight={400}
               t={t}
             />
-
-            <ImageUploadField
-              label={t("productImageLabel")}
-              value={design.top_section?.product_image_url || ""}
-              onChange={(url) => updateTopSection({ product_image_url: url || undefined })}
-              maxWidth={600}
-              maxHeight={600}
-              t={t}
-            />
-
-            <div className="grid grid-cols-[1fr_auto] gap-2">
-              <div className="grid gap-2">
-                <Label className="text-xs text-muted-foreground">{t("titleLabel")}</Label>
-                <Input
-                  value={design.top_section?.title || ""}
-                  onChange={(e) => updateTopSection({ title: e.target.value || undefined })}
-                  placeholder={t("titlePlaceholder")}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label className="text-xs text-muted-foreground">{t("titleSizeLabel")}</Label>
-                <select
-                  value={design.top_section?.title_size ?? 36}
-                  onChange={(e) => updateTopSection({ title_size: Number(e.target.value) })}
-                  className="h-9 rounded-lg border border-border bg-muted px-2 text-sm text-foreground outline-none"
-                >
-                  {[20, 24, 28, 32, 36, 40, 48].map((size) => (
-                    <option key={size} value={size}>
-                      {size}px
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-[1fr_auto] gap-2">
-              <div className="grid gap-2">
-                <Label className="text-xs text-muted-foreground">{t("subtitleLabel")}</Label>
-                <Input
-                  value={design.top_section?.subtitle || ""}
-                  onChange={(e) => updateTopSection({ subtitle: e.target.value || undefined })}
-                  placeholder={t("subtitlePlaceholder")}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label className="text-xs text-muted-foreground">{t("subtitleSizeLabel")}</Label>
-                <select
-                  value={design.top_section?.subtitle_size ?? 24}
-                  onChange={(e) => updateTopSection({ subtitle_size: Number(e.target.value) })}
-                  className="h-9 rounded-lg border border-border bg-muted px-2 text-sm text-foreground outline-none"
-                >
-                  {[14, 16, 18, 20, 24, 28, 32].map((size) => (
-                    <option key={size} value={size}>
-                      {size}px
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
           </div>
 
           <div className="grid gap-2">
