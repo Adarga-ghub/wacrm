@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2, MoreVertical, Palette, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft, Eye, Loader2, Palette, Pencil, Trash2 } from "lucide-react"
 
 import { useCan } from "@/hooks/use-can"
 import type { PaymentForm, PaymentSkin } from "@/types"
@@ -19,12 +19,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -34,10 +28,12 @@ import {
 } from "@/components/ui/dialog"
 import { SkinEditorDialog } from "@/components/payments/skin-editor-dialog"
 import { PaymentsLanguageToggle } from "@/components/payments/payments-language-toggle"
-import { usePaymentsT } from "@/hooks/use-payments-locale"
+import { usePaymentsLocale, usePaymentsT } from "@/hooks/use-payments-locale"
+import { buildSkinPreviewUrl } from "@/lib/payments/skin-preview"
 
 export default function PaymentSkinsPage() {
   const t = usePaymentsT("skins")
+  const { locale } = usePaymentsLocale()
   const canManage = useCan("send-messages")
 
   const [skins, setSkins] = useState<PaymentSkin[] | null>(null)
@@ -80,6 +76,10 @@ export default function PaymentSkinsPage() {
   function openEdit(skin: PaymentSkin) {
     setEditingSkin(skin)
     setDialogOpen(true)
+  }
+
+  function handlePreview(skin: PaymentSkin) {
+    window.open(buildSkinPreviewUrl(skin.design, locale), "_blank", "noopener,noreferrer")
   }
 
   async function handleDelete() {
@@ -153,7 +153,7 @@ export default function PaymentSkinsPage() {
                 <TableHead className="hidden text-muted-foreground sm:table-cell">
                   {t("table.created")}
                 </TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="w-32" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -181,27 +181,36 @@ export default function PaymentSkinsPage() {
                     {new Date(skin.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        aria-label={t("actions.menu")}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[popup-open]:bg-muted"
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handlePreview(skin)}
+                        aria-label={t("preview")}
+                        title={t("preview")}
                       >
-                        <MoreVertical className="h-4 w-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(skin)}>
-                          <Pencil className="h-4 w-4" />
-                          {t("actions.edit")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setPendingDelete(skin)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          {t("actions.delete")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => openEdit(skin)}
+                        aria-label={t("actions.edit")}
+                        title={t("actions.edit")}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setPendingDelete(skin)}
+                        aria-label={t("actions.delete")}
+                        title={t("actions.delete")}
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

@@ -102,6 +102,7 @@ export interface PaymentsSkinsStrings {
   deleteDesc: string
   deleteFailed: string
   deleteSuccess: string
+  preview: string
   table: {
     name: string
     forms: string
@@ -298,6 +299,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       deleteDesc: '"{name}" will be removed and its forms will fall back to their own design. This can\'t be undone.',
       deleteFailed: 'Could not delete the skin.',
       deleteSuccess: 'Skin deleted.',
+      preview: 'Preview',
       table: {
         name: 'Name',
         forms: 'Forms',
@@ -486,6 +488,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       deleteDesc: '"{name}" se eliminará y sus formularios volverán a su propio diseño. Esta acción no se puede deshacer.',
       deleteFailed: 'No se pudo eliminar la apariencia.',
       deleteSuccess: 'Apariencia eliminada.',
+      preview: 'Vista previa',
       table: {
         name: 'Nombre',
         forms: 'Formularios',

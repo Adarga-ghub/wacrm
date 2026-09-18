@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Eye, Loader2 } from "lucide-react"
 
 import type {
   PaymentForm,
@@ -11,7 +11,8 @@ import type {
   PaymentPageTopSection,
   PaymentSkin,
 } from "@/types"
-import type { PaymentsT } from "@/hooks/use-payments-locale"
+import { usePaymentsLocale, type PaymentsT } from "@/hooks/use-payments-locale"
+import { buildSkinPreviewUrl } from "@/lib/payments/skin-preview"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -51,6 +52,7 @@ export function SkinEditorDialog({
   onSaved: () => void
   t: PaymentsT
 }) {
+  const { locale } = usePaymentsLocale()
   const [name, setName] = useState("")
   const [design, setDesign] = useState<PaymentFormDesign>({})
   const [selectedFormIds, setSelectedFormIds] = useState<Set<string>>(new Set())
@@ -85,6 +87,10 @@ export function SkinEditorDialog({
       else next.add(formId)
       return next
     })
+  }
+
+  function handlePreview() {
+    window.open(buildSkinPreviewUrl(design, locale), "_blank", "noopener,noreferrer")
   }
 
   async function handleSave() {
@@ -364,6 +370,10 @@ export function SkinEditorDialog({
         </div>
 
         <DialogFooter>
+          <Button variant="outline" onClick={handlePreview} className="mr-auto">
+            <Eye className="h-4 w-4" />
+            {t("preview")}
+          </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t("cancel")}
           </Button>

@@ -38,6 +38,9 @@ interface PayPageStrings {
   lastName: string
   email: string
   pay: string
+  previewBadge: string
+  sampleProductName: string
+  previewPayNote: string
 }
 
 export const payPageStrings: Record<PayLocale, PayPageStrings> = {
@@ -64,6 +67,9 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     lastName: 'Apellido',
     email: 'Correo electrónico',
     pay: 'Pagar',
+    previewBadge: 'Vista previa',
+    sampleProductName: 'Producto de ejemplo',
+    previewPayNote: 'Esto es una vista previa — no se realizará ningún cobro real.',
   },
   en: {
     notAvailable: "This payment form isn't available.",
@@ -88,6 +94,9 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     lastName: 'Last name',
     email: 'Email',
     pay: 'Pay',
+    previewBadge: 'Preview',
+    sampleProductName: 'Sample product',
+    previewPayNote: "This is a preview — no real charge will happen.",
   },
 }
 

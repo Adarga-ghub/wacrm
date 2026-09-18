@@ -10,11 +10,11 @@
 // SDK reports back to the browser beyond "the payer approved it".
 // ============================================================
 
-import { Suspense, useEffect, useRef, useState, type CSSProperties } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock } from "lucide-react"
 
-import type { PaymentPageBackground, PublicPaymentForm } from "@/types"
+import type { PublicPaymentForm } from "@/types"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -25,49 +25,12 @@ import {
   translateFieldLabel,
   type PayLocale,
 } from "@/lib/payments/pay-page-i18n"
+import { backgroundStyle, LanguageToggle, TopSectionBlock } from "@/lib/payments/checkout-render"
 
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     paypal?: any
-  }
-}
-
-function LanguageToggle({ locale, onChange }: { locale: PayLocale; onChange: (l: PayLocale) => void }) {
-  return (
-    <div className="flex items-center justify-end gap-1 border-b border-border/60 bg-muted/30 px-3 py-1.5">
-      {(["es", "en"] as const).map((l) => (
-        <button
-          key={l}
-          type="button"
-          onClick={() => onChange(l)}
-          aria-pressed={locale === l}
-          className={`rounded px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide transition-colors ${
-            locale === l
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {l}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-/** "Fondo" block (see the Payment Skins builder) — page-wide background behind the checkout Card. */
-function backgroundStyle(background?: PaymentPageBackground): CSSProperties {
-  if (!background) return {}
-  if ((background.type ?? "color") === "color") {
-    return background.color ? { backgroundColor: background.color } : {}
-  }
-  if (!background.image_url) return {}
-  return {
-    backgroundImage: `url(${background.image_url})`,
-    backgroundSize: background.fill ? "cover" : "auto",
-    backgroundRepeat: background.fill ? "no-repeat" : background.repeat ? "repeat" : "no-repeat",
-    backgroundAttachment: background.fixed ? "fixed" : "scroll",
-    backgroundPosition: "center",
   }
 }
 
@@ -388,12 +351,6 @@ function PublicPaymentFormPageInner() {
 
   const accent = form.design?.accent_color || undefined
   const topSection = form.design?.top_section
-  const hasTopSection = !!(
-    topSection?.banner_image_url ||
-    topSection?.product_image_url ||
-    topSection?.title ||
-    topSection?.subtitle
-  )
 
   return (
     <>
@@ -402,42 +359,7 @@ function PublicPaymentFormPageInner() {
         <LanguageToggle locale={locale} onChange={setLocale} />
         <div className="h-1.5 w-full" style={{ backgroundColor: accent || "var(--primary)" }} />
 
-        {hasTopSection && (
-          <div className="space-y-3 px-6 pt-6">
-            {topSection?.banner_image_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={topSection.banner_image_url}
-                alt=""
-                className="w-full rounded-lg object-cover"
-              />
-            )}
-            {topSection?.product_image_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={topSection.product_image_url}
-                alt=""
-                className="mx-auto block h-20 w-20 rounded-lg object-cover"
-              />
-            )}
-            {topSection?.title && (
-              <h2
-                className="text-center font-bold text-foreground"
-                style={{ fontSize: topSection.title_size ?? 36 }}
-              >
-                {topSection.title}
-              </h2>
-            )}
-            {topSection?.subtitle && (
-              <p
-                className="text-center text-muted-foreground"
-                style={{ fontSize: topSection.subtitle_size ?? 24 }}
-              >
-                {topSection.subtitle}
-              </p>
-            )}
-          </div>
-        )}
+        <TopSectionBlock topSection={topSection} />
 
       <CardHeader>
         {!topSection?.banner_image_url && form.design?.logo_url && (
