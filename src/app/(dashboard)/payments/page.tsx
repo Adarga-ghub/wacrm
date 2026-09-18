@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { useTranslations } from "next-intl"
 import {
   CreditCard,
   Loader2,
@@ -26,6 +25,8 @@ import {
   ReorderableHeaderActions,
   type ReorderableAction,
 } from "@/components/payments/reorderable-header-actions"
+import { PaymentsLanguageToggle } from "@/components/payments/payments-language-toggle"
+import { usePaymentsT } from "@/hooks/use-payments-locale"
 import {
   Table,
   TableBody,
@@ -58,7 +59,7 @@ const STATUS_BADGE: Record<PaymentForm["status"], string> = {
 
 export default function PaymentsPage() {
   const router = useRouter()
-  const t = useTranslations("Payments.list")
+  const t = usePaymentsT("list")
   const canManage = useCan("send-messages")
 
   const [forms, setForms] = useState<PaymentForm[] | null>(null)
@@ -163,7 +164,10 @@ export default function PaymentsPage() {
           <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
-        <ReorderableHeaderActions storageKey="wacrm:payments-header-order" actions={headerActions} />
+        <div className="flex flex-wrap items-center gap-2">
+          <PaymentsLanguageToggle />
+          <ReorderableHeaderActions storageKey="wacrm:payments-header-order" actions={headerActions} />
+        </div>
       </div>
 
       {forms === null ? (

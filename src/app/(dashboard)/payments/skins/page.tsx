@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { useTranslations } from "next-intl"
 import { ArrowLeft, Loader2, MoreVertical, Palette, Pencil, Trash2 } from "lucide-react"
 
 import { useCan } from "@/hooks/use-can"
@@ -34,9 +33,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { SkinEditorDialog } from "@/components/payments/skin-editor-dialog"
+import { PaymentsLanguageToggle } from "@/components/payments/payments-language-toggle"
+import { usePaymentsT } from "@/hooks/use-payments-locale"
 
 export default function PaymentSkinsPage() {
-  const t = useTranslations("Payments.skins")
+  const t = usePaymentsT("skins")
   const canManage = useCan("send-messages")
 
   const [skins, setSkins] = useState<PaymentSkin[] | null>(null)
@@ -116,15 +117,18 @@ export default function PaymentSkinsPage() {
           <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
-        <GatedButton
-          canAct={canManage}
-          gateReason="create payment skins"
-          onClick={openCreate}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <Palette className="h-4 w-4" />
-          {t("newSkin")}
-        </GatedButton>
+        <div className="flex flex-wrap items-center gap-2">
+          <PaymentsLanguageToggle />
+          <GatedButton
+            canAct={canManage}
+            gateReason="create payment skins"
+            onClick={openCreate}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Palette className="h-4 w-4" />
+            {t("newSkin")}
+          </GatedButton>
+        </div>
       </div>
 
       {skins === null ? (

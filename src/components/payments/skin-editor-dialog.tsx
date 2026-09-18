@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import type { useTranslations } from "next-intl"
 import { Loader2 } from "lucide-react"
 
 import type { PaymentForm, PaymentFormDesign, PaymentSkin } from "@/types"
+import type { PaymentsT } from "@/hooks/use-payments-locale"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -43,7 +43,7 @@ export function SkinEditorDialog({
   /** Every non-archived payment form for this account. */
   forms: PaymentForm[]
   onSaved: () => void
-  t: ReturnType<typeof useTranslations>
+  t: PaymentsT
 }) {
   const [name, setName] = useState("")
   const [design, setDesign] = useState<PaymentFormDesign>({})
