@@ -93,6 +93,31 @@ function PublicPaymentFormPageInner() {
   const [cardLastName, setCardLastName] = useState("")
   const [cardEmail, setCardEmail] = useState("")
   const [cardSubmitting, setCardSubmitting] = useState(false)
+
+  // Autofill the card section's Name/Email from the "name"/"email"
+  // fields up top as the buyer types them, so they never have to
+  // enter the same info twice on one screen — but stop overwriting
+  // as soon as they've edited the card field themselves, in case the
+  // cardholder differs from the contact (e.g. a gift purchase).
+  // There's no phone field down here to sync — WhatsApp is only
+  // collected once, up top.
+  const [cardNameTouched, setCardNameTouched] = useState(false)
+  const [cardEmailTouched, setCardEmailTouched] = useState(false)
+  const topName = fieldValues["name"] ?? ""
+  const topEmail = fieldValues["email"] ?? ""
+  useEffect(() => {
+    if (cardNameTouched) return
+    const trimmed = topName.trim()
+    const spaceIdx = trimmed.indexOf(" ")
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCardFirstName(spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx))
+    setCardLastName(spaceIdx === -1 ? "" : trimmed.slice(spaceIdx + 1).trim())
+  }, [topName, cardNameTouched])
+  useEffect(() => {
+    if (cardEmailTouched) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCardEmail(topEmail)
+  }, [topEmail, cardEmailTouched])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cardFieldsRef = useRef<any>(null)
 
@@ -545,16 +570,35 @@ function PublicPaymentFormPageInner() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
                     <Label className="text-muted-foreground">{t.firstName}</Label>
-                    <Input value={cardFirstName} onChange={(e) => setCardFirstName(e.target.value)} />
+                    <Input
+                      value={cardFirstName}
+                      onChange={(e) => {
+                        setCardNameTouched(true)
+                        setCardFirstName(e.target.value)
+                      }}
+                    />
                   </div>
                   <div className="grid gap-1.5">
                     <Label className="text-muted-foreground">{t.lastName}</Label>
-                    <Input value={cardLastName} onChange={(e) => setCardLastName(e.target.value)} />
+                    <Input
+                      value={cardLastName}
+                      onChange={(e) => {
+                        setCardNameTouched(true)
+                        setCardLastName(e.target.value)
+                      }}
+                    />
                   </div>
                 </div>
                 <div className="grid gap-1.5">
                   <Label className="text-muted-foreground">{t.email}</Label>
-                  <Input type="email" value={cardEmail} onChange={(e) => setCardEmail(e.target.value)} />
+                  <Input
+                    type="email"
+                    value={cardEmail}
+                    onChange={(e) => {
+                      setCardEmailTouched(true)
+                      setCardEmail(e.target.value)
+                    }}
+                  />
                 </div>
                 <button
                   type="button"
