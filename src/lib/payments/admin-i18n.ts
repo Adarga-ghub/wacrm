@@ -28,6 +28,8 @@ export interface PaymentsListStrings {
   newForm: string
   emptyTitle: string
   emptyDesc: string
+  hubTitle: string
+  hubDesc: string
   loadFailed: string
   duplicateFailed: string
   duplicateSuccess: string
@@ -260,6 +262,9 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       newForm: 'New form',
       emptyTitle: 'No payment forms yet',
       emptyDesc: 'Create your first checkout form, connect PayPal, and wire it to an automation.',
+      hubTitle: 'Everything lives under Products now',
+      hubDesc:
+        'Create a product, then add and manage its prices from the "Pricing & offers" tab on its detail page — each price gets its own live payment link.',
       loadFailed: 'Could not load your payment forms.',
       duplicateFailed: 'Could not duplicate the form.',
       duplicateSuccess: 'Form duplicated.',
@@ -485,6 +490,9 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       newForm: 'Nuevo formulario',
       emptyTitle: 'Aún no hay formularios de pago',
       emptyDesc: 'Crea tu primer formulario de pago, conecta PayPal y vincúlalo a una automatización.',
+      hubTitle: 'Ahora todo vive dentro de Productos',
+      hubDesc:
+        'Crea un producto y luego añade y gestiona sus precios desde la pestaña "Fijación de precios y ofertas" en su ficha — cada precio obtiene su propio enlace de pago en vivo.',
       loadFailed: 'No se pudieron cargar tus formularios de pago.',
       duplicateFailed: 'No se pudo duplicar el formulario.',
       duplicateSuccess: 'Formulario duplicado.',
