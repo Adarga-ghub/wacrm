@@ -379,37 +379,40 @@ function PublicPaymentFormPageInner() {
           />
         )}
         {product ? (
-          // Title/description/image/author "halados" from the linked
-          // Producto (migration 054/056) — Hotmart-style — instead of
-          // any per-form/per-skin copy, so the same skin can be
-          // applied to different products without carrying one
-          // product's title baked into shared design.
-          <div className="flex flex-col items-center gap-2 text-center">
+          // Title/image/author "halados" from the linked Producto
+          // (migration 054/056) — Hotmart-style — instead of any
+          // per-form/per-skin copy, so the same skin can be applied to
+          // different products without carrying one product's title
+          // baked into shared design. Layout mirrors Hotmart's own
+          // checkout exactly: small cover on the left, title/author/
+          // price stacked to its right — NOT the description, which
+          // stays product-page-only by design.
+          <div className="flex items-start gap-3">
             {product.image_url && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={product.image_url}
                 alt=""
-                className="size-20 rounded-lg object-cover sm:size-24"
+                className="size-16 shrink-0 rounded-lg object-cover"
               />
             )}
-            <CardTitle className="justify-center">{product.name}</CardTitle>
-            {product.author && (
-              <p className="-mt-1 text-xs text-muted-foreground">{t.byAuthor(product.author)}</p>
-            )}
-            {product.description && (
-              <p className="text-sm text-muted-foreground">{product.description}</p>
-            )}
+            <div className="min-w-0">
+              <CardTitle>{product.name}</CardTitle>
+              {product.author && (
+                <p className="mt-0.5 text-xs text-muted-foreground">{t.authorLabel(product.author)}</p>
+              )}
+              <p className="mt-1 text-base font-semibold text-foreground">{priceLine}</p>
+            </div>
           </div>
         ) : (
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="size-5 text-primary" style={accent ? { color: accent } : undefined} />
-            {form.name}
-          </CardTitle>
+          <>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="size-5 text-primary" style={accent ? { color: accent } : undefined} />
+              {form.name}
+            </CardTitle>
+            <CardDescription>{priceLine}</CardDescription>
+          </>
         )}
-        <CardDescription className={product ? "text-center" : undefined}>
-          {priceLine}
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {form.fields.map((field) => (

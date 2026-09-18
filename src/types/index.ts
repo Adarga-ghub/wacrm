@@ -983,12 +983,12 @@ export interface PaymentProduct {
 /**
  * Public-safe projection of a `PaymentProduct`, embedded in
  * `PublicPaymentForm.product` — only what the checkout page's header
- * needs to render (name, description, cover image, author). Never
- * account_id/created_by/status/default_skin_id.
+ * needs to render (name, cover image, author). Deliberately excludes
+ * `description`: that stays product-page-only, never pulled onto the
+ * public checkout. Also never account_id/created_by/status/default_skin_id.
  */
 export interface PublicPaymentProduct {
   name: string;
-  description: string | null;
   image_url: string | null;
   author: string | null;
 }

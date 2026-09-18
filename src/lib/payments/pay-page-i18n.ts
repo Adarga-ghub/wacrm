@@ -41,7 +41,8 @@ interface PayPageStrings {
   previewBadge: string
   sampleProductName: string
   previewPayNote: string
-  byAuthor: (author: string) => string
+  /** "Autor: {name}" — exact label/format from the Hotmart checkout this mirrors, not a free paraphrase. */
+  authorLabel: (author: string) => string
 }
 
 export const payPageStrings: Record<PayLocale, PayPageStrings> = {
@@ -71,7 +72,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     previewBadge: 'Vista previa',
     sampleProductName: 'Producto de ejemplo',
     previewPayNote: 'Esto es una vista previa — no se realizará ningún cobro real.',
-    byAuthor: (author) => `Por ${author}`,
+    authorLabel: (author) => `Autor: ${author}`,
   },
   en: {
     notAvailable: "This payment form isn't available.",
@@ -99,7 +100,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     previewBadge: 'Preview',
     sampleProductName: 'Sample product',
     previewPayNote: "This is a preview — no real charge will happen.",
-    byAuthor: (author) => `By ${author}`,
+    authorLabel: (author) => `Author: ${author}`,
   },
 }
 

@@ -67,15 +67,17 @@ export async function GET(
   }
 
   // A price linked to a Producto (migration 054) pulls its title,
-  // description, cover image and author from THERE — Hotmart-style —
-  // instead of any per-form/per-skin copy. A standalone form
-  // (`product_id` null) has no product and the checkout page falls
-  // back to `form.name`, exactly as before this existed.
+  // cover image and author from THERE — Hotmart-style — instead of
+  // any per-form/per-skin copy. Deliberately NOT `description`: that
+  // stays product-page-only, never fetched onto the public checkout.
+  // A standalone form (`product_id` null) has no product and the
+  // checkout page falls back to `form.name`, exactly as before this
+  // existed.
   let product: PublicPaymentForm['product'] = null
   if (data.product_id) {
     const { data: productRow } = await supabaseAdmin()
       .from('payment_products')
-      .select('name, description, image_url, author')
+      .select('name, image_url, author')
       .eq('id', data.product_id)
       .maybeSingle()
     if (productRow) product = productRow
