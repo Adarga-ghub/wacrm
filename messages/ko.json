@@ -1099,6 +1099,7 @@
       "subtitle": "PayPal 결제 폼을 만들고 결제가 확인되면 자동으로 파일을 전송하세요.",
       "configureGateway": "PayPal 설정",
       "transactions": "거래 내역",
+      "skins": "결제 스킨",
       "newForm": "새 폼",
       "emptyTitle": "아직 결제 폼이 없습니다",
       "emptyDesc": "첫 결제 폼을 만들고, PayPal을 연결하고, 자동화에 연결하세요.",
@@ -1219,6 +1220,47 @@
       "saveSuccess": "PayPal 설정이 저장되었습니다.",
       "disconnectFailed": "PayPal 연결을 해제할 수 없습니다.",
       "disconnectSuccess": "PayPal 연결이 해제되었습니다."
+    },
+    "skins": {
+      "back": "결제 폼",
+      "title": "결제 스킨",
+      "subtitle": "재사용 가능한 결제 디자인 — 하나의 스킨을 만들어 원하는 만큼의 결제 폼에 적용하세요.",
+      "newSkin": "새 스킨",
+      "editTitle": "스킨 편집",
+      "dialogDesc": "이 디자인은 스킨이 연결된 모든 곳에 적용됩니다 — 수정하면 아래의 모든 폼이 한 번에 업데이트됩니다.",
+      "emptyTitle": "아직 결제 스킨이 없습니다",
+      "emptyDesc": "재사용 가능한 결제 디자인을 만들고 하나 이상의 결제 폼에 적용하세요.",
+      "loadFailed": "결제 스킨을 불러올 수 없습니다.",
+      "nameLabel": "스킨 이름",
+      "namePlaceholder": "예: 블랙 프라이데이",
+      "accentColorLabel": "강조 색상",
+      "logoUrlLabel": "로고 URL",
+      "formsLabel": "적용 대상",
+      "formsHint": "이 디자인을 사용할 결제 폼을 선택하세요.",
+      "formsEmpty": "아직 결제 폼이 없습니다.",
+      "formsReassignHint": "현재 스킨에서 전환됩니다",
+      "cancel": "취소",
+      "create": "만들기",
+      "save": "저장",
+      "createFailed": "스킨을 만들 수 없습니다.",
+      "createSuccess": "스킨이 생성되었습니다.",
+      "saveFailed": "스킨을 저장할 수 없습니다.",
+      "saveSuccess": "스킨이 저장되었습니다.",
+      "deleteTitle": "이 스킨을 삭제하시겠습니까?",
+      "deleteDesc": "\"{name}\" 스킨이 제거되고 연결된 폼은 각자의 디자인으로 돌아갑니다. 이 작업은 되돌릴 수 없습니다.",
+      "deleteFailed": "스킨을 삭제할 수 없습니다.",
+      "deleteSuccess": "스킨이 삭제되었습니다.",
+      "table": {
+        "name": "이름",
+        "forms": "폼",
+        "created": "생성일",
+        "formsCount": "폼 {count}개"
+      },
+      "actions": {
+        "edit": "편집",
+        "delete": "삭제",
+        "menu": "메뉴 열기"
+      }
     }
   },
   "Flows": {

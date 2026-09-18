@@ -10,6 +10,7 @@ import {
   Loader2,
   MoreVertical,
   Copy,
+  Palette,
   Pencil,
   Receipt,
   Settings,
@@ -21,6 +22,10 @@ import type { PaymentForm } from "@/types"
 import { Button } from "@/components/ui/button"
 import { GatedButton } from "@/components/ui/gated-button"
 import { Badge } from "@/components/ui/badge"
+import {
+  ReorderableHeaderActions,
+  type ReorderableAction,
+} from "@/components/payments/reorderable-header-actions"
 import {
   Table,
   TableBody,
@@ -104,6 +109,53 @@ export default function PaymentsPage() {
     load()
   }
 
+  // Each pill is independently draggable (see
+  // `ReorderableHeaderActions`) — order is a per-device preference,
+  // not app state, so it's fine to rebuild this array every render.
+  const headerActions: ReorderableAction[] = [
+    {
+      id: "transactions",
+      content: (
+        <Button variant="outline" render={<Link href="/payments/transactions" />}>
+          <Receipt className="h-4 w-4" />
+          {t("transactions")}
+        </Button>
+      ),
+    },
+    {
+      id: "gateway",
+      content: (
+        <Button variant="outline" render={<Link href="/payments/settings" />}>
+          <Settings className="h-4 w-4" />
+          {t("configureGateway")}
+        </Button>
+      ),
+    },
+    {
+      id: "skins",
+      content: (
+        <Button variant="outline" render={<Link href="/payments/skins" />}>
+          <Palette className="h-4 w-4" />
+          {t("skins")}
+        </Button>
+      ),
+    },
+    {
+      id: "new-form",
+      content: (
+        <GatedButton
+          canAct={canManage}
+          gateReason="create payment forms"
+          onClick={() => router.push("/payments/forms/new")}
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          <CreditCard className="h-4 w-4" />
+          {t("newForm")}
+        </GatedButton>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -111,31 +163,7 @@ export default function PaymentsPage() {
           <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            render={<Link href="/payments/transactions" />}
-          >
-            <Receipt className="h-4 w-4" />
-            {t("transactions")}
-          </Button>
-          <Button
-            variant="outline"
-            render={<Link href="/payments/settings" />}
-          >
-            <Settings className="h-4 w-4" />
-            {t("configureGateway")}
-          </Button>
-          <GatedButton
-            canAct={canManage}
-            gateReason="create payment forms"
-            onClick={() => router.push("/payments/forms/new")}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <CreditCard className="h-4 w-4" />
-            {t("newForm")}
-          </GatedButton>
-        </div>
+        <ReorderableHeaderActions storageKey="wacrm:payments-header-order" actions={headerActions} />
       </div>
 
       {forms === null ? (

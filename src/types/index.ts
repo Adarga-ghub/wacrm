@@ -903,6 +903,24 @@ export interface PaymentForm {
   inline_success_message: string | null;
   submission_limit: number | null;
   design: PaymentFormDesign;
+  /** Reusable checkout appearance (see `PaymentSkin`) — when set, the public checkout page uses the SKIN's `design` instead of this row's own. Null = this form's own `design` applies. */
+  skin_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * "Apariencia de pago" — a reusable, named checkout design (migration
+ * 053) that any number of `PaymentForm`s can point at via
+ * `PaymentForm.skin_id`. Editing a skin updates every form using it
+ * at once.
+ */
+export interface PaymentSkin {
+  id: string;
+  account_id: string;
+  created_by: string | null;
+  name: string;
+  design: PaymentFormDesign;
   created_at: string;
   updated_at: string;
 }

@@ -1099,6 +1099,7 @@
       "subtitle": "Build PayPal checkout forms and send files automatically when a payment is confirmed.",
       "configureGateway": "Configure PayPal",
       "transactions": "Transactions",
+      "skins": "Payment Skins",
       "newForm": "New form",
       "emptyTitle": "No payment forms yet",
       "emptyDesc": "Create your first checkout form, connect PayPal, and wire it to an automation.",
@@ -1219,6 +1220,47 @@
       "saveSuccess": "PayPal configuration saved.",
       "disconnectFailed": "Could not disconnect PayPal.",
       "disconnectSuccess": "PayPal disconnected."
+    },
+    "skins": {
+      "back": "Payment forms",
+      "title": "Payment Skins",
+      "subtitle": "Reusable checkout designs — create one appearance and apply it to as many payment forms as you like.",
+      "newSkin": "New skin",
+      "editTitle": "Edit skin",
+      "dialogDesc": "This design applies everywhere the skin is linked — editing it updates every form below at once.",
+      "emptyTitle": "No payment skins yet",
+      "emptyDesc": "Create a reusable checkout appearance and apply it to one or more payment forms.",
+      "loadFailed": "Could not load your payment skins.",
+      "nameLabel": "Skin name",
+      "namePlaceholder": "e.g. Black Friday",
+      "accentColorLabel": "Accent color",
+      "logoUrlLabel": "Logo URL",
+      "formsLabel": "Applied to",
+      "formsHint": "Select every payment form that should use this appearance.",
+      "formsEmpty": "You don't have any payment forms yet.",
+      "formsReassignHint": "Switches from its current skin",
+      "cancel": "Cancel",
+      "create": "Create",
+      "save": "Save",
+      "createFailed": "Could not create the skin.",
+      "createSuccess": "Skin created.",
+      "saveFailed": "Could not save the skin.",
+      "saveSuccess": "Skin saved.",
+      "deleteTitle": "Delete this skin?",
+      "deleteDesc": "\"{name}\" will be removed and its forms will fall back to their own design. This can't be undone.",
+      "deleteFailed": "Could not delete the skin.",
+      "deleteSuccess": "Skin deleted.",
+      "table": {
+        "name": "Name",
+        "forms": "Forms",
+        "created": "Created",
+        "formsCount": "{count} forms"
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "menu": "Open menu"
+      }
     }
   },
   "Flows": {

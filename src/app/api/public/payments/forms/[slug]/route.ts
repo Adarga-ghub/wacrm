@@ -36,7 +36,7 @@ export async function GET(
   const { data, error } = await supabaseAdmin()
     .from('payment_forms')
     .select(
-      'account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design',
+      'account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id',
     )
     .eq('slug', slug)
     .eq('status', 'published')
@@ -52,6 +52,20 @@ export async function GET(
 
   const gateway = await resolveGateway(supabaseAdmin(), data.account_id)
 
+  // A form linked to a skin (migration 053) defers ALL of its
+  // cosmetics to the skin — every form pointed at the same skin
+  // renders identically and picks up edits together. A form with no
+  // `skin_id` keeps using its own `design` column exactly as before.
+  let design = data.design ?? {}
+  if (data.skin_id) {
+    const { data: skin } = await supabaseAdmin()
+      .from('payment_skins')
+      .select('design')
+      .eq('id', data.skin_id)
+      .maybeSingle()
+    if (skin) design = skin.design ?? {}
+  }
+
   const form: PublicPaymentForm = {
     name: data.name,
     status: data.status,
@@ -61,7 +75,7 @@ export async function GET(
     min_amount: data.min_amount,
     products: data.products,
     currency: data.currency,
-    design: data.design ?? {},
+    design,
     paypal_client_id: gateway?.clientId ?? null,
   }
   return NextResponse.json({ form })
