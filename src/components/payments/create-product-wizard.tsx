@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { ImageUploadField } from "@/components/payments/image-upload-field"
 import {
   Dialog,
   DialogContent,
@@ -197,15 +198,14 @@ export function CreateProductWizard({
                 placeholder={t("wizard.descriptionPlaceholder")}
               />
             </div>
-            <div className="grid gap-2">
-              <Label className="text-muted-foreground">{t("wizard.imageUrlLabel")}</Label>
-              <Input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://…/portada.png"
-              />
-            </div>
+            <ImageUploadField
+              label={t("wizard.imageUrlLabel")}
+              value={imageUrl}
+              onChange={setImageUrl}
+              maxWidth={600}
+              maxHeight={600}
+              t={t}
+            />
           </div>
         )}
 

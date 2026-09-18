@@ -155,6 +155,15 @@ export interface PaymentsProductsStrings {
   archiveDesc: string
   archiveFailed: string
   archiveSuccess: string
+  uploadImage: string
+  changeImage: string
+  removeImage: string
+  uploadingImage: string
+  recommendedSize: string
+  imageInvalidType: string
+  imageTooLarge: string
+  imageDimensionsExceeded: string
+  imageUploadFailed: string
   wizard: {
     title: string
     stepBasics: string
@@ -360,6 +369,15 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       archiveDesc: '"{name}" will be hidden from your product list. Its prices and transaction history are kept.',
       archiveFailed: 'Could not archive the product.',
       archiveSuccess: 'Product archived.',
+      uploadImage: 'Upload image',
+      changeImage: 'Change image',
+      removeImage: 'Remove',
+      uploadingImage: 'Uploading…',
+      recommendedSize: 'Recommended: {width}×{height}px',
+      imageInvalidType: 'Unsupported format. Use PNG, JPG, WEBP or GIF.',
+      imageTooLarge: 'The file exceeds the maximum size allowed (5 MB).',
+      imageDimensionsExceeded: 'The image exceeds the recommended size ({width}×{height}px). Upload a smaller image.',
+      imageUploadFailed: 'Could not upload the image.',
       wizard: {
         title: 'Create product',
         stepBasics: 'Basics',
@@ -369,7 +387,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         namePlaceholder: 'e.g. Advanced Course',
         descriptionLabel: 'Description (optional)',
         descriptionPlaceholder: "What's this product about?",
-        imageUrlLabel: 'Cover image URL (optional)',
+        imageUrlLabel: 'Cover image (optional)',
         priceNameLabel: 'Price name',
         priceNamePlaceholder: 'e.g. Full payment',
         amountLabel: 'Amount',
@@ -558,6 +576,15 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       archiveDesc: '"{name}" se ocultará de tu lista de productos. Sus precios e historial de transacciones se conservan.',
       archiveFailed: 'No se pudo archivar el producto.',
       archiveSuccess: 'Producto archivado.',
+      uploadImage: 'Subir imagen',
+      changeImage: 'Cambiar imagen',
+      removeImage: 'Quitar',
+      uploadingImage: 'Subiendo…',
+      recommendedSize: 'Recomendado: {width}×{height}px',
+      imageInvalidType: 'Formato no soportado. Usa PNG, JPG, WEBP o GIF.',
+      imageTooLarge: 'El archivo supera el tamaño máximo permitido (5 MB).',
+      imageDimensionsExceeded: 'La imagen supera el tamaño recomendado ({width}×{height}px). Sube una imagen más pequeña.',
+      imageUploadFailed: 'No se pudo subir la imagen.',
       wizard: {
         title: 'Crear producto',
         stepBasics: 'Datos básicos',
@@ -567,7 +594,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         namePlaceholder: 'ej. Curso Avanzado',
         descriptionLabel: 'Descripción (opcional)',
         descriptionPlaceholder: '¿De qué trata este producto?',
-        imageUrlLabel: 'URL de la imagen de portada (opcional)',
+        imageUrlLabel: 'Imagen de portada (opcional)',
         priceNameLabel: 'Nombre del precio',
         priceNamePlaceholder: 'ej. Pago completo',
         amountLabel: 'Monto',
