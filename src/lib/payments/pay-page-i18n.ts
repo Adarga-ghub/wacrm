@@ -15,6 +15,23 @@ export const PAYPAL_SDK_LOCALE: Record<PayLocale, string> = {
   en: 'en_US',
 }
 
+/**
+ * This CRM's actual buyers are overwhelmingly Latin American (the
+ * account's payment currencies are DOP/COP/MXN/ARS, not EUR), so
+ * `es_ES` — Spain — is the wrong default for nearly every Spanish
+ * visitor. `es_XC` is PayPal's Latin America Spanish locale; `es_ES`
+ * is used only when the buyer is actually detected in Spain.
+ * `countryCode` comes from `GET /api/public/payments/geo`
+ * (IP-based, best-effort) and is `null` whenever detection fails —
+ * in that case this falls back to the LatAm locale rather than
+ * `PAYPAL_SDK_LOCALE`'s own `es_ES` default, since that's the safer
+ * assumption for this merchant's audience.
+ */
+export function resolvePaypalSdkLocale(locale: PayLocale, countryCode: string | null): string {
+  if (locale === 'en') return PAYPAL_SDK_LOCALE.en
+  return countryCode === 'ES' ? 'es_ES' : 'es_XC'
+}
+
 interface PayPageStrings {
   notAvailable: string
   chooseProduct: string

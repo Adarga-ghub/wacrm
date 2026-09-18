@@ -21,8 +21,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
-  PAYPAL_SDK_LOCALE,
   payPageStrings,
+  resolvePaypalSdkLocale,
   translateFieldLabel,
   type PayLocale,
 } from "@/lib/payments/pay-page-i18n"
@@ -60,6 +60,19 @@ function PublicPaymentFormPageInner() {
     }
   }, [])
   const t = payPageStrings[locale]
+
+  // IP-based, best-effort — only ever narrows which PayPal SDK
+  // locale we ask for (see `resolvePaypalSdkLocale`); `null` (still
+  // detecting, or detection failed) just keeps today's behavior.
+  const [buyerCountry, setBuyerCountry] = useState<string | null>(null)
+  useEffect(() => {
+    fetch("/api/public/payments/geo")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.country) setBuyerCountry(data.country)
+      })
+      .catch(() => {})
+  }, [])
 
   const [form, setForm] = useState<PublicPaymentForm | null>(null)
   const [notFound, setNotFound] = useState(false)
@@ -120,12 +133,13 @@ function PublicPaymentFormPageInner() {
   }, [slug])
 
   // Load the PayPal JS SDK once we know the merchant's Client ID —
-  // and reload it whenever the visitor toggles language, since the
-  // SDK's own `locale` param controls the text PayPal renders inside
-  // its own button/hosted-checkout UI.
+  // and reload it whenever the visitor toggles language or their
+  // detected country resolves, since the SDK's own `locale` param
+  // controls both the text AND the regional defaults (e.g. country
+  // picker) PayPal renders inside its own button/hosted-checkout UI.
   useEffect(() => {
     if (!form?.paypal_client_id) return
-    const desiredLocale = PAYPAL_SDK_LOCALE[locale]
+    const desiredLocale = resolvePaypalSdkLocale(locale, buyerCountry)
     const existing = document.getElementById("paypal-sdk") as HTMLScriptElement | null
     if (existing) {
       if (existing.dataset.locale === desiredLocale) {
@@ -156,7 +170,7 @@ function PublicPaymentFormPageInner() {
     script.onload = () => setSdkReady(true)
     script.onerror = () => setErrorMessage(payPageStrings[locale].sdkLoadError)
     document.body.appendChild(script)
-  }, [form?.paypal_client_id, form?.currency, locale])
+  }, [form?.paypal_client_id, form?.currency, locale, buyerCountry])
 
   // Render the PayPal button, and either Advanced Card Fields (inline,
   // minimal) or the FUNDING.CARD fallback button, once the SDK is
