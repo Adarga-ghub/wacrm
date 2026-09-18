@@ -81,7 +81,7 @@ function SkinPreviewPageInner() {
         <TopSectionBlock topSection={topSection} />
 
         <CardHeader>
-          {!topSection?.banner_image_url && design.logo_url && (
+          {design.logo_url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={design.logo_url} alt="" className="mb-2 h-10 w-auto object-contain" />
           )}

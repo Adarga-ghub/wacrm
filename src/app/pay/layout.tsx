@@ -26,7 +26,19 @@ export default function PayLayout({ children }: { children: ReactNode }) {
     // way to scroll back up to it. Top-anchoring with symmetric
     // padding avoids that entirely and is how most checkout pages
     // (Stripe, PayPal's own) already behave.
-    <div className="flex min-h-screen items-start justify-center bg-background px-4 py-6 sm:py-10">
+    //
+    // NO `bg-background` here on purpose — `body` already carries it
+    // (globals.css), which is what actually shows through when a
+    // skin sets no custom "Fondo". A skin's background renders as a
+    // `position: fixed` layer with a negative z-index
+    // (`backgroundStyle()` in `checkout-render.tsx`), and negative
+    // z-index content paints BELOW the in-flow content of its
+    // stacking context — including this div's own background, if it
+    // had one. Repainting `bg-background` here would sit on top of
+    // that layer and hide every custom background, color or image,
+    // permanently. Leave this div transparent; `body`'s background is
+    // the visual fallback.
+    <div className="flex min-h-screen items-start justify-center px-4 py-6 sm:py-10">
       {children}
     </div>
   )

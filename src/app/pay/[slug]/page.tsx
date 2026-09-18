@@ -362,7 +362,7 @@ function PublicPaymentFormPageInner() {
         <TopSectionBlock topSection={topSection} />
 
       <CardHeader>
-        {!topSection?.banner_image_url && form.design?.logo_url && (
+        {form.design?.logo_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={form.design.logo_url}
