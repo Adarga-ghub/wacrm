@@ -16,7 +16,17 @@ export const metadata: Metadata = {
 
 export default function PayLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
+    // `items-start` (not `items-center`) is deliberate: a checkout
+    // card's height varies a lot (card-fields expand it, a
+    // product_list or a validation error adds a line, a tall top-
+    // section banner adds more) and can exceed a phone's viewport
+    // height. Flexbox cross-axis centering on overflowing content
+    // clips inconsistently across browsers — the payer can lose
+    // access to the top of the card (language toggle, logo) with no
+    // way to scroll back up to it. Top-anchoring with symmetric
+    // padding avoids that entirely and is how most checkout pages
+    // (Stripe, PayPal's own) already behave.
+    <div className="flex min-h-screen items-start justify-center bg-background px-4 py-6 sm:py-10">
       {children}
     </div>
   )

@@ -319,7 +319,7 @@ function PublicPaymentFormPageInner() {
 
   if (notFound) {
     return (
-      <Card className="w-full max-w-md overflow-hidden">
+      <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
         <LanguageToggle locale={locale} onChange={setLocale} />
         <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
           <AlertTriangle className="size-8 text-amber-500" />
@@ -339,7 +339,7 @@ function PublicPaymentFormPageInner() {
     return (
       <>
         {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md sm:max-w-lg">
           <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
             <CheckCircle2 className="size-8 text-emerald-500" />
             <p className="text-sm text-foreground">{result.inline_message || t.thankYou}</p>
@@ -355,7 +355,7 @@ function PublicPaymentFormPageInner() {
   return (
     <>
       {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
-      <Card className="w-full max-w-md overflow-hidden">
+      <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
         <LanguageToggle locale={locale} onChange={setLocale} />
         <div className="h-1.5 w-full" style={{ backgroundColor: accent || "var(--primary)" }} />
 
@@ -436,7 +436,7 @@ function PublicPaymentFormPageInner() {
               {(form.products ?? []).map((product) => (
                 <label
                   key={product.id}
-                  className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 text-sm transition-colors ${
+                  className={`flex cursor-pointer flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border p-3 text-sm transition-colors ${
                     selectedProductId === product.id
                       ? "border-primary bg-primary/5"
                       : "border-border hover:bg-muted"
@@ -447,16 +447,17 @@ function PublicPaymentFormPageInner() {
                       : undefined
                   }
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2 break-words">
                     <input
                       type="radio"
                       name="product"
                       checked={selectedProductId === product.id}
                       onChange={() => setSelectedProductId(product.id)}
+                      className="shrink-0"
                     />
                     {product.name}
                   </span>
-                  <span className="font-medium text-foreground">
+                  <span className="shrink-0 font-medium text-foreground">
                     {product.price} {form.currency}
                   </span>
                 </label>

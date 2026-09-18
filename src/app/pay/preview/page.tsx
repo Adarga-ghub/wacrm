@@ -70,7 +70,7 @@ function SkinPreviewPageInner() {
   return (
     <>
       {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
-      <Card className="w-full max-w-md overflow-hidden">
+      <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
         <LanguageToggle locale={locale} onChange={setLocale} />
         <div className="flex items-center justify-center gap-1.5 border-b border-border/60 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
           <Eye className="size-3.5" />
