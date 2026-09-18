@@ -4,30 +4,13 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import {
-  CreditCard,
-  Loader2,
-  MoreVertical,
-  Copy,
-  Package,
-  Palette,
-  Pencil,
-  Receipt,
-  Settings,
-  Trash2,
-} from "lucide-react"
+import { ArrowLeft, ImageOff, Loader2, MoreVertical, Package, Pencil, Trash2 } from "lucide-react"
 
 import { useCan } from "@/hooks/use-can"
-import type { PaymentForm } from "@/types"
+import type { PaymentForm, PaymentProduct } from "@/types"
 import { Button } from "@/components/ui/button"
 import { GatedButton } from "@/components/ui/gated-button"
 import { Badge } from "@/components/ui/badge"
-import {
-  ReorderableHeaderActions,
-  type ReorderableAction,
-} from "@/components/payments/reorderable-header-actions"
-import { PaymentsLanguageToggle } from "@/components/payments/payments-language-toggle"
-import { usePaymentsT } from "@/hooks/use-payments-locale"
 import {
   Table,
   TableBody,
@@ -40,7 +23,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -51,56 +33,56 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { CreateProductWizard } from "@/components/payments/create-product-wizard"
+import { PaymentsLanguageToggle } from "@/components/payments/payments-language-toggle"
+import { usePaymentsT } from "@/hooks/use-payments-locale"
 
-const STATUS_BADGE: Record<PaymentForm["status"], string> = {
+const STATUS_BADGE: Record<PaymentProduct["status"], string> = {
   draft: "border-slate-500/30 bg-slate-500/10 text-muted-foreground",
   published: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
   archived: "border-slate-500/30 bg-slate-500/10 text-muted-foreground",
 }
 
-export default function PaymentsPage() {
+export default function PaymentProductsPage() {
   const router = useRouter()
-  const t = usePaymentsT("list")
+  const t = usePaymentsT("products")
   const canManage = useCan("send-messages")
 
-  const [forms, setForms] = useState<PaymentForm[] | null>(null)
-  const [pendingArchive, setPendingArchive] = useState<PaymentForm | null>(null)
+  const [products, setProducts] = useState<PaymentProduct[] | null>(null)
+  const [forms, setForms] = useState<PaymentForm[]>([])
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [pendingArchive, setPendingArchive] = useState<PaymentProduct | null>(null)
   const [archiving, setArchiving] = useState(false)
 
   async function load() {
-    const res = await fetch("/api/payments/forms")
-    if (!res.ok) {
+    const [productsRes, formsRes] = await Promise.all([
+      fetch("/api/payments/products"),
+      fetch("/api/payments/forms"),
+    ])
+    if (!productsRes.ok) {
       toast.error(t("loadFailed"))
-      setForms([])
-      return
+      setProducts([])
+    } else {
+      const data = await productsRes.json()
+      setProducts(data.products ?? [])
     }
-    const data = await res.json()
-    setForms(data.forms ?? [])
+    if (formsRes.ok) {
+      const data = await formsRes.json()
+      setForms(data.forms ?? [])
+    }
   }
 
-  // See the matching comment in the form editor page — same
-  // established "fetch on mount" shape as other list pages in this
-  // codebase (automations, broadcasts); flagged here over `load`'s
-  // early-return branch.
+  // Same "fetch on mount" shape as the rest of this module's list
+  // pages (see the matching comment in `payments/page.tsx`).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load()
   }, [])
 
-  async function handleDuplicate(form: PaymentForm) {
-    const res = await fetch(`/api/payments/forms/${form.id}/duplicate`, { method: "POST" })
-    if (!res.ok) {
-      toast.error(t("duplicateFailed"))
-      return
-    }
-    toast.success(t("duplicateSuccess"))
-    load()
-  }
-
   async function handleArchive() {
     if (!pendingArchive) return
     setArchiving(true)
-    const res = await fetch(`/api/payments/forms/${pendingArchive.id}`, { method: "DELETE" })
+    const res = await fetch(`/api/payments/products/${pendingArchive.id}`, { method: "DELETE" })
     setArchiving(false)
     setPendingArchive(null)
     if (!res.ok) {
@@ -111,64 +93,28 @@ export default function PaymentsPage() {
     load()
   }
 
-  // Each pill is independently draggable (see
-  // `ReorderableHeaderActions`) — order is a per-device preference,
-  // not app state, so it's fine to rebuild this array every render.
-  const headerActions: ReorderableAction[] = [
-    {
-      id: "transactions",
-      content: (
-        <Button variant="outline" render={<Link href="/payments/transactions" />}>
-          <Receipt className="h-4 w-4" />
-          {t("transactions")}
-        </Button>
-      ),
-    },
-    {
-      id: "gateway",
-      content: (
-        <Button variant="outline" render={<Link href="/payments/settings" />}>
-          <Settings className="h-4 w-4" />
-          {t("configureGateway")}
-        </Button>
-      ),
-    },
-    {
-      id: "skins",
-      content: (
-        <Button variant="outline" render={<Link href="/payments/skins" />}>
-          <Palette className="h-4 w-4" />
-          {t("skins")}
-        </Button>
-      ),
-    },
-    {
-      id: "products",
-      content: (
-        <Button variant="outline" render={<Link href="/payments/products" />}>
-          <Package className="h-4 w-4" />
-          {t("products")}
-        </Button>
-      ),
-    },
-    {
-      id: "new-form",
-      content: (
-        <GatedButton
-          canAct={canManage}
-          gateReason="create payment forms"
-          onClick={() => router.push("/payments/forms/new")}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <CreditCard className="h-4 w-4" />
-          {t("newForm")}
-        </GatedButton>
-      ),
-    },
-  ]
+  function handleWizardDone(productId: string) {
+    setWizardOpen(false)
+    load()
+    router.push(`/payments/products/${productId}`)
+  }
+
+  const priceCountByProduct = new Map<string, number>()
+  for (const form of forms) {
+    if (!form.product_id) continue
+    priceCountByProduct.set(form.product_id, (priceCountByProduct.get(form.product_id) ?? 0) + 1)
+  }
 
   return (
     <div className="space-y-6">
+      <Link
+        href="/payments"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {t("back")}
+      </Link>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
@@ -176,18 +122,26 @@ export default function PaymentsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PaymentsLanguageToggle />
-          <ReorderableHeaderActions storageKey="wacrm:payments-header-order" actions={headerActions} />
+          <GatedButton
+            canAct={canManage}
+            gateReason="create products"
+            onClick={() => setWizardOpen(true)}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Package className="h-4 w-4" />
+            {t("newProduct")}
+          </GatedButton>
         </div>
       </div>
 
-      {forms === null ? (
+      {products === null ? (
         <div className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
-      ) : forms.length === 0 ? (
+      ) : products.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-card/50 px-6 py-16 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <CreditCard className="h-6 w-6" />
+            <Package className="h-6 w-6" />
           </div>
           <h2 className="text-lg font-semibold text-foreground">{t("emptyTitle")}</h2>
           <p className="max-w-md text-sm text-muted-foreground">{t("emptyDesc")}</p>
@@ -200,7 +154,7 @@ export default function PaymentsPage() {
                 <TableHead className="text-muted-foreground">{t("table.name")}</TableHead>
                 <TableHead className="text-muted-foreground">{t("table.status")}</TableHead>
                 <TableHead className="hidden text-muted-foreground sm:table-cell">
-                  {t("table.amount")}
+                  {t("table.prices")}
                 </TableHead>
                 <TableHead className="hidden text-muted-foreground sm:table-cell">
                   {t("table.created")}
@@ -209,25 +163,39 @@ export default function PaymentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {forms.map((form) => (
+              {products.map((product) => (
                 <TableRow
-                  key={form.id}
+                  key={product.id}
                   className="cursor-pointer border-border hover:bg-muted/50"
-                  onClick={() => router.push(`/payments/forms/${form.id}/edit`)}
+                  onClick={() => router.push(`/payments/products/${product.id}`)}
                 >
-                  <TableCell className="font-medium text-foreground">{form.name}</TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    <span className="flex items-center gap-2">
+                      <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                        {product.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={product.image_url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <ImageOff className="size-4 text-muted-foreground" />
+                        )}
+                      </span>
+                      {product.name}
+                    </span>
+                  </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={STATUS_BADGE[form.status]}>
-                      {t(`status.${form.status}`)}
+                    <Badge variant="outline" className={STATUS_BADGE[product.status]}>
+                      {t(`status.${product.status}`)}
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">
-                    {form.amount_type === "fixed" && form.amount != null
-                      ? `${form.amount} ${form.currency}`
-                      : t("table.variableAmount")}
+                    {t("table.pricesCount", { count: priceCountByProduct.get(product.id) ?? 0 })}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">
-                    {new Date(form.created_at).toLocaleDateString()}
+                    {new Date(product.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
@@ -239,19 +207,14 @@ export default function PaymentsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => router.push(`/payments/forms/${form.id}/edit`)}
+                          onClick={() => router.push(`/payments/products/${product.id}`)}
                         >
                           <Pencil className="h-4 w-4" />
                           {t("actions.edit")}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDuplicate(form)}>
-                          <Copy className="h-4 w-4" />
-                          {t("actions.duplicate")}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           variant="destructive"
-                          onClick={() => setPendingArchive(form)}
+                          onClick={() => setPendingArchive(product)}
                         >
                           <Trash2 className="h-4 w-4" />
                           {t("actions.archive")}
@@ -265,6 +228,8 @@ export default function PaymentsPage() {
           </Table>
         </div>
       )}
+
+      <CreateProductWizard open={wizardOpen} onOpenChange={setWizardOpen} onDone={handleWizardDone} t={t} />
 
       <Dialog open={!!pendingArchive} onOpenChange={(v) => !v && setPendingArchive(null)}>
         <DialogContent>

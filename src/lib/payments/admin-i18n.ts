@@ -24,6 +24,7 @@ export interface PaymentsListStrings {
   configureGateway: string
   transactions: string
   skins: string
+  products: string
   newForm: string
   emptyTitle: string
   emptyDesc: string
@@ -114,9 +115,99 @@ export interface PaymentsSkinsStrings {
   }
 }
 
+export interface PaymentsProductsStrings {
+  back: string
+  title: string
+  subtitle: string
+  newProduct: string
+  emptyTitle: string
+  emptyDesc: string
+  loadFailed: string
+  cancel: string
+  table: {
+    name: string
+    status: string
+    prices: string
+    created: string
+    pricesCount: string
+  }
+  status: {
+    draft: string
+    published: string
+    archived: string
+  }
+  actions: {
+    edit: string
+    archive: string
+    menu: string
+  }
+  archiveTitle: string
+  archiveDesc: string
+  archiveFailed: string
+  archiveSuccess: string
+  wizard: {
+    title: string
+    stepBasics: string
+    stepPrice: string
+    stepAppearance: string
+    nameLabel: string
+    namePlaceholder: string
+    descriptionLabel: string
+    descriptionPlaceholder: string
+    imageUrlLabel: string
+    priceNameLabel: string
+    priceNamePlaceholder: string
+    amountLabel: string
+    appearanceLabel: string
+    appearanceNone: string
+    appearanceHint: string
+    back: string
+    next: string
+    finish: string
+    finishing: string
+    createFailed: string
+    priceFailed: string
+    successTitle: string
+    successDesc: string
+    copyLink: string
+    linkCopied: string
+    done: string
+  }
+  detail: {
+    descriptionLabel: string
+    descriptionPlaceholder: string
+    imageUrlLabel: string
+    appearanceLabel: string
+    appearanceNone: string
+    saveFailed: string
+    saveSuccess: string
+    save: string
+    pricesTitle: string
+    addPrice: string
+    noPrices: string
+    priceNameLabel: string
+    priceNamePlaceholder: string
+    amountLabel: string
+    publishNow: string
+    publishHint: string
+    create: string
+    creating: string
+    createFailed: string
+    copyLink: string
+    linkCopied: string
+    viewLink: string
+    loadFailed: string
+    priceStatus: {
+      draft: string
+      published: string
+    }
+  }
+}
+
 export interface PaymentsAdminNamespaces {
   list: PaymentsListStrings
   skins: PaymentsSkinsStrings
+  products: PaymentsProductsStrings
 }
 
 export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> = {
@@ -128,6 +219,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       configureGateway: 'Configure PayPal',
       transactions: 'Transactions',
       skins: 'Payment Skins',
+      products: 'Products',
       newForm: 'New form',
       emptyTitle: 'No payment forms yet',
       emptyDesc: 'Create your first checkout form, connect PayPal, and wire it to an automation.',
@@ -218,6 +310,94 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         menu: 'Open menu',
       },
     },
+    products: {
+      back: 'Billing & Payments',
+      title: 'Products',
+      subtitle: 'Create a product once, then add one or more prices — each gets its own live payment link.',
+      newProduct: 'Create product',
+      emptyTitle: 'No products yet',
+      emptyDesc: 'Create your first product, set a price, and get a payment link instantly.',
+      loadFailed: 'Could not load your products.',
+      cancel: 'Cancel',
+      table: {
+        name: 'Name',
+        status: 'Status',
+        prices: 'Prices',
+        created: 'Created',
+        pricesCount: '{count} prices',
+      },
+      status: {
+        draft: 'Draft',
+        published: 'Published',
+        archived: 'Archived',
+      },
+      actions: {
+        edit: 'Edit',
+        archive: 'Archive',
+        menu: 'Open menu',
+      },
+      archiveTitle: 'Archive this product?',
+      archiveDesc: '"{name}" will be hidden from your product list. Its prices and transaction history are kept.',
+      archiveFailed: 'Could not archive the product.',
+      archiveSuccess: 'Product archived.',
+      wizard: {
+        title: 'Create product',
+        stepBasics: 'Basics',
+        stepPrice: 'Price',
+        stepAppearance: 'Appearance',
+        nameLabel: 'Product name',
+        namePlaceholder: 'e.g. Advanced Course',
+        descriptionLabel: 'Description (optional)',
+        descriptionPlaceholder: "What's this product about?",
+        imageUrlLabel: 'Cover image URL (optional)',
+        priceNameLabel: 'Price name',
+        priceNamePlaceholder: 'e.g. Full payment',
+        amountLabel: 'Amount',
+        appearanceLabel: 'Payment skin (optional)',
+        appearanceNone: 'No skin — use default design',
+        appearanceHint: 'Applies to every price you create for this product.',
+        back: 'Back',
+        next: 'Next',
+        finish: 'Create and get link',
+        finishing: 'Creating…',
+        createFailed: 'Could not create the product.',
+        priceFailed: 'Could not create the price.',
+        successTitle: 'Product ready',
+        successDesc: 'Your payment link is live:',
+        copyLink: 'Copy link',
+        linkCopied: 'Link copied to clipboard.',
+        done: 'Done',
+      },
+      detail: {
+        descriptionLabel: 'Description',
+        descriptionPlaceholder: "What's this product about?",
+        imageUrlLabel: 'Cover image URL',
+        appearanceLabel: 'Default payment skin',
+        appearanceNone: 'No skin — use default design',
+        saveFailed: 'Could not save the product.',
+        saveSuccess: 'Product saved.',
+        save: 'Save',
+        pricesTitle: 'Prices',
+        addPrice: 'Add price',
+        noPrices: 'No prices yet — add one to generate a payment link.',
+        priceNameLabel: 'Price name',
+        priceNamePlaceholder: 'e.g. Full payment',
+        amountLabel: 'Amount',
+        publishNow: 'Publish and generate link now',
+        publishHint: 'Leave off to review it as a draft first.',
+        create: 'Create price',
+        creating: 'Creating…',
+        createFailed: 'Could not create the price.',
+        copyLink: 'Copy link',
+        linkCopied: 'Link copied to clipboard.',
+        viewLink: 'View',
+        loadFailed: 'Could not load the product.',
+        priceStatus: {
+          draft: 'Draft',
+          published: 'Published',
+        },
+      },
+    },
   },
   es: {
     list: {
@@ -227,6 +407,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       configureGateway: 'Configurar PayPal',
       transactions: 'Transacciones',
       skins: 'Apariencias de pago',
+      products: 'Productos',
       newForm: 'Nuevo formulario',
       emptyTitle: 'Aún no hay formularios de pago',
       emptyDesc: 'Crea tu primer formulario de pago, conecta PayPal y vincúlalo a una automatización.',
@@ -315,6 +496,94 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         edit: 'Editar',
         delete: 'Eliminar',
         menu: 'Abrir menú',
+      },
+    },
+    products: {
+      back: 'Facturación y Pagos',
+      title: 'Productos',
+      subtitle: 'Crea un producto una vez y añádele uno o varios precios — cada uno obtiene su propio enlace de pago en vivo.',
+      newProduct: 'Crear producto',
+      emptyTitle: 'Aún no hay productos',
+      emptyDesc: 'Crea tu primer producto, define un precio y obtén un enlace de pago al instante.',
+      loadFailed: 'No se pudieron cargar tus productos.',
+      cancel: 'Cancelar',
+      table: {
+        name: 'Nombre',
+        status: 'Estado',
+        prices: 'Precios',
+        created: 'Creado',
+        pricesCount: '{count} precios',
+      },
+      status: {
+        draft: 'Borrador',
+        published: 'Publicado',
+        archived: 'Archivado',
+      },
+      actions: {
+        edit: 'Editar',
+        archive: 'Archivar',
+        menu: 'Abrir menú',
+      },
+      archiveTitle: '¿Archivar este producto?',
+      archiveDesc: '"{name}" se ocultará de tu lista de productos. Sus precios e historial de transacciones se conservan.',
+      archiveFailed: 'No se pudo archivar el producto.',
+      archiveSuccess: 'Producto archivado.',
+      wizard: {
+        title: 'Crear producto',
+        stepBasics: 'Datos básicos',
+        stepPrice: 'Precio',
+        stepAppearance: 'Apariencia',
+        nameLabel: 'Nombre del producto',
+        namePlaceholder: 'ej. Curso Avanzado',
+        descriptionLabel: 'Descripción (opcional)',
+        descriptionPlaceholder: '¿De qué trata este producto?',
+        imageUrlLabel: 'URL de la imagen de portada (opcional)',
+        priceNameLabel: 'Nombre del precio',
+        priceNamePlaceholder: 'ej. Pago completo',
+        amountLabel: 'Monto',
+        appearanceLabel: 'Apariencia de pago (opcional)',
+        appearanceNone: 'Sin apariencia — usar diseño predeterminado',
+        appearanceHint: 'Se aplica a cada precio que crees para este producto.',
+        back: 'Atrás',
+        next: 'Siguiente',
+        finish: 'Crear y obtener enlace',
+        finishing: 'Creando…',
+        createFailed: 'No se pudo crear el producto.',
+        priceFailed: 'No se pudo crear el precio.',
+        successTitle: 'Producto listo',
+        successDesc: 'Tu enlace de pago ya está activo:',
+        copyLink: 'Copiar enlace',
+        linkCopied: 'Enlace copiado al portapapeles.',
+        done: 'Listo',
+      },
+      detail: {
+        descriptionLabel: 'Descripción',
+        descriptionPlaceholder: '¿De qué trata este producto?',
+        imageUrlLabel: 'URL de la imagen de portada',
+        appearanceLabel: 'Apariencia de pago predeterminada',
+        appearanceNone: 'Sin apariencia — usar diseño predeterminado',
+        saveFailed: 'No se pudo guardar el producto.',
+        saveSuccess: 'Producto guardado.',
+        save: 'Guardar',
+        pricesTitle: 'Precios',
+        addPrice: 'Añadir precio',
+        noPrices: 'Aún no hay precios — añade uno para generar un enlace de pago.',
+        priceNameLabel: 'Nombre del precio',
+        priceNamePlaceholder: 'ej. Pago completo',
+        amountLabel: 'Monto',
+        publishNow: 'Publicar y generar enlace ahora',
+        publishHint: 'Déjalo sin marcar para revisarlo primero como borrador.',
+        create: 'Crear precio',
+        creating: 'Creando…',
+        createFailed: 'No se pudo crear el precio.',
+        copyLink: 'Copiar enlace',
+        linkCopied: 'Enlace copiado al portapapeles.',
+        viewLink: 'Ver',
+        loadFailed: 'No se pudo cargar el producto.',
+        priceStatus: {
+          draft: 'Borrador',
+          published: 'Publicado',
+        },
       },
     },
   },

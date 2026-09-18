@@ -933,6 +933,8 @@ export interface PaymentForm {
   design: PaymentFormDesign;
   /** Reusable checkout appearance (see `PaymentSkin`) — when set, the public checkout page uses the SKIN's `design` instead of this row's own. Null = this form's own `design` applies. */
   skin_id: string | null;
+  /** The `PaymentProduct` this form is a "price" of (see migration 054). Null = a standalone form, created directly rather than through the Products flow. */
+  product_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -949,6 +951,29 @@ export interface PaymentSkin {
   created_by: string | null;
   name: string;
   design: PaymentFormDesign;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * "Producto" (migration 054) — the Hotmart-inspired top-level entity
+ * a merchant creates first: a name, description and image, with one
+ * or more `PaymentForm`s ("precios") pointed at it via
+ * `PaymentForm.product_id`. NOT the same as `PaymentFormProduct`
+ * (the older `payment_forms.products` line-item list used by a
+ * single form's `amount_type = 'product_list'` catalog picker) —
+ * unrelated naming coincidence, see the migration's header comment.
+ */
+export interface PaymentProduct {
+  id: string;
+  account_id: string;
+  created_by: string | null;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  status: PaymentFormStatus;
+  /** Copied onto a price's own `skin_id` at creation time only — not enforced afterwards. */
+  default_skin_id: string | null;
   created_at: string;
   updated_at: string;
 }
