@@ -199,6 +199,8 @@ export interface PaymentsProductsStrings {
     saveFailed: string
     saveSuccess: string
     save: string
+    tabGeneral: string
+    tabPricing: string
     pricesTitle: string
     addPrice: string
     noPrices: string
@@ -225,6 +227,17 @@ export interface PaymentsProductsStrings {
     editFailed: string
     editSuccess: string
     saving: string
+    table: {
+      name: string
+      value: string
+      code: string
+    }
+    actions: {
+      edit: string
+      copyLink: string
+      viewLink: string
+      menu: string
+    }
   }
 }
 
@@ -418,8 +431,10 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         saveFailed: 'Could not save the product.',
         saveSuccess: 'Product saved.',
         save: 'Save',
+        tabGeneral: 'General',
+        tabPricing: 'Pricing & offers',
         pricesTitle: 'Prices',
-        addPrice: 'Add price',
+        addPrice: 'New price',
         noPrices: 'No prices yet — add one to generate a payment link.',
         priceNameLabel: 'Price name',
         priceNamePlaceholder: 'e.g. Full payment',
@@ -444,6 +459,17 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         editFailed: 'Could not save the price.',
         editSuccess: 'Price updated.',
         saving: 'Saving…',
+        table: {
+          name: 'Offer name',
+          value: 'Value / Currency',
+          code: 'Code',
+        },
+        actions: {
+          edit: 'Edit',
+          copyLink: 'Copy link',
+          viewLink: 'View / copy this offer link',
+          menu: 'Actions',
+        },
       },
     },
   },
@@ -630,8 +656,10 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         saveFailed: 'No se pudo guardar el producto.',
         saveSuccess: 'Producto guardado.',
         save: 'Guardar',
+        tabGeneral: 'General',
+        tabPricing: 'Fijación de precios y ofertas',
         pricesTitle: 'Precios',
-        addPrice: 'Añadir precio',
+        addPrice: 'Nuevo precio',
         noPrices: 'Aún no hay precios — añade uno para generar un enlace de pago.',
         priceNameLabel: 'Nombre del precio',
         priceNamePlaceholder: 'ej. Pago completo',
@@ -656,6 +684,17 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         editFailed: 'No se pudo guardar el precio.',
         editSuccess: 'Precio actualizado.',
         saving: 'Guardando…',
+        table: {
+          name: 'Nombre de la oferta',
+          value: 'Valor / Moneda',
+          code: 'Código',
+        },
+        actions: {
+          edit: 'Editar',
+          copyLink: 'Copiar enlace',
+          viewLink: 'Ver/copiar link de esta oferta',
+          menu: 'Acciones',
+        },
       },
     },
   },

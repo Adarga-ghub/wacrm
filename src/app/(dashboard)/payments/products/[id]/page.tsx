@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Copy, ExternalLink, Loader2, Pencil, Plus } from "lucide-react"
+import { ArrowLeft, Copy, ExternalLink, Loader2, MoreVertical, Pencil, Plus } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { usePaymentsT } from "@/hooks/use-payments-locale"
@@ -17,6 +17,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -233,149 +248,173 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="space-y-4 pt-6">
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground">{t("wizard.authorLabel")}</Label>
-            <Input
-              value={product.author ?? ""}
-              onChange={(e) => update("author", e.target.value || null)}
-              placeholder={t("wizard.authorPlaceholder")}
-              className="sm:max-w-xs"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground">{t("detail.descriptionLabel")}</Label>
-            <Textarea
-              rows={3}
-              value={product.description ?? ""}
-              onChange={(e) => update("description", e.target.value || null)}
-              placeholder={t("detail.descriptionPlaceholder")}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground">{t("detail.imageUrlLabel")}</Label>
-            <Input
-              type="url"
-              value={product.image_url ?? ""}
-              onChange={(e) => update("image_url", e.target.value || null)}
-              placeholder="https://…/portada.png"
-            />
-            {product.image_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={product.image_url}
-                alt=""
-                className="mt-1 h-20 w-auto rounded border border-border object-cover"
-              />
-            )}
-          </div>
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground">{t("detail.appearanceLabel")}</Label>
-            <select
-              value={product.default_skin_id ?? ""}
-              onChange={(e) => update("default_skin_id", e.target.value || null)}
-              className="h-9 w-full rounded-lg border border-border bg-muted px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary sm:max-w-xs"
-            >
-              <option value="">{t("detail.appearanceNone")}</option>
-              {skins.map((skin) => (
-                <option key={skin.id} value={skin.id}>
-                  {skin.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="general">
+        <TabsList>
+          <TabsTrigger value="general">{t("detail.tabGeneral")}</TabsTrigger>
+          <TabsTrigger value="pricing">{t("detail.tabPricing")}</TabsTrigger>
+        </TabsList>
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">{t("detail.pricesTitle")}</h2>
-        <Button
-          variant="outline"
-          onClick={() => {
-            resetPriceDialog()
-            setPriceDialogOpen(true)
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          {t("detail.addPrice")}
-        </Button>
-      </div>
-
-      {prices.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
-          {t("detail.noPrices")}
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {prices.map((price) => (
-            <div
-              key={price.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <Link
-                    href={`/payments/forms/${price.id}/edit`}
-                    className="truncate font-medium text-foreground hover:underline"
-                  >
-                    {price.name}
-                  </Link>
-                  <Badge
-                    variant="outline"
-                    className={
-                      price.status === "published"
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                        : "border-slate-500/30 bg-slate-500/10 text-muted-foreground"
-                    }
-                  >
-                    {price.status === "published"
-                      ? t("detail.priceStatus.published")
-                      : t("detail.priceStatus.draft")}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {formatPaymentAmount(price.amount ?? 0, price.currency)}
-                </p>
+        <TabsContent value="general" className="mt-4">
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("wizard.authorLabel")}</Label>
+                <Input
+                  value={product.author ?? ""}
+                  onChange={(e) => update("author", e.target.value || null)}
+                  placeholder={t("wizard.authorPlaceholder")}
+                  className="sm:max-w-xs"
+                />
               </div>
-              <div className="flex items-center gap-1">
-                {price.status === "published" && (
-                  <>
-                    <code className="hidden truncate rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs sm:block">
-                      /pay/{price.slug}
-                    </code>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => copyPriceLink(price.slug)}
-                      aria-label={t("detail.copyLink")}
-                    >
-                      <Copy className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      render={<a href={`/pay/${price.slug}`} target="_blank" rel="noreferrer" />}
-                      aria-label={t("detail.viewLink")}
-                    >
-                      <ExternalLink className="size-4" />
-                    </Button>
-                  </>
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("detail.descriptionLabel")}</Label>
+                <Textarea
+                  rows={3}
+                  value={product.description ?? ""}
+                  onChange={(e) => update("description", e.target.value || null)}
+                  placeholder={t("detail.descriptionPlaceholder")}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("detail.imageUrlLabel")}</Label>
+                <Input
+                  type="url"
+                  value={product.image_url ?? ""}
+                  onChange={(e) => update("image_url", e.target.value || null)}
+                  placeholder="https://…/portada.png"
+                />
+                {product.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={product.image_url}
+                    alt=""
+                    className="mt-1 h-20 w-auto rounded border border-border object-cover"
+                  />
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => openEditPrice(price)}
-                  aria-label={t("detail.editPrice")}
-                  title={t("detail.editPrice")}
-                >
-                  <Pencil className="size-4" />
-                </Button>
               </div>
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("detail.appearanceLabel")}</Label>
+                <select
+                  value={product.default_skin_id ?? ""}
+                  onChange={(e) => update("default_skin_id", e.target.value || null)}
+                  className="h-9 w-full rounded-lg border border-border bg-muted px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary sm:max-w-xs"
+                >
+                  <option value="">{t("detail.appearanceNone")}</option>
+                  {skins.map((skin) => (
+                    <option key={skin.id} value={skin.id}>
+                      {skin.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pricing" className="mt-4 space-y-4">
+          <div className="flex items-center justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                resetPriceDialog()
+                setPriceDialogOpen(true)
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              {t("detail.addPrice")}
+            </Button>
+          </div>
+
+          {prices.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
+              {t("detail.noPrices")}
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground">{t("detail.table.name")}</TableHead>
+                    <TableHead className="text-muted-foreground">{t("detail.table.value")}</TableHead>
+                    <TableHead className="hidden text-muted-foreground sm:table-cell">
+                      {t("detail.table.code")}
+                    </TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {prices.map((price) => (
+                    <TableRow key={price.id} className="border-border hover:bg-muted/50">
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/payments/forms/${price.id}/edit`}
+                            className="truncate font-medium text-foreground hover:underline"
+                          >
+                            {price.name}
+                          </Link>
+                          <Badge
+                            variant="outline"
+                            className={
+                              price.status === "published"
+                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                : "border-slate-500/30 bg-slate-500/10 text-muted-foreground"
+                            }
+                          >
+                            {price.status === "published"
+                              ? t("detail.priceStatus.published")
+                              : t("detail.priceStatus.draft")}
+                          </Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatPaymentAmount(price.amount ?? 0, price.currency)}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <code className="truncate rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs">
+                          /pay/{price.slug}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            aria-label={t("detail.actions.menu")}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[popup-open]:bg-muted"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditPrice(price)}>
+                              <Pencil className="h-4 w-4" />
+                              {t("detail.actions.edit")}
+                            </DropdownMenuItem>
+                            {price.status === "published" && (
+                              <>
+                                <DropdownMenuItem onClick={() => copyPriceLink(price.slug)}>
+                                  <Copy className="h-4 w-4" />
+                                  {t("detail.actions.copyLink")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  render={
+                                    <a href={`/pay/${price.slug}`} target="_blank" rel="noreferrer" />
+                                  }
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  {t("detail.actions.viewLink")}
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          ))}
-        </div>
-      )}
+          )}
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={priceDialogOpen} onOpenChange={setPriceDialogOpen}>
         <DialogContent>
