@@ -16,20 +16,37 @@ export const PAYPAL_SDK_LOCALE: Record<PayLocale, string> = {
 }
 
 /**
+ * Countries PayPal's JS SDK loader (`https://www.paypal.com/sdk/js`)
+ * actually accepts as `es_<COUNTRY>`. This is NOT the same as
+ * PayPal's general REST API locale-codes reference — that reference
+ * lists a catch-all `es_XC` "Latin America" code and includes
+ * `es_PR`, but the SDK *loader* 400s on both. Every code below was
+ * verified directly against the loader (`curl -o /dev/null -w
+ * '%{http_code}' ".../sdk/js?...&locale=es_XX"` → 200) — don't add
+ * one without checking it the same way, a bad value here breaks the
+ * SDK script load entirely (it 400s/503s and the button never
+ * renders, not a silent fallback).
+ */
+const PAYPAL_SDK_ES_COUNTRIES = new Set([
+  'AR', 'BO', 'CL', 'CO', 'CR', 'DO', 'EC', 'SV', 'GT', 'HN',
+  'MX', 'NI', 'PA', 'PY', 'PE', 'UY', 'VE', 'US',
+])
+
+/**
  * This CRM's actual buyers are overwhelmingly Latin American (the
  * account's payment currencies are DOP/COP/MXN/ARS, not EUR), so
  * `es_ES` — Spain — is the wrong default for nearly every Spanish
- * visitor. `es_XC` is PayPal's Latin America Spanish locale; `es_ES`
- * is used only when the buyer is actually detected in Spain.
- * `countryCode` comes from `GET /api/public/payments/geo`
- * (IP-based, best-effort) and is `null` whenever detection fails —
- * in that case this falls back to the LatAm locale rather than
- * `PAYPAL_SDK_LOCALE`'s own `es_ES` default, since that's the safer
- * assumption for this merchant's audience.
+ * visitor. `countryCode` comes from `GET /api/public/payments/geo`
+ * (IP-based, best-effort) and is `null` whenever detection fails.
+ * Falls back to `es_DO` (this merchant's own market, and a code
+ * confirmed to work) whenever the country is undetected or isn't in
+ * the confirmed-working set above — never to an unverified code.
  */
 export function resolvePaypalSdkLocale(locale: PayLocale, countryCode: string | null): string {
   if (locale === 'en') return PAYPAL_SDK_LOCALE.en
-  return countryCode === 'ES' ? 'es_ES' : 'es_XC'
+  if (countryCode === 'ES') return 'es_ES'
+  if (countryCode && PAYPAL_SDK_ES_COUNTRIES.has(countryCode)) return `es_${countryCode}`
+  return 'es_DO'
 }
 
 interface PayPageStrings {
