@@ -115,6 +115,10 @@ export async function createOrder(args: CreateOrderArgs): Promise<PayPalOrder> {
           amount: { currency_code: currency, value: amount },
         },
       ],
+      // Every product sold through this CRM is a digital download —
+      // without this, PayPal defaults to GET_FROM_FILE and can prompt
+      // the payer for a shipping address that's never used.
+      application_context: { shipping_preference: 'NO_SHIPPING' },
     }),
   })
   if (!response.ok) {
