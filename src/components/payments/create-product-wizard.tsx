@@ -7,12 +7,13 @@ import { Check, Copy, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import type { PaymentsT } from "@/hooks/use-payments-locale"
 import type { PaymentSkin } from "@/types"
+import { PAYMENT_CURRENCY_CODES } from "@/lib/currency"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { ImageUploadField } from "@/components/payments/image-upload-field"
+import { PaymentCurrencySelect } from "@/components/payments/payment-currency-select"
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,7 @@ export function CreateProductWizard({
   const [imageUrl, setImageUrl] = useState("")
   const [priceName, setPriceName] = useState("")
   const [amount, setAmount] = useState("")
+  const [currency, setCurrency] = useState("USD")
   const [skinId, setSkinId] = useState("")
   const [skins, setSkins] = useState<PaymentSkin[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -72,9 +74,16 @@ export function CreateProductWizard({
     setImageUrl("")
     setPriceName("")
     setAmount("")
+    setCurrency(PAYMENT_CURRENCY_CODES.includes(defaultCurrency) ? defaultCurrency : "USD")
     setSkinId("")
     setCreatedProductId(null)
     setLink(null)
+    // `defaultCurrency` intentionally excluded — this effect resets the
+    // form fresh whenever the dialog OPENS, reading whatever the
+    // account's default currency is at that moment via closure; it's
+    // not meant to re-reset an in-progress edit if that happens to
+    // change elsewhere while the dialog stays open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -129,7 +138,12 @@ export function CreateProductWizard({
     const priceRes = await fetch(`/api/payments/products/${productId}/prices`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: priceName.trim(), amount: Number(amount), publish: true }),
+      body: JSON.stringify({
+        name: priceName.trim(),
+        amount: Number(amount),
+        currency,
+        publish: true,
+      }),
     })
     const priceData = await priceRes.json().catch(() => ({}))
     setSubmitting(false)
@@ -231,9 +245,9 @@ export function CreateProductWizard({
                 autoFocus
               />
             </div>
-            <div className="grid gap-2 sm:max-w-xs">
-              <Label className="text-muted-foreground">{t("wizard.amountLabel")}</Label>
-              <div className="flex items-center gap-2">
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("wizard.amountLabel")}</Label>
                 <Input
                   type="number"
                   min="0"
@@ -241,7 +255,14 @@ export function CreateProductWizard({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
-                <Badge variant="outline">{defaultCurrency}</Badge>
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("wizard.currencyLabel")}</Label>
+                <PaymentCurrencySelect
+                  value={currency}
+                  onChange={setCurrency}
+                  warningText={t("wizard.currencyWarning")}
+                />
               </div>
             </div>
           </div>

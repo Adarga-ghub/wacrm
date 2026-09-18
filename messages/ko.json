@@ -1171,6 +1171,8 @@
       "accentColorLabel": "강조 색상",
       "logoUrlLabel": "로고 URL",
       "amountLabel": "금액",
+      "currencyLabel": "통화",
+      "currencyWarning": "PayPal은 이 통화로 결제를 처리할 수 없습니다 — USD와 MXN만 지원됩니다. 저장은 가능하지만 게시는 차단됩니다.",
       "minAmountLabel": "최소 금액",
       "minAmountHint": "결제자는 이 최소 금액 이상의 원하는 금액을 입력할 수 있습니다.",
       "automationLabel": "결제 시 실행할 자동화",

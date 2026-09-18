@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { generateSlug } from '@/lib/payments/slug'
 import { defaultPaymentFormFields } from '@/lib/payments/default-fields'
+import { PAYMENT_CURRENCY_CODES, isPaypalSupportedCurrency } from '@/lib/currency'
 
 /**
  * GET /api/payments/products/[id]/prices
@@ -42,6 +43,8 @@ export async function GET(
 interface PostBody {
   name?: string
   amount?: number
+  /** One of `PAYMENT_CURRENCY_CODES` (src/lib/currency.ts) — defaults to the account's default_currency when omitted, falling back to USD. */
+  currency?: string
   /** Publish immediately so `/pay/[slug]` is live right away — the "genera el enlace automáticamente" step of the product wizard. */
   publish?: boolean
 }
@@ -53,9 +56,12 @@ interface PostBody {
  * `product_id`, seeded with the product's `default_skin_id` (a
  * one-time convenience copy, not an enforced link — see migration
  * 054) and the standard WhatsApp-required fields (`defaultPaymentFormFields`,
- * same as `POST /api/payments/forms`). `currency` is inherited from
- * the account's default, same one-currency-per-account rule every
- * other payment-form create path follows.
+ * same as `POST /api/payments/forms`). `currency` is caller-chosen
+ * (one of the 5 the Payments module offers) rather than always
+ * inherited from the account default, so a merchant can price this
+ * one product/offer differently — DOP/COP/ARS are allowed here too,
+ * but `publish: true` is rejected for them (see the currency check
+ * below) since PayPal can't actually settle a checkout in those.
  *
  * `publish: true` skips the separate "now go publish it" step and
  * flips the product itself to `published` the first time this
@@ -83,6 +89,9 @@ export async function POST(
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: 'A valid amount is required' }, { status: 400 })
   }
+  if (body?.currency !== undefined && !PAYMENT_CURRENCY_CODES.includes(body.currency)) {
+    return NextResponse.json({ error: 'Unsupported currency' }, { status: 400 })
+  }
 
   const { data: product } = await ctx.supabase
     .from('payment_products')
@@ -97,6 +106,15 @@ export async function POST(
     .select('default_currency')
     .eq('id', ctx.accountId)
     .maybeSingle()
+
+  const currency = body?.currency ?? account?.default_currency ?? 'USD'
+
+  if (body?.publish && !isPaypalSupportedCurrency(currency)) {
+    return NextResponse.json(
+      { error: `PayPal cannot process payments in ${currency}. Change the currency to USD or MXN before publishing.` },
+      { status: 400 },
+    )
+  }
 
   const status = body?.publish ? 'published' : 'draft'
 
@@ -115,7 +133,7 @@ export async function POST(
         fields: defaultPaymentFormFields(),
         amount_type: 'fixed',
         amount,
-        currency: account?.default_currency ?? 'USD',
+        currency,
         send_automation_default: true,
       })
       .select()

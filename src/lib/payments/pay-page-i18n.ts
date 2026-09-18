@@ -18,7 +18,8 @@ export const PAYPAL_SDK_LOCALE: Record<PayLocale, string> = {
 interface PayPageStrings {
   notAvailable: string
   chooseProduct: string
-  fromAmount: (amount: number, currency: string) => string
+  /** Takes an already-formatted amount (e.g. from `formatPaymentAmount`), not a raw number — keeps this module free of currency-formatting logic of its own. */
+  fromAmount: (formattedAmount: string) => string
   amountLabel: (currency: string) => string
   productLabel: string
   fieldRequired: (label: string) => string
@@ -49,7 +50,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
   es: {
     notAvailable: "Este formulario de pago no está disponible.",
     chooseProduct: 'Elige un producto a continuación',
-    fromAmount: (amount, currency) => `Desde ${amount} ${currency}`,
+    fromAmount: (formattedAmount) => `Desde ${formattedAmount}`,
     amountLabel: (currency) => `Monto (${currency})`,
     productLabel: 'Producto',
     fieldRequired: (label) => `${label} es obligatorio`,
@@ -77,7 +78,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
   en: {
     notAvailable: "This payment form isn't available.",
     chooseProduct: 'Choose a product below',
-    fromAmount: (amount, currency) => `From ${amount} ${currency}`,
+    fromAmount: (formattedAmount) => `From ${formattedAmount}`,
     amountLabel: (currency) => `Amount (${currency})`,
     productLabel: 'Product',
     fieldRequired: (label) => `${label} is required`,

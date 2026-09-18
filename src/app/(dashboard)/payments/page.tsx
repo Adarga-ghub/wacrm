@@ -19,6 +19,7 @@ import {
 
 import { useCan } from "@/hooks/use-can"
 import type { PaymentForm } from "@/types"
+import { formatPaymentAmount } from "@/lib/currency"
 import { Button } from "@/components/ui/button"
 import { GatedButton } from "@/components/ui/gated-button"
 import { Badge } from "@/components/ui/badge"
@@ -223,7 +224,7 @@ export default function PaymentsPage() {
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {form.amount_type === "fixed" && form.amount != null
-                      ? `${form.amount} ${form.currency}`
+                      ? formatPaymentAmount(form.amount, form.currency)
                       : t("table.variableAmount")}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">

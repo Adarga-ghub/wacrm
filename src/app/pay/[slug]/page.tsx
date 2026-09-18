@@ -15,6 +15,7 @@ import { useParams, useSearchParams } from "next/navigation"
 import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock } from "lucide-react"
 
 import type { PublicPaymentForm } from "@/types"
+import { formatPaymentAmount } from "@/lib/currency"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -355,9 +356,9 @@ function PublicPaymentFormPageInner() {
 
   const priceLine =
     form.amount_type === "fixed" && form.amount != null
-      ? `${form.amount} ${form.currency}`
+      ? formatPaymentAmount(form.amount, form.currency)
       : form.amount_type === "variable"
-        ? t.fromAmount(form.min_amount ?? 0, form.currency)
+        ? t.fromAmount(formatPaymentAmount(form.min_amount ?? 0, form.currency))
         : t.chooseProduct
 
   return (
@@ -490,7 +491,7 @@ function PublicPaymentFormPageInner() {
                     {product.name}
                   </span>
                   <span className="shrink-0 font-medium text-foreground">
-                    {product.price} {form.currency}
+                    {formatPaymentAmount(product.price, form.currency)}
                   </span>
                 </label>
               ))}

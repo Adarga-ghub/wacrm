@@ -26,6 +26,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ShareTab } from "@/components/payments/share-tab"
 import { ProductListEditor } from "@/components/payments/product-list-editor"
 import { DesignTab } from "@/components/payments/design-tab"
+import { PaymentCurrencySelect } from "@/components/payments/payment-currency-select"
 
 const FIELD_TYPES: PaymentFormField["type"][] = ["text", "email", "textarea"]
 
@@ -82,6 +83,7 @@ export default function EditPaymentFormPage() {
         amount: form.amount,
         min_amount: form.min_amount,
         products: form.products,
+        currency: form.currency,
         automation_id: form.automation_id,
         send_automation_default: form.send_automation_default,
         redirect_url: form.redirect_url,
@@ -206,6 +208,15 @@ export default function EditPaymentFormPage() {
         <TabsContent value="payment" className="mt-4">
           <Card>
             <CardContent className="space-y-4 pt-6">
+              <div className="grid gap-2 sm:max-w-xs">
+                <Label className="text-muted-foreground">{t("currencyLabel")}</Label>
+                <PaymentCurrencySelect
+                  value={form.currency}
+                  onChange={(currency) => update("currency", currency)}
+                  warningText={t("currencyWarning")}
+                />
+              </div>
+
               <div className="flex gap-2">
                 {(["fixed", "variable", "product_list"] as const).map((type) => (
                   <button
@@ -226,36 +237,30 @@ export default function EditPaymentFormPage() {
               {form.amount_type === "fixed" && (
                 <div className="grid gap-2 sm:max-w-xs">
                   <Label className="text-muted-foreground">{t("amountLabel")}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.amount ?? ""}
-                      onChange={(e) =>
-                        update("amount", e.target.value ? Number(e.target.value) : null)
-                      }
-                    />
-                    <Badge variant="outline">{form.currency}</Badge>
-                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.amount ?? ""}
+                    onChange={(e) =>
+                      update("amount", e.target.value ? Number(e.target.value) : null)
+                    }
+                  />
                 </div>
               )}
 
               {form.amount_type === "variable" && (
                 <div className="grid gap-2 sm:max-w-xs">
                   <Label className="text-muted-foreground">{t("minAmountLabel")}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.min_amount ?? ""}
-                      onChange={(e) =>
-                        update("min_amount", e.target.value ? Number(e.target.value) : null)
-                      }
-                    />
-                    <Badge variant="outline">{form.currency}</Badge>
-                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.min_amount ?? ""}
+                    onChange={(e) =>
+                      update("min_amount", e.target.value ? Number(e.target.value) : null)
+                    }
+                  />
                   <p className="text-xs text-muted-foreground">{t("minAmountHint")}</p>
                 </div>
               )}

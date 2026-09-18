@@ -4,11 +4,12 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Copy, ExternalLink, Loader2, Plus } from "lucide-react"
+import { ArrowLeft, Copy, ExternalLink, Loader2, Pencil, Plus } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { usePaymentsT } from "@/hooks/use-payments-locale"
 import type { PaymentForm, PaymentProduct, PaymentSkin } from "@/types"
+import { PAYMENT_CURRENCY_CODES, formatPaymentAmount } from "@/lib/currency"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,6 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { PaymentsLanguageToggle } from "@/components/payments/payments-language-toggle"
+import { PaymentCurrencySelect } from "@/components/payments/payment-currency-select"
 
 const STATUS_BADGE: Record<PaymentProduct["status"], string> = {
   draft: "border-slate-500/30 bg-slate-500/10 text-muted-foreground",
@@ -45,8 +47,21 @@ export default function ProductDetailPage() {
   const [priceDialogOpen, setPriceDialogOpen] = useState(false)
   const [priceName, setPriceName] = useState("")
   const [priceAmount, setPriceAmount] = useState("")
+  const [priceCurrency, setPriceCurrency] = useState("USD")
   const [publishNow, setPublishNow] = useState(true)
   const [creatingPrice, setCreatingPrice] = useState(false)
+
+  // "Editar precio" — the Products-panel side of bidirectional price
+  // editing (the other side is the Payment tab in the full form
+  // editor, `/payments/forms/[id]/edit`). Both write the same
+  // `payment_forms` row via the same PUT endpoint, so there's no
+  // separate "sync" step — whichever one saves last is simply what
+  // `/pay/[slug]` reads next.
+  const [editingPrice, setEditingPrice] = useState<PaymentForm | null>(null)
+  const [editPriceName, setEditPriceName] = useState("")
+  const [editPriceAmount, setEditPriceAmount] = useState("")
+  const [editPriceCurrency, setEditPriceCurrency] = useState("USD")
+  const [savingPrice, setSavingPrice] = useState(false)
 
   async function load() {
     const res = await fetch(`/api/payments/products/${id}`)
@@ -105,6 +120,7 @@ export default function ProductDetailPage() {
   function resetPriceDialog() {
     setPriceName("")
     setPriceAmount("")
+    setPriceCurrency(PAYMENT_CURRENCY_CODES.includes(defaultCurrency) ? defaultCurrency : "USD")
     setPublishNow(true)
   }
 
@@ -117,6 +133,7 @@ export default function ProductDetailPage() {
       body: JSON.stringify({
         name: priceName.trim(),
         amount: Number(priceAmount),
+        currency: priceCurrency,
         publish: publishNow,
       }),
     })
@@ -140,6 +157,36 @@ export default function ProductDetailPage() {
     const url = `${window.location.origin}/pay/${slug}`
     navigator.clipboard.writeText(url).catch(() => {})
     toast.success(t("detail.linkCopied"))
+  }
+
+  function openEditPrice(price: PaymentForm) {
+    setEditingPrice(price)
+    setEditPriceName(price.name)
+    setEditPriceAmount(String(price.amount ?? ""))
+    setEditPriceCurrency(price.currency)
+  }
+
+  async function handleSavePrice() {
+    if (!editingPrice) return
+    setSavingPrice(true)
+    const res = await fetch(`/api/payments/forms/${editingPrice.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editPriceName.trim(),
+        amount: Number(editPriceAmount),
+        currency: editPriceCurrency,
+      }),
+    })
+    const data = await res.json()
+    setSavingPrice(false)
+    if (!res.ok) {
+      toast.error(data.error || t("detail.editFailed"))
+      return
+    }
+    toast.success(t("detail.editSuccess"))
+    setEditingPrice(null)
+    load()
   }
 
   if (!product) {
@@ -288,32 +335,43 @@ export default function ProductDetailPage() {
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {price.amount} {price.currency}
+                  {formatPaymentAmount(price.amount ?? 0, price.currency)}
                 </p>
               </div>
-              {price.status === "published" && (
-                <div className="flex items-center gap-1">
-                  <code className="hidden truncate rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs sm:block">
-                    /pay/{price.slug}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => copyPriceLink(price.slug)}
-                    aria-label={t("detail.copyLink")}
-                  >
-                    <Copy className="size-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    render={<a href={`/pay/${price.slug}`} target="_blank" rel="noreferrer" />}
-                    aria-label={t("detail.viewLink")}
-                  >
-                    <ExternalLink className="size-4" />
-                  </Button>
-                </div>
-              )}
+              <div className="flex items-center gap-1">
+                {price.status === "published" && (
+                  <>
+                    <code className="hidden truncate rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs sm:block">
+                      /pay/{price.slug}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => copyPriceLink(price.slug)}
+                      aria-label={t("detail.copyLink")}
+                    >
+                      <Copy className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      render={<a href={`/pay/${price.slug}`} target="_blank" rel="noreferrer" />}
+                      aria-label={t("detail.viewLink")}
+                    >
+                      <ExternalLink className="size-4" />
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => openEditPrice(price)}
+                  aria-label={t("detail.editPrice")}
+                  title={t("detail.editPrice")}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
@@ -335,9 +393,9 @@ export default function ProductDetailPage() {
                 autoFocus
               />
             </div>
-            <div className="grid gap-2 sm:max-w-xs">
-              <Label className="text-muted-foreground">{t("detail.amountLabel")}</Label>
-              <div className="flex items-center gap-2">
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("detail.amountLabel")}</Label>
                 <Input
                   type="number"
                   min="0"
@@ -345,7 +403,14 @@ export default function ProductDetailPage() {
                   value={priceAmount}
                   onChange={(e) => setPriceAmount(e.target.value)}
                 />
-                <Badge variant="outline">{defaultCurrency}</Badge>
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("detail.currencyLabel")}</Label>
+                <PaymentCurrencySelect
+                  value={priceCurrency}
+                  onChange={setPriceCurrency}
+                  warningText={t("detail.currencyWarning")}
+                />
               </div>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
@@ -364,6 +429,59 @@ export default function ProductDetailPage() {
             >
               {creatingPrice ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {creatingPrice ? t("detail.creating") : t("detail.create")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingPrice} onOpenChange={(v) => !v && setEditingPrice(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("detail.editPrice")}</DialogTitle>
+            <DialogDescription>{t("detail.editPriceHint")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label className="text-muted-foreground">{t("detail.priceNameLabel")}</Label>
+              <Input
+                value={editPriceName}
+                onChange={(e) => setEditPriceName(e.target.value)}
+                placeholder={t("detail.priceNamePlaceholder")}
+                autoFocus
+              />
+            </div>
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("detail.amountLabel")}</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editPriceAmount}
+                  onChange={(e) => setEditPriceAmount(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("detail.currencyLabel")}</Label>
+                <PaymentCurrencySelect
+                  value={editPriceCurrency}
+                  onChange={setEditPriceCurrency}
+                  warningText={t("detail.currencyWarning")}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPrice(null)}>
+              {t("cancel")}
+            </Button>
+            <Button
+              onClick={handleSavePrice}
+              disabled={savingPrice || !editPriceName.trim() || !(Number(editPriceAmount) > 0)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {savingPrice ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {savingPrice ? t("detail.saving") : t("detail.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

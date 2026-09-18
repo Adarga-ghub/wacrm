@@ -43,7 +43,42 @@ export const CURRENCIES: CurrencyOption[] = [
   { code: "SGD", label: "Singapore Dollar", symbol: "S$" },
   { code: "MXN", label: "Mexican Peso", symbol: "$" },
   { code: "COP", label: "Colombian Peso", symbol: "$" },
+  { code: "DOP", label: "Dominican Peso", symbol: "RD$" },
+  { code: "ARS", label: "Argentine Peso", symbol: "$" },
 ];
+
+/**
+ * Currencies offered by the Payments module (products/prices) — the
+ * five LatAm-focused codes this product's merchants actually price
+ * in. A narrower, explicitly-ordered subset of {@link CURRENCIES}
+ * (which also serves the unrelated deals/pipelines picker).
+ *
+ * `paypalSupported` matters because this app's only payment gateway
+ * is PayPal (`src/lib/payments/paypal-client.ts`), and PayPal's
+ * Orders v2 API only accepts a fixed list of settlement currencies
+ * (developer.paypal.com/api/nvp-soap/currency-codes) — DOP, COP and
+ * ARS are NOT on it (verified directly against that page), even
+ * though PayPal recognizes DOP for account balances/withdrawals in
+ * the Dominican Republic, which is a different thing. A price saved
+ * in one of those three can still be recorded/displayed, but
+ * publishing it would produce a checkout PayPal rejects at the
+ * moment a customer tries to pay — so callers that create/publish a
+ * live checkout must check this flag and block, not just warn.
+ */
+export const PAYMENT_CURRENCIES: (CurrencyOption & { paypalSupported: boolean })[] = [
+  { code: "DOP", label: "Dominican Peso", symbol: "RD$", paypalSupported: false },
+  { code: "COP", label: "Colombian Peso", symbol: "$", paypalSupported: false },
+  { code: "MXN", label: "Mexican Peso", symbol: "$", paypalSupported: true },
+  { code: "USD", label: "US Dollar", symbol: "$", paypalSupported: true },
+  { code: "ARS", label: "Argentine Peso", symbol: "$", paypalSupported: false },
+];
+
+export const PAYMENT_CURRENCY_CODES: readonly string[] = PAYMENT_CURRENCIES.map((c) => c.code);
+
+/** True when PayPal's Orders v2 API can actually process a checkout in this currency. */
+export function isPaypalSupportedCurrency(code: string): boolean {
+  return PAYMENT_CURRENCIES.find((c) => c.code === code)?.paypalSupported ?? false;
+}
 
 /**
  * Format a deal value as a currency string. Whole-number output
@@ -77,6 +112,31 @@ export function formatCurrency(
     return `${code} ${new Intl.NumberFormat(undefined, {
       maximumFractionDigits: 0,
     }).format(amount)}`;
+  }
+}
+
+/**
+ * Format a PAYMENT price (a product/form's `amount`, `NUMERIC(12,2)`
+ * in Postgres — see migration 050) as a currency string, keeping
+ * cents. Deliberately separate from {@link formatCurrency}: that one
+ * rounds to whole units for deal values tracked across the sales
+ * pipeline, but a checkout price of 49.99 must never render as "$50"
+ * — losing the cents on a payment page is a real bug, not cosmetic.
+ * Falls back the same way `formatCurrency` does on a malformed code.
+ */
+export function formatPaymentAmount(
+  value: number,
+  currency: string = DEFAULT_CURRENCY,
+): string {
+  const code = (currency || DEFAULT_CURRENCY).trim();
+  const amount = Number(value) || 0;
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: code,
+    }).format(amount);
+  } catch {
+    return `${code} ${amount.toFixed(2)}`;
   }
 }
 

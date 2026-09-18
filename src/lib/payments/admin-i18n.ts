@@ -173,6 +173,8 @@ export interface PaymentsProductsStrings {
     priceNameLabel: string
     priceNamePlaceholder: string
     amountLabel: string
+    currencyLabel: string
+    currencyWarning: string
     appearanceLabel: string
     appearanceNone: string
     appearanceHint: string
@@ -203,6 +205,8 @@ export interface PaymentsProductsStrings {
     priceNameLabel: string
     priceNamePlaceholder: string
     amountLabel: string
+    currencyLabel: string
+    currencyWarning: string
     publishNow: string
     publishHint: string
     create: string
@@ -216,6 +220,11 @@ export interface PaymentsProductsStrings {
       draft: string
       published: string
     }
+    editPrice: string
+    editPriceHint: string
+    editFailed: string
+    editSuccess: string
+    saving: string
   }
 }
 
@@ -383,6 +392,8 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         priceNameLabel: 'Price name',
         priceNamePlaceholder: 'e.g. Full payment',
         amountLabel: 'Amount',
+        currencyLabel: 'Currency',
+        currencyWarning: "PayPal can't process payments in this currency — only USD and MXN are supported. You can still save it, but publishing will be blocked.",
         appearanceLabel: 'Payment skin (optional)',
         appearanceNone: 'No skin — use default design',
         appearanceHint: 'Applies to every price you create for this product.',
@@ -413,6 +424,8 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         priceNameLabel: 'Price name',
         priceNamePlaceholder: 'e.g. Full payment',
         amountLabel: 'Amount',
+        currencyLabel: 'Currency',
+        currencyWarning: "PayPal can't process payments in this currency — only USD and MXN are supported. You can still save it, but publishing will be blocked.",
         publishNow: 'Publish and generate link now',
         publishHint: 'Leave off to review it as a draft first.',
         create: 'Create price',
@@ -426,6 +439,11 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
           draft: 'Draft',
           published: 'Published',
         },
+        editPrice: 'Edit price',
+        editPriceHint: 'Changes apply immediately to the live checkout link.',
+        editFailed: 'Could not save the price.',
+        editSuccess: 'Price updated.',
+        saving: 'Saving…',
       },
     },
   },
@@ -586,6 +604,8 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         priceNameLabel: 'Nombre del precio',
         priceNamePlaceholder: 'ej. Pago completo',
         amountLabel: 'Monto',
+        currencyLabel: 'Moneda',
+        currencyWarning: 'PayPal no puede procesar cobros en esta moneda — solo admite USD y MXN. Puedes guardarlo igual, pero no podrás publicarlo hasta cambiarla.',
         appearanceLabel: 'Apariencia de pago (opcional)',
         appearanceNone: 'Sin apariencia — usar diseño predeterminado',
         appearanceHint: 'Se aplica a cada precio que crees para este producto.',
@@ -616,6 +636,8 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         priceNameLabel: 'Nombre del precio',
         priceNamePlaceholder: 'ej. Pago completo',
         amountLabel: 'Monto',
+        currencyLabel: 'Moneda',
+        currencyWarning: 'PayPal no puede procesar cobros en esta moneda — solo admite USD y MXN. Puedes guardarlo igual, pero no podrás publicarlo hasta cambiarla.',
         publishNow: 'Publicar y generar enlace ahora',
         publishHint: 'Déjalo sin marcar para revisarlo primero como borrador.',
         create: 'Crear precio',
@@ -629,6 +651,11 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
           draft: 'Borrador',
           published: 'Publicado',
         },
+        editPrice: 'Editar precio',
+        editPriceHint: 'Los cambios se aplican de inmediato al enlace de pago en vivo.',
+        editFailed: 'No se pudo guardar el precio.',
+        editSuccess: 'Precio actualizado.',
+        saving: 'Guardando…',
       },
     },
   },

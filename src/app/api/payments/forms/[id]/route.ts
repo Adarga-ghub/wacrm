@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { isValidSlug } from '@/lib/payments/slug'
 import { enforceLockedFields } from '@/lib/payments/default-fields'
+import { PAYMENT_CURRENCY_CODES, isPaypalSupportedCurrency } from '@/lib/currency'
 import type { PaymentFormField, PaymentFormProduct } from '@/types'
 
 export async function GET(
@@ -47,6 +48,7 @@ interface PutBody {
   inline_success_message?: string | null
   submission_limit?: number | null
   design?: { accent_color?: string; logo_url?: string }
+  currency?: string
 }
 
 /**
@@ -54,10 +56,15 @@ interface PutBody {
  *
  * Full-object save from the editor (Campos/Pago/Automatización/
  * Comportamiento tabs post one combined payload — no per-tab
- * autosave). `currency` is deliberately not accepted here: it's set
- * once at creation from the account's default and never re-derived
- * from the client (see migration 050's notes on the one-currency-
- * per-account rule).
+ * autosave). `currency` IS accepted here now — the "editar desde el
+ * formulario de pago asociado" side of price editing — restricted to
+ * `PAYMENT_CURRENCY_CODES` (the 5 the Payments module offers, see
+ * src/lib/currency.ts). Publishing (setting `status: 'published'`,
+ * here or already so) is blocked when the resulting currency isn't
+ * one PayPal's Orders v2 API can actually settle in (DOP/COP/ARS
+ * aren't, despite being valid ISO codes) — saving as a draft in one
+ * of those is still allowed, so a merchant can record a local price
+ * without a live checkout that would fail at the payer's final step.
  */
 export async function PUT(
   request: Request,
@@ -75,7 +82,7 @@ export async function PUT(
 
   const { data: existing } = await ctx.supabase
     .from('payment_forms')
-    .select('id, slug')
+    .select('id, slug, status, currency')
     .eq('id', id)
     .eq('account_id', ctx.accountId)
     .maybeSingle()
@@ -104,6 +111,28 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
     update.status = body.status
+  }
+
+  if (body.currency !== undefined) {
+    if (!PAYMENT_CURRENCY_CODES.includes(body.currency)) {
+      return NextResponse.json({ error: 'Unsupported currency' }, { status: 400 })
+    }
+    update.currency = body.currency
+  }
+
+  // Block PUBLISHING (not saving) a price in a currency PayPal can't
+  // actually process — checked against whichever currency/status this
+  // request leaves the row in, whether either one changed here or was
+  // already set from a previous save.
+  const resultingCurrency = (update.currency as string | undefined) ?? existing.currency
+  const resultingStatus = (update.status as string | undefined) ?? existing.status
+  if (resultingStatus === 'published' && !isPaypalSupportedCurrency(resultingCurrency)) {
+    return NextResponse.json(
+      {
+        error: `PayPal cannot process payments in ${resultingCurrency}. Change the currency to USD or MXN before publishing.`,
+      },
+      { status: 400 },
+    )
   }
 
   if (body.fields !== undefined) {

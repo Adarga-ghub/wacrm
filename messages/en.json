@@ -1171,6 +1171,8 @@
       "accentColorLabel": "Accent color",
       "logoUrlLabel": "Logo URL",
       "amountLabel": "Amount",
+      "currencyLabel": "Currency",
+      "currencyWarning": "PayPal can't process payments in this currency — only USD and MXN are supported. You can still save it, but publishing will be blocked.",
       "minAmountLabel": "Minimum amount",
       "minAmountHint": "The payer can enter any amount at or above this minimum.",
       "automationLabel": "Automation to run on payment",
