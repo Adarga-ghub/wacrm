@@ -71,11 +71,26 @@ export interface DispatchInput {
   triggerType: AutomationTriggerType
   contactId?: string | null
   context?: AutomationContext
+  /**
+   * Scope dispatch to exactly this one automation instead of every
+   * active automation matching `triggerType` for the account. Every
+   * other trigger type deliberately fires ALL matching automations
+   * (e.g. every `keyword_match` automation whose keyword matches
+   * should run) — `payment_received` is the exception: a payment
+   * form/price is linked to at most one automation
+   * (`payment_forms.automation_id`), and firing every
+   * `payment_received` automation account-wide on every sale would
+   * mean a payment for one product delivers every product's files.
+   * Still re-checks `account_id`/`trigger_type`/`is_active` against
+   * this id rather than trusting the caller.
+   */
+  automationId?: string
 }
 
 /**
- * Fire all active automations matching the given trigger for an
- * account.
+ * Fire active automations matching the given trigger for an account
+ * — every one of them, unless `automationId` narrows it to exactly
+ * one (see that field's doc).
  *
  * Must never throw — callers use fire-and-forget from the webhook.
  * All errors are caught and logged; per-automation failures are
@@ -109,12 +124,14 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
       }
     }
 
-    const { data: automations, error } = await db
+    let automationsQuery = db
       .from('automations')
       .select('*')
       .eq('account_id', input.accountId)
       .eq('trigger_type', input.triggerType)
       .eq('is_active', true)
+    if (input.automationId) automationsQuery = automationsQuery.eq('id', input.automationId)
+    const { data: automations, error } = await automationsQuery
 
     if (error) {
       console.error('[automations] fetch failed:', error)

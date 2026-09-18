@@ -96,11 +96,17 @@ export async function finalizePaymentTransaction(
     }
   }
 
-  if (txn.send_automation && contactId) {
+  // `form?.automation_id` — not just `txn.send_automation` — gates
+  // this: a form with "No automation" selected must deliver nothing,
+  // not fall back to every payment_received automation on the
+  // account (that was the bug — see `automationId` on
+  // `runAutomationsForTrigger`).
+  if (txn.send_automation && contactId && form?.automation_id) {
     await runAutomationsForTrigger({
       accountId: args.accountId,
       triggerType: 'payment_received',
       contactId,
+      automationId: form.automation_id,
       context: {
         vars: {
           amount: String(txn.amount),
@@ -115,7 +121,7 @@ export async function finalizePaymentTransaction(
       .from('payment_transactions')
       .update({
         automation_dispatched_at: new Date().toISOString(),
-        automation_id: form?.automation_id ?? null,
+        automation_id: form.automation_id,
       })
       .eq('id', txn.id)
   }
