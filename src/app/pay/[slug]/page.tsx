@@ -10,11 +10,11 @@
 // SDK reports back to the browser beyond "the payer approved it".
 // ============================================================
 
-import { Suspense, useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useRef, useState, type CSSProperties } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock } from "lucide-react"
 
-import type { PublicPaymentForm } from "@/types"
+import type { PaymentPageBackground, PublicPaymentForm } from "@/types"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -55,6 +55,22 @@ function LanguageToggle({ locale, onChange }: { locale: PayLocale; onChange: (l:
   )
 }
 
+/** "Fondo" block (see the Payment Skins builder) — page-wide background behind the checkout Card. */
+function backgroundStyle(background?: PaymentPageBackground): CSSProperties {
+  if (!background) return {}
+  if ((background.type ?? "color") === "color") {
+    return background.color ? { backgroundColor: background.color } : {}
+  }
+  if (!background.image_url) return {}
+  return {
+    backgroundImage: `url(${background.image_url})`,
+    backgroundSize: background.fill ? "cover" : "auto",
+    backgroundRepeat: background.fill ? "no-repeat" : background.repeat ? "repeat" : "no-repeat",
+    backgroundAttachment: background.fixed ? "fixed" : "scroll",
+    backgroundPosition: "center",
+  }
+}
+
 export default function PublicPaymentFormPage() {
   return (
     <Suspense fallback={<Loader2 className="size-6 animate-spin text-primary" />}>
@@ -74,7 +90,10 @@ function PublicPaymentFormPageInner() {
   const [locale, setLocale] = useState<PayLocale>("es")
   useEffect(() => {
     if (typeof navigator === "undefined") return
-    if (navigator.language?.toLowerCase().startsWith("en")) setLocale("en")
+    if (navigator.language?.toLowerCase().startsWith("en")) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLocale("en")
+    }
   }, [])
   const t = payPageStrings[locale]
 
@@ -105,19 +124,23 @@ function PublicPaymentFormPageInner() {
   // down and remounting the PayPal iframes on every keystroke would be
   // jarring. These refs let those long-lived closures always read the
   // latest typed values at click time instead of a stale snapshot from
-  // whenever the effect last ran.
+  // whenever the effect last ran. Synced via a no-deps effect (runs
+  // after every render) rather than a direct assignment during render,
+  // which the ref lint rule flags even though it's the same result.
   const fieldValuesRef = useRef(fieldValues)
-  fieldValuesRef.current = fieldValues
   const variableAmountRef = useRef(variableAmount)
-  variableAmountRef.current = variableAmount
   const selectedProductIdRef = useRef(selectedProductId)
-  selectedProductIdRef.current = selectedProductId
   const cardFirstNameRef = useRef(cardFirstName)
-  cardFirstNameRef.current = cardFirstName
   const cardLastNameRef = useRef(cardLastName)
-  cardLastNameRef.current = cardLastName
   const cardEmailRef = useRef(cardEmail)
-  cardEmailRef.current = cardEmail
+  useEffect(() => {
+    fieldValuesRef.current = fieldValues
+    variableAmountRef.current = variableAmount
+    selectedProductIdRef.current = selectedProductId
+    cardFirstNameRef.current = cardFirstName
+    cardLastNameRef.current = cardLastName
+    cardEmailRef.current = cardEmail
+  })
 
   useEffect(() => {
     fetch(`/api/public/payments/forms/${slug}`)
@@ -148,7 +171,6 @@ function PublicPaymentFormPageInner() {
       }
       existing.remove()
       delete window.paypal
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSdkReady(false)
     }
     const script = document.createElement("script")
@@ -348,25 +370,77 @@ function PublicPaymentFormPageInner() {
     return <Loader2 className="size-6 animate-spin text-primary" />
   }
 
+  const bgStyle = backgroundStyle(form.design?.background)
+
   if (result) {
     return (
-      <Card className="w-full max-w-md">
-        <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-          <CheckCircle2 className="size-8 text-emerald-500" />
-          <p className="text-sm text-foreground">{result.inline_message || t.thankYou}</p>
-        </CardContent>
-      </Card>
+      <>
+        {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <CheckCircle2 className="size-8 text-emerald-500" />
+            <p className="text-sm text-foreground">{result.inline_message || t.thankYou}</p>
+          </CardContent>
+        </Card>
+      </>
     )
   }
 
   const accent = form.design?.accent_color || undefined
+  const topSection = form.design?.top_section
+  const hasTopSection = !!(
+    topSection?.banner_image_url ||
+    topSection?.product_image_url ||
+    topSection?.title ||
+    topSection?.subtitle
+  )
 
   return (
-    <Card className="w-full max-w-md overflow-hidden">
-      <LanguageToggle locale={locale} onChange={setLocale} />
-      <div className="h-1.5 w-full" style={{ backgroundColor: accent || "var(--primary)" }} />
+    <>
+      {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
+      <Card className="w-full max-w-md overflow-hidden">
+        <LanguageToggle locale={locale} onChange={setLocale} />
+        <div className="h-1.5 w-full" style={{ backgroundColor: accent || "var(--primary)" }} />
+
+        {hasTopSection && (
+          <div className="space-y-3 px-6 pt-6">
+            {topSection?.banner_image_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={topSection.banner_image_url}
+                alt=""
+                className="w-full rounded-lg object-cover"
+              />
+            )}
+            {topSection?.product_image_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={topSection.product_image_url}
+                alt=""
+                className="mx-auto block h-20 w-20 rounded-lg object-cover"
+              />
+            )}
+            {topSection?.title && (
+              <h2
+                className="text-center font-bold text-foreground"
+                style={{ fontSize: topSection.title_size ?? 36 }}
+              >
+                {topSection.title}
+              </h2>
+            )}
+            {topSection?.subtitle && (
+              <p
+                className="text-center text-muted-foreground"
+                style={{ fontSize: topSection.subtitle_size ?? 24 }}
+              >
+                {topSection.subtitle}
+              </p>
+            )}
+          </div>
+        )}
+
       <CardHeader>
-        {form.design?.logo_url && (
+        {!topSection?.banner_image_url && form.design?.logo_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={form.design.logo_url}
@@ -529,6 +603,7 @@ function PublicPaymentFormPageInner() {
           <p className="text-center text-sm text-muted-foreground">{t.noGateway}</p>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </>
   )
 }

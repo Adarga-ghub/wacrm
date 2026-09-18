@@ -69,6 +69,23 @@ export interface PaymentsSkinsStrings {
   namePlaceholder: string
   accentColorLabel: string
   logoUrlLabel: string
+  backgroundTitle: string
+  backgroundColorTab: string
+  backgroundImageTab: string
+  backgroundColorLabel: string
+  backgroundImageLabel: string
+  backgroundFillLabel: string
+  backgroundRepeatLabel: string
+  backgroundFixedLabel: string
+  topSectionTitle: string
+  bannerImageLabel: string
+  productImageLabel: string
+  titleLabel: string
+  titlePlaceholder: string
+  titleSizeLabel: string
+  subtitleLabel: string
+  subtitlePlaceholder: string
+  subtitleSizeLabel: string
   formsLabel: string
   formsHint: string
   formsEmpty: string
@@ -157,6 +174,23 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       namePlaceholder: 'e.g. Black Friday',
       accentColorLabel: 'Accent color',
       logoUrlLabel: 'Logo URL',
+      backgroundTitle: 'Background',
+      backgroundColorTab: 'Color',
+      backgroundImageTab: 'Image',
+      backgroundColorLabel: 'Background color',
+      backgroundImageLabel: 'Background image URL',
+      backgroundFillLabel: 'Fill the page background',
+      backgroundRepeatLabel: 'Repeat background image',
+      backgroundFixedLabel: 'Fix image while scrolling',
+      topSectionTitle: 'Top section',
+      bannerImageLabel: 'Banner image URL',
+      productImageLabel: 'Product image URL',
+      titleLabel: 'Title',
+      titlePlaceholder: 'Write a title for the page',
+      titleSizeLabel: 'Title size',
+      subtitleLabel: 'Subtitle',
+      subtitlePlaceholder: 'Write a subtitle for the page',
+      subtitleSizeLabel: 'Subtitle size',
       formsLabel: 'Applied to',
       formsHint: 'Select every payment form that should use this appearance.',
       formsEmpty: "You don't have any payment forms yet.",
@@ -239,6 +273,23 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       namePlaceholder: 'ej. Black Friday',
       accentColorLabel: 'Color de acento',
       logoUrlLabel: 'URL del logo',
+      backgroundTitle: 'Fondo',
+      backgroundColorTab: 'Color',
+      backgroundImageTab: 'Imagen',
+      backgroundColorLabel: 'Color de fondo',
+      backgroundImageLabel: 'URL de la imagen de fondo',
+      backgroundFillLabel: 'Llenar el fondo de la página',
+      backgroundRepeatLabel: 'Repetir imagen de fondo',
+      backgroundFixedLabel: 'Fijar imagen durante el desplazamiento',
+      topSectionTitle: 'Parte superior',
+      bannerImageLabel: 'URL de la imagen de la parte superior',
+      productImageLabel: 'URL de la imagen del producto',
+      titleLabel: 'Título',
+      titlePlaceholder: 'Escribe un título para la página',
+      titleSizeLabel: 'Tamaño del título',
+      subtitleLabel: 'Subtítulo',
+      subtitlePlaceholder: 'Escribe un subtítulo para la página',
+      subtitleSizeLabel: 'Tamaño del subtítulo',
       formsLabel: 'Aplicado a',
       formsHint: 'Selecciona los formularios de pago que deben usar esta apariencia.',
       formsEmpty: 'Aún no tienes formularios de pago.',

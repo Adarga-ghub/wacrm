@@ -4,7 +4,13 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 
-import type { PaymentForm, PaymentFormDesign, PaymentSkin } from "@/types"
+import type {
+  PaymentForm,
+  PaymentFormDesign,
+  PaymentPageBackground,
+  PaymentPageTopSection,
+  PaymentSkin,
+} from "@/types"
 import type { PaymentsT } from "@/hooks/use-payments-locale"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -63,6 +69,14 @@ export function SkinEditorDialog({
     )
   }, [open, skin, forms])
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  function updateBackground(patch: Partial<PaymentPageBackground>) {
+    setDesign((d) => ({ ...d, background: { ...d.background, ...patch } }))
+  }
+
+  function updateTopSection(patch: Partial<PaymentPageTopSection>) {
+    setDesign((d) => ({ ...d, top_section: { ...d.top_section, ...patch } }))
+  }
 
   function toggleForm(formId: string) {
     setSelectedFormIds((current) => {
@@ -155,6 +169,163 @@ export function SkinEditorDialog({
                 className="mt-1 h-10 w-auto rounded border border-border object-contain p-1"
               />
             )}
+          </div>
+
+          <div className="grid gap-2">
+            <Label className="text-muted-foreground">{t("backgroundTitle")}</Label>
+            <div className="flex gap-2">
+              {(["color", "image"] as const).map((tab) => {
+                const active = (design.background?.type ?? "color") === tab
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => updateBackground({ type: tab })}
+                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {tab === "color" ? t("backgroundColorTab") : t("backgroundImageTab")}
+                  </button>
+                )
+              })}
+            </div>
+            {(design.background?.type ?? "color") === "color" ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={design.background?.color || "#f8fafc"}
+                  onChange={(e) => updateBackground({ color: e.target.value })}
+                  className="h-9 w-14 cursor-pointer rounded-md border border-border bg-transparent"
+                />
+                <Input
+                  value={design.background?.color || ""}
+                  onChange={(e) => updateBackground({ color: e.target.value })}
+                  placeholder="#f8fafc"
+                  className="w-32"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Input
+                  type="url"
+                  value={design.background?.image_url || ""}
+                  onChange={(e) => updateBackground({ image_url: e.target.value || undefined })}
+                  placeholder="https://…/fondo.jpg"
+                />
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={!!design.background?.fill}
+                      onCheckedChange={(v) => updateBackground({ fill: v === true })}
+                    />
+                    {t("backgroundFillLabel")}
+                  </label>
+                  <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={!!design.background?.repeat}
+                      onCheckedChange={(v) => updateBackground({ repeat: v === true })}
+                    />
+                    {t("backgroundRepeatLabel")}
+                  </label>
+                  <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={!!design.background?.fixed}
+                      onCheckedChange={(v) => updateBackground({ fixed: v === true })}
+                    />
+                    {t("backgroundFixedLabel")}
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-3 rounded-lg border border-border p-3">
+            <Label className="text-muted-foreground">{t("topSectionTitle")}</Label>
+
+            <div className="grid gap-2">
+              <Label className="text-xs text-muted-foreground">{t("bannerImageLabel")}</Label>
+              <Input
+                type="url"
+                value={design.top_section?.banner_image_url || ""}
+                onChange={(e) =>
+                  updateTopSection({ banner_image_url: e.target.value || undefined })
+                }
+                placeholder="https://…/banner.jpg"
+              />
+              {design.top_section?.banner_image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={design.top_section.banner_image_url}
+                  alt=""
+                  className="h-20 w-full rounded border border-border object-cover"
+                />
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-xs text-muted-foreground">{t("productImageLabel")}</Label>
+              <Input
+                type="url"
+                value={design.top_section?.product_image_url || ""}
+                onChange={(e) =>
+                  updateTopSection({ product_image_url: e.target.value || undefined })
+                }
+                placeholder="https://…/producto.png"
+              />
+            </div>
+
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <div className="grid gap-2">
+                <Label className="text-xs text-muted-foreground">{t("titleLabel")}</Label>
+                <Input
+                  value={design.top_section?.title || ""}
+                  onChange={(e) => updateTopSection({ title: e.target.value || undefined })}
+                  placeholder={t("titlePlaceholder")}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-xs text-muted-foreground">{t("titleSizeLabel")}</Label>
+                <select
+                  value={design.top_section?.title_size ?? 36}
+                  onChange={(e) => updateTopSection({ title_size: Number(e.target.value) })}
+                  className="h-9 rounded-lg border border-border bg-muted px-2 text-sm text-foreground outline-none"
+                >
+                  {[20, 24, 28, 32, 36, 40, 48].map((size) => (
+                    <option key={size} value={size}>
+                      {size}px
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <div className="grid gap-2">
+                <Label className="text-xs text-muted-foreground">{t("subtitleLabel")}</Label>
+                <Input
+                  value={design.top_section?.subtitle || ""}
+                  onChange={(e) => updateTopSection({ subtitle: e.target.value || undefined })}
+                  placeholder={t("subtitlePlaceholder")}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-xs text-muted-foreground">{t("subtitleSizeLabel")}</Label>
+                <select
+                  value={design.top_section?.subtitle_size ?? 24}
+                  onChange={(e) => updateTopSection({ subtitle_size: Number(e.target.value) })}
+                  className="h-9 rounded-lg border border-border bg-muted px-2 text-sm text-foreground outline-none"
+                >
+                  {[14, 16, 18, 20, 24, 28, 32].map((size) => (
+                    <option key={size} value={size}>
+                      {size}px
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-2">

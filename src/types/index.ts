@@ -879,7 +879,35 @@ export interface PaymentFormProduct {
 /** Purely cosmetic, read only by the public checkout page — see migration 052. */
 export interface PaymentFormDesign {
   accent_color?: string;
+  /** Legacy single logo shown in the card header — kept for forms/skins that only ever set this; superseded by `top_section.product_image_url` when both are set (see `/pay/[slug]`'s render logic). */
   logo_url?: string;
+  /** "Fondo" block — page-wide background, Hotmart-style (see the Payment Skins builder). */
+  background?: PaymentPageBackground;
+  /** "Parte superior" block — the page's hero/banner section. */
+  top_section?: PaymentPageTopSection;
+}
+
+export interface PaymentPageBackground {
+  type?: 'color' | 'image';
+  color?: string;
+  image_url?: string;
+  /** "Llenar el fondo de la página" — cover the viewport instead of tiling at natural size. */
+  fill?: boolean;
+  /** "Repetir imagen de fondo" — tile the image. Ignored when `fill` is set. */
+  repeat?: boolean;
+  /** "Fijar imagen durante el desplazamiento" — CSS `background-attachment: fixed`. */
+  fixed?: boolean;
+}
+
+export interface PaymentPageTopSection {
+  banner_image_url?: string;
+  product_image_url?: string;
+  title?: string;
+  /** px */
+  title_size?: number;
+  subtitle?: string;
+  /** px */
+  subtitle_size?: number;
 }
 
 export interface PaymentForm {
