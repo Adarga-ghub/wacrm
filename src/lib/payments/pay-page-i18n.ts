@@ -49,6 +49,56 @@ export function resolvePaypalSdkLocale(locale: PayLocale, countryCode: string | 
   return 'es_DO'
 }
 
+/**
+ * Countries offered by the checkout page's "Cambiar país" picker
+ * (Hotmart-style — a country selector replaces a bare ES/EN toggle,
+ * and the page's language follows the chosen country). Deliberately
+ * a curated list, not every ISO country: this merchant's buyers are
+ * Latin America + the US Hispanic/English market, not a global
+ * audience, so the picker stays short enough to scan.
+ */
+export const CHECKOUT_COUNTRIES: { code: string; es: string; en: string }[] = [
+  { code: 'DO', es: 'República Dominicana', en: 'Dominican Republic' },
+  { code: 'US', es: 'Estados Unidos', en: 'United States' },
+  { code: 'MX', es: 'México', en: 'Mexico' },
+  { code: 'CO', es: 'Colombia', en: 'Colombia' },
+  { code: 'AR', es: 'Argentina', en: 'Argentina' },
+  { code: 'CL', es: 'Chile', en: 'Chile' },
+  { code: 'PE', es: 'Perú', en: 'Peru' },
+  { code: 'EC', es: 'Ecuador', en: 'Ecuador' },
+  { code: 'VE', es: 'Venezuela', en: 'Venezuela' },
+  { code: 'GT', es: 'Guatemala', en: 'Guatemala' },
+  { code: 'HN', es: 'Honduras', en: 'Honduras' },
+  { code: 'SV', es: 'El Salvador', en: 'El Salvador' },
+  { code: 'NI', es: 'Nicaragua', en: 'Nicaragua' },
+  { code: 'CR', es: 'Costa Rica', en: 'Costa Rica' },
+  { code: 'PA', es: 'Panamá', en: 'Panama' },
+  { code: 'BO', es: 'Bolivia', en: 'Bolivia' },
+  { code: 'PY', es: 'Paraguay', en: 'Paraguay' },
+  { code: 'UY', es: 'Uruguay', en: 'Uruguay' },
+  { code: 'PR', es: 'Puerto Rico', en: 'Puerto Rico' },
+  { code: 'ES', es: 'España', en: 'Spain' },
+  { code: 'CA', es: 'Canadá', en: 'Canada' },
+  { code: 'GB', es: 'Reino Unido', en: 'United Kingdom' },
+]
+
+const SPANISH_SPEAKING_COUNTRIES = new Set([
+  'AR', 'BO', 'CL', 'CO', 'CR', 'DO', 'EC', 'SV', 'GT', 'HN',
+  'MX', 'NI', 'PA', 'PY', 'PE', 'UY', 'VE', 'ES', 'PR',
+])
+
+/**
+ * Derives the checkout page's own UI language (not the PayPal SDK's
+ * locale — see `resolvePaypalSdkLocale`) from the selected/detected
+ * country, the same way Hotmart's "Cambiar país" picker drives its
+ * checkout language. Every country in `CHECKOUT_COUNTRIES` NOT in
+ * the Spanish-speaking set falls back to English, since those are
+ * the only two languages this page has copy for.
+ */
+export function localeForCountry(countryCode: string): PayLocale {
+  return SPANISH_SPEAKING_COUNTRIES.has(countryCode) ? 'es' : 'en'
+}
+
 interface PayPageStrings {
   notAvailable: string
   chooseProduct: string
@@ -64,6 +114,8 @@ interface PayPageStrings {
   startError: string
   thankYou: string
   noGateway: string
+  /** "Cambiar país" — label next to the current country code in the checkout header's country picker (replaces a bare ES/EN toggle). */
+  changeCountry: string
   or: string
   cardSectionTitle: string
   cardNumber: string
@@ -97,6 +149,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     startError: 'No se pudo iniciar el pago — inténtalo de nuevo',
     thankYou: 'Gracias — tu pago fue recibido.',
     noGateway: 'Este comercio todavía no ha conectado PayPal.',
+    changeCountry: 'Cambiar país',
     or: 'o',
     cardSectionTitle: 'Tarjeta de débito o crédito',
     cardNumber: 'Número de tarjeta',
@@ -126,6 +179,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     startError: 'Could not start the payment — please try again',
     thankYou: 'Thank you — your payment was received.',
     noGateway: "This merchant hasn't connected PayPal yet.",
+    changeCountry: 'Change country',
     or: 'or',
     cardSectionTitle: 'Debit or Credit Card',
     cardNumber: 'Card number',

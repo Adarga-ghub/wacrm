@@ -21,12 +21,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
+  localeForCountry,
   payPageStrings,
   resolvePaypalSdkLocale,
   translateFieldLabel,
-  type PayLocale,
 } from "@/lib/payments/pay-page-i18n"
-import { backgroundStyle, LanguageToggle, TopSectionBlock } from "@/lib/payments/checkout-render"
+import { backgroundStyle, CountryToggle, TopSectionBlock } from "@/lib/payments/checkout-render"
 
 declare global {
   interface Window {
@@ -48,31 +48,33 @@ function PublicPaymentFormPageInner() {
   const searchParams = useSearchParams()
   const linkCode = searchParams.get("l")
 
-  // Default to Spanish (this product's primary market); flip to
-  // English only when the browser reports an English locale. The
-  // visitor can always override with the toggle regardless.
-  const [locale, setLocale] = useState<PayLocale>("es")
-  useEffect(() => {
-    if (typeof navigator === "undefined") return
-    if (navigator.language?.toLowerCase().startsWith("en")) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLocale("en")
-    }
-  }, [])
-  const t = payPageStrings[locale]
-
-  // IP-based, best-effort — only ever narrows which PayPal SDK
-  // locale we ask for (see `resolvePaypalSdkLocale`); `null` (still
-  // detecting, or detection failed) just keeps today's behavior.
-  const [buyerCountry, setBuyerCountry] = useState<string | null>(null)
+  // Hotmart-style "Cambiar país" picker (see `CountryToggle`) replaces
+  // a bare ES/EN toggle — the page's language is DERIVED from the
+  // country, not chosen independently. Defaults to this merchant's own
+  // market (Dominican Republic) until IP-based geo-detection resolves
+  // (best-effort — see `GET /api/public/payments/geo`); the visitor
+  // can always override with the picker regardless. `countryTouchedRef`
+  // stops the geo effect from clobbering a manual pick that lands
+  // before detection finishes.
+  const [country, setCountry] = useState("DO")
+  const countryTouchedRef = useRef(false)
   useEffect(() => {
     fetch("/api/public/payments/geo")
       .then((res) => res.json())
       .then((data) => {
-        if (data.country) setBuyerCountry(data.country)
+        if (data.country && !countryTouchedRef.current) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setCountry(data.country)
+        }
       })
       .catch(() => {})
   }, [])
+  const handleCountryChange = (countryCode: string) => {
+    countryTouchedRef.current = true
+    setCountry(countryCode)
+  }
+  const locale = localeForCountry(country)
+  const t = payPageStrings[locale]
 
   const [form, setForm] = useState<PublicPaymentForm | null>(null)
   const [notFound, setNotFound] = useState(false)
@@ -144,13 +146,13 @@ function PublicPaymentFormPageInner() {
   }, [slug])
 
   // Load the PayPal JS SDK once we know the merchant's Client ID —
-  // and reload it whenever the visitor toggles language or their
-  // detected country resolves, since the SDK's own `locale` param
+  // and reload it whenever the visitor's country (and so their
+  // derived language) changes, since the SDK's own `locale` param
   // controls both the text AND the regional defaults (e.g. country
   // picker) PayPal renders inside its own button/hosted-checkout UI.
   useEffect(() => {
     if (!form?.paypal_client_id) return
-    const desiredLocale = resolvePaypalSdkLocale(locale, buyerCountry)
+    const desiredLocale = resolvePaypalSdkLocale(locale, country)
     const existing = document.getElementById("paypal-sdk") as HTMLScriptElement | null
     if (existing) {
       if (existing.dataset.locale === desiredLocale) {
@@ -181,7 +183,7 @@ function PublicPaymentFormPageInner() {
     script.onload = () => setSdkReady(true)
     script.onerror = () => setErrorMessage(payPageStrings[locale].sdkLoadError)
     document.body.appendChild(script)
-  }, [form?.paypal_client_id, form?.currency, locale, buyerCountry])
+  }, [form?.paypal_client_id, form?.currency, locale, country])
 
   // Render the PayPal button, and either Advanced Card Fields (inline,
   // minimal) or the FUNDING.CARD fallback button, once the SDK is
@@ -349,7 +351,7 @@ function PublicPaymentFormPageInner() {
   if (notFound) {
     return (
       <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
-        <LanguageToggle locale={locale} onChange={setLocale} />
+        <CountryToggle country={country} locale={locale} onChange={handleCountryChange} />
         <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
           <AlertTriangle className="size-8 text-amber-500" />
           <p className="text-sm text-muted-foreground">{t.notAvailable}</p>
@@ -393,7 +395,7 @@ function PublicPaymentFormPageInner() {
     <>
       {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
       <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
-        <LanguageToggle locale={locale} onChange={setLocale} />
+        <CountryToggle country={country} locale={locale} onChange={handleCountryChange} />
         <div className="h-1.5 w-full" style={{ backgroundColor: accent || "var(--primary)" }} />
 
         <TopSectionBlock topSection={topSection} />

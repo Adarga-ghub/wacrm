@@ -1,9 +1,10 @@
 import type { CSSProperties } from "react"
 
 import type { PaymentPageBackground, PaymentPageTopSection } from "@/types"
-import type { PayLocale } from "@/lib/payments/pay-page-i18n"
+import { CHECKOUT_COUNTRIES, payPageStrings, type PayLocale } from "@/lib/payments/pay-page-i18n"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 
-/** ES/EN toggle shared by the real checkout page (`/pay/[slug]`) and the skin preview page (`/pay/preview`). */
+/** ES/EN toggle used by the skin preview page (`/pay/preview`) — that page has no real buyer to detect a country for, just cosmetics, so it keeps the plain language switch. The real checkout page uses `CountryToggle` instead. */
 export function LanguageToggle({
   locale,
   onChange,
@@ -28,6 +29,48 @@ export function LanguageToggle({
           {l}
         </button>
       ))}
+    </div>
+  )
+}
+
+/**
+ * "Cambiar país" country picker — the real checkout page's (`/pay/[slug]`)
+ * header, mirroring Hotmart's checkout exactly: the buyer's detected
+ * (or manually chosen) country code on the left, a static "Cambiar
+ * país"/"Change country" label, and a dropdown of countries. The
+ * page's language (`locale`) is DERIVED from `country` (see
+ * `localeForCountry`) — there's no separate ES/EN control anymore,
+ * same as Hotmart doesn't have one either.
+ */
+export function CountryToggle({
+  country,
+  locale,
+  onChange,
+}: {
+  country: string
+  locale: PayLocale
+  onChange: (countryCode: string) => void
+}) {
+  const t = payPageStrings[locale]
+  return (
+    <div className="flex items-center justify-end border-b border-border/60 bg-muted/30 px-3 py-1.5">
+      <Select value={country} onValueChange={(v) => v && onChange(v)}>
+        <SelectTrigger
+          size="sm"
+          aria-label={t.changeCountry}
+          className="h-auto gap-1 border-none bg-transparent px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground shadow-none hover:text-foreground"
+        >
+          <span className="font-semibold uppercase tracking-wide text-foreground">{country}</span>
+          <span>{t.changeCountry}</span>
+        </SelectTrigger>
+        <SelectContent align="end">
+          {CHECKOUT_COUNTRIES.map((c) => (
+            <SelectItem key={c.code} value={c.code}>
+              {c[locale]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
