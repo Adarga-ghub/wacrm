@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Eye, Loader2, Palette, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft, Copy, Eye, Loader2, Palette, Pencil, Trash2 } from "lucide-react"
 
 import { useCan } from "@/hooks/use-can"
 import type { PaymentForm, PaymentSkin } from "@/types"
@@ -42,6 +42,7 @@ export default function PaymentSkinsPage() {
   const [editingSkin, setEditingSkin] = useState<PaymentSkin | null>(null)
   const [pendingDelete, setPendingDelete] = useState<PaymentSkin | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
 
   async function load() {
     const [skinsRes, formsRes] = await Promise.all([
@@ -80,6 +81,25 @@ export default function PaymentSkinsPage() {
 
   function handlePreview(skin: PaymentSkin) {
     window.open(buildSkinPreviewUrl(skin.design, locale), "_blank", "noopener,noreferrer")
+  }
+
+  async function handleDuplicate(skin: PaymentSkin) {
+    setDuplicatingId(skin.id)
+    const res = await fetch("/api/payments/skins", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: `${skin.name}${t("duplicateNameSuffix")}`,
+        design: skin.design,
+      }),
+    })
+    setDuplicatingId(null)
+    if (!res.ok) {
+      toast.error(t("duplicateFailed"))
+      return
+    }
+    toast.success(t("duplicateSuccess"))
+    load()
   }
 
   async function handleDelete() {
@@ -153,7 +173,7 @@ export default function PaymentSkinsPage() {
                 <TableHead className="hidden text-muted-foreground sm:table-cell">
                   {t("table.created")}
                 </TableHead>
-                <TableHead className="w-32" />
+                <TableHead className="w-40" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -199,6 +219,20 @@ export default function PaymentSkinsPage() {
                         title={t("actions.edit")}
                       >
                         <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleDuplicate(skin)}
+                        disabled={duplicatingId === skin.id}
+                        aria-label={t("actions.duplicate")}
+                        title={t("actions.duplicate")}
+                      >
+                        {duplicatingId === skin.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
                       </Button>
                       <Button
                         variant="ghost"

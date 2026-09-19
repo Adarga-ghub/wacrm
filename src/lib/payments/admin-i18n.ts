@@ -99,6 +99,9 @@ export interface PaymentsSkinsStrings {
   deleteFailed: string
   deleteSuccess: string
   preview: string
+  duplicateNameSuffix: string
+  duplicateFailed: string
+  duplicateSuccess: string
   uploadImage: string
   changeImage: string
   removeImage: string
@@ -117,6 +120,7 @@ export interface PaymentsSkinsStrings {
   actions: {
     edit: string
     delete: string
+    duplicate: string
     menu: string
   }
 }
@@ -335,6 +339,9 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       deleteFailed: 'Could not delete the skin.',
       deleteSuccess: 'Skin deleted.',
       preview: 'Preview',
+      duplicateNameSuffix: ' (copy)',
+      duplicateFailed: 'Could not duplicate the skin.',
+      duplicateSuccess: 'Skin duplicated.',
       uploadImage: 'Upload image',
       changeImage: 'Change image',
       removeImage: 'Remove',
@@ -353,6 +360,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       actions: {
         edit: 'Edit',
         delete: 'Delete',
+        duplicate: 'Duplicate',
         menu: 'Open menu',
       },
     },
@@ -563,6 +571,9 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       deleteFailed: 'No se pudo eliminar la apariencia.',
       deleteSuccess: 'Apariencia eliminada.',
       preview: 'Vista previa',
+      duplicateNameSuffix: ' (copia)',
+      duplicateFailed: 'No se pudo duplicar la apariencia.',
+      duplicateSuccess: 'Apariencia duplicada.',
       uploadImage: 'Subir imagen',
       changeImage: 'Cambiar imagen',
       removeImage: 'Quitar',
@@ -581,6 +592,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       actions: {
         edit: 'Editar',
         delete: 'Eliminar',
+        duplicate: 'Duplicar',
         menu: 'Abrir menú',
       },
     },
