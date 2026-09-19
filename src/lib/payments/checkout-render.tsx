@@ -60,8 +60,8 @@ export function CountryToggle({
           aria-label={t.changeCountry}
           className="h-auto gap-1 border-none bg-transparent px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground shadow-none hover:text-foreground"
         >
-          <span className="font-semibold uppercase tracking-wide text-foreground">{country}</span>
-          <span>{t.changeCountry}</span>
+          <span className="text-[10px] font-normal uppercase tracking-wide text-muted-foreground">{country}</span>
+          <span className="font-semibold text-foreground">{t.changeCountry}</span>
         </SelectTrigger>
         <SelectContent align="end">
           {CHECKOUT_COUNTRIES.map((c) => (
