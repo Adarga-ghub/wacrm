@@ -183,18 +183,16 @@ function PublicPaymentFormPageInner() {
     document.body.appendChild(script)
   }, [form?.paypal_client_id, form?.currency, locale, buyerCountry])
 
-  // Render the PayPal button, and either Advanced Card Fields (inline,
-  // minimal) or the FUNDING.CARD fallback button, once the SDK is
-  // ready. Deliberately NOT re-run on every keystroke in the form
-  // fields/amount/product picker (see the refs above) — only when the
-  // SDK reloads, the form itself changes, or the language toggles.
+  // Render the PayPal button and, when the account supports it,
+  // Advanced Card Fields — our own minimal inline card form. Deliberately
+  // NOT re-run on every keystroke in the form fields/amount/product
+  // picker (see the refs above) — only when the SDK reloads, the form
+  // itself changes, or the language toggles.
   useEffect(() => {
     if (!sdkReady || !form || !window.paypal) return
     const paypalContainer = document.getElementById("paypal-button-container")
-    const cardContainer = document.getElementById("card-button-container")
     if (!paypalContainer) return
     paypalContainer.innerHTML = ""
-    if (cardContainer) cardContainer.innerHTML = ""
 
     const strings = payPageStrings[locale]
 
@@ -270,11 +268,17 @@ function PublicPaymentFormPageInner() {
     const paypalButtons = window.paypal.Buttons(buttonConfig(window.paypal.FUNDING.PAYPAL))
     if (paypalButtons.isEligible()) paypalButtons.render("#paypal-button-container")
 
-    // Try Advanced Card Fields first — it's the only way to render our
-    // own minimal card form (Number/Expiry/CVV only, no PayPal-hosted
-    // billing address). Falls back to the classic FUNDING.CARD button
-    // (PayPal's own hosted card overlay) on accounts that don't have
-    // Advanced Card Payments enabled.
+    // Advanced Card Fields is the ONLY card path this page offers —
+    // it's the sole way to render our own minimal card form
+    // (Number/Expiry/CVV/cardholder name only). Deliberately NOT
+    // falling back to the classic FUNDING.CARD button: that opens
+    // PayPal's own hosted card overlay, which bundles an
+    // uncustomizable "Dirección de la tarjeta" billing-address block
+    // (name, last name, postal code, mobile, email) we have no way to
+    // trim or restyle since it renders inside PayPal's own iframe. An
+    // account without Advanced Card Payments enabled simply won't
+    // show an inline card option here — only the PayPal button, whose
+    // own hosted checkout still accepts guest card payment.
     let cardFieldsInstance: ReturnType<typeof window.paypal.CardFields> | null = null
     if (window.paypal.CardFields) {
       cardFieldsInstance = window.paypal.CardFields({
@@ -310,13 +314,6 @@ function PublicPaymentFormPageInner() {
     } else {
       setCardEligible(false)
       cardFieldsRef.current = null
-      if (cardContainer) {
-        const cardButtons = window.paypal.Buttons({
-          ...buttonConfig(window.paypal.FUNDING.CARD),
-          style: { label: "pay", color: "black" },
-        })
-        if (cardButtons.isEligible()) cardButtons.render("#card-button-container")
-      }
     }
   }, [sdkReady, form, linkCode, slug, locale])
 
@@ -560,14 +557,14 @@ function PublicPaymentFormPageInner() {
                   {cardSubmitting ? <Loader2 className="size-4 animate-spin" /> : t.pay}
                 </button>
               </div>
-            ) : (
-              <div id="card-button-container" />
+            ) : null}
+            {cardEligible && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                {t.or}
+                <span className="h-px flex-1 bg-border" />
+              </div>
             )}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />
-              {t.or}
-              <span className="h-px flex-1 bg-border" />
-            </div>
             <div id="paypal-button-container" />
           </div>
         ) : (
