@@ -72,6 +72,8 @@ interface PayPageStrings {
   firstName: string
   lastName: string
   email: string
+  /** "Nombre del titular" — the single cardholder-name field on the Advanced Card Fields form (no first/last split, unlike the top-of-form contact name). */
+  cardholderName: string
   pay: string
   previewBadge: string
   sampleProductName: string
@@ -103,6 +105,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     firstName: 'Nombre',
     lastName: 'Apellido',
     email: 'Correo electrónico',
+    cardholderName: 'Nombre del titular',
     pay: 'Pagar',
     previewBadge: 'Vista previa',
     sampleProductName: 'Producto de ejemplo',
@@ -131,6 +134,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     firstName: 'First name',
     lastName: 'Last name',
     email: 'Email',
+    cardholderName: 'Cardholder name',
     pay: 'Pay',
     previewBadge: 'Preview',
     sampleProductName: 'Sample product',

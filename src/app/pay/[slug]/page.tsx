@@ -89,35 +89,25 @@ function PublicPaymentFormPageInner() {
   // FUNDING.CARD button, which opens PayPal's own hosted guest
   // checkout instead.
   const [cardEligible, setCardEligible] = useState(false)
-  const [cardFirstName, setCardFirstName] = useState("")
-  const [cardLastName, setCardLastName] = useState("")
-  const [cardEmail, setCardEmail] = useState("")
+  // The only fields Advanced Card Fields collects beyond the card
+  // itself: no postal code, no separate email, no first/last-name
+  // split — the top form above already captured name/email/WhatsApp,
+  // so re-asking for them here would just duplicate data entry.
+  const [cardholderName, setCardholderName] = useState("")
   const [cardSubmitting, setCardSubmitting] = useState(false)
 
-  // Autofill the card section's Name/Email from the "name"/"email"
-  // fields up top as the buyer types them, so they never have to
-  // enter the same info twice on one screen — but stop overwriting
-  // as soon as they've edited the card field themselves, in case the
-  // cardholder differs from the contact (e.g. a gift purchase).
-  // There's no phone field down here to sync — WhatsApp is only
-  // collected once, up top.
+  // Autofill the cardholder name from the "name" field up top as the
+  // buyer types it, so they never have to enter it twice on one
+  // screen — but stop overwriting as soon as they've edited the card
+  // field themselves, in case the cardholder differs from the
+  // contact (e.g. a gift purchase).
   const [cardNameTouched, setCardNameTouched] = useState(false)
-  const [cardEmailTouched, setCardEmailTouched] = useState(false)
   const topName = fieldValues["name"] ?? ""
-  const topEmail = fieldValues["email"] ?? ""
   useEffect(() => {
     if (cardNameTouched) return
-    const trimmed = topName.trim()
-    const spaceIdx = trimmed.indexOf(" ")
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCardFirstName(spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx))
-    setCardLastName(spaceIdx === -1 ? "" : trimmed.slice(spaceIdx + 1).trim())
+    setCardholderName(topName)
   }, [topName, cardNameTouched])
-  useEffect(() => {
-    if (cardEmailTouched) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCardEmail(topEmail)
-  }, [topEmail, cardEmailTouched])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cardFieldsRef = useRef<any>(null)
 
@@ -132,16 +122,12 @@ function PublicPaymentFormPageInner() {
   const fieldValuesRef = useRef(fieldValues)
   const variableAmountRef = useRef(variableAmount)
   const selectedProductIdRef = useRef(selectedProductId)
-  const cardFirstNameRef = useRef(cardFirstName)
-  const cardLastNameRef = useRef(cardLastName)
-  const cardEmailRef = useRef(cardEmail)
+  const cardholderNameRef = useRef(cardholderName)
   useEffect(() => {
     fieldValuesRef.current = fieldValues
     variableAmountRef.current = variableAmount
     selectedProductIdRef.current = selectedProductId
-    cardFirstNameRef.current = cardFirstName
-    cardLastNameRef.current = cardLastName
-    cardEmailRef.current = cardEmail
+    cardholderNameRef.current = cardholderName
   })
 
   useEffect(() => {
@@ -298,20 +284,11 @@ function PublicPaymentFormPageInner() {
         },
         createOrder: async () => {
           setErrorMessage(null)
-          const firstName = cardFirstNameRef.current
-          const lastName = cardLastNameRef.current
-          const email = cardEmailRef.current
           const ok = requiredFieldsOk([
-            { label: strings.firstName, value: firstName },
-            { label: strings.lastName, value: lastName },
-            { label: strings.email, value: email },
+            { label: strings.cardholderName, value: cardholderNameRef.current },
           ])
           if (!ok) throw new Error("validation")
-          return submitOrder({
-            ...fieldValuesRef.current,
-            name: `${firstName} ${lastName}`.trim(),
-            email: email.trim(),
-          })
+          return submitOrder()
         },
         onApprove: handleApprove,
         onError: handleError,
@@ -347,9 +324,7 @@ function PublicPaymentFormPageInner() {
     if (!cardFieldsRef.current) return
     setCardSubmitting(true)
     try {
-      await cardFieldsRef.current.submit({
-        cardholderName: `${cardFirstName} ${cardLastName}`.trim(),
-      })
+      await cardFieldsRef.current.submit({ cardholderName: cardholderName.trim() })
     } catch {
       setErrorMessage((prev) => prev ?? t.paypalGenericError)
     } finally {
@@ -544,12 +519,11 @@ function PublicPaymentFormPageInner() {
 
         {form.paypal_client_id ? (
           <div className="space-y-3">
-            <div id="paypal-button-container" />
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />
-              {t.or}
-              <span className="h-px flex-1 bg-border" />
-            </div>
+            {/*
+              Card first, fully expanded by default (Hotmart-style) —
+              PayPal is the secondary option, offered right below it,
+              not the other way around.
+            */}
             {cardEligible ? (
               <div className="space-y-3 rounded-lg border border-border p-3">
                 <p className="text-sm font-medium text-foreground">{t.cardSectionTitle}</p>
@@ -567,36 +541,13 @@ function PublicPaymentFormPageInner() {
                     <div id="card-cvv-field" className="h-8 rounded-lg border border-input px-2.5 py-1" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5">
-                    <Label className="text-muted-foreground">{t.firstName}</Label>
-                    <Input
-                      value={cardFirstName}
-                      onChange={(e) => {
-                        setCardNameTouched(true)
-                        setCardFirstName(e.target.value)
-                      }}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-muted-foreground">{t.lastName}</Label>
-                    <Input
-                      value={cardLastName}
-                      onChange={(e) => {
-                        setCardNameTouched(true)
-                        setCardLastName(e.target.value)
-                      }}
-                    />
-                  </div>
-                </div>
                 <div className="grid gap-1.5">
-                  <Label className="text-muted-foreground">{t.email}</Label>
+                  <Label className="text-muted-foreground">{t.cardholderName}</Label>
                   <Input
-                    type="email"
-                    value={cardEmail}
+                    value={cardholderName}
                     onChange={(e) => {
-                      setCardEmailTouched(true)
-                      setCardEmail(e.target.value)
+                      setCardNameTouched(true)
+                      setCardholderName(e.target.value)
                     }}
                   />
                 </div>
@@ -612,6 +563,12 @@ function PublicPaymentFormPageInner() {
             ) : (
               <div id="card-button-container" />
             )}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              {t.or}
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div id="paypal-button-container" />
           </div>
         ) : (
           <p className="text-center text-sm text-muted-foreground">{t.noGateway}</p>
