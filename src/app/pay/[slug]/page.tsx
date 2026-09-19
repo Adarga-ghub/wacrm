@@ -396,11 +396,10 @@ function PublicPaymentFormPageInner() {
       {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
       <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
         <CountryToggle country={country} locale={locale} onChange={handleCountryChange} />
-        <div className="h-1.5 w-full" style={{ backgroundColor: accent || "var(--primary)" }} />
 
         <TopSectionBlock topSection={topSection} />
 
-      <CardHeader>
+      <CardHeader className="border-b border-border/60 bg-card">
         {form.design?.logo_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -424,11 +423,11 @@ function PublicPaymentFormPageInner() {
               <img
                 src={product.image_url}
                 alt=""
-                className="size-16 shrink-0 rounded-lg object-cover"
+                className="size-16 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/60"
               />
             )}
             <div className="min-w-0">
-              <CardTitle>{product.name}</CardTitle>
+              <CardTitle className="text-base font-semibold">{product.name}</CardTitle>
               {product.author && (
                 <p className="mt-0.5 text-xs text-muted-foreground">{t.authorLabel(product.author)}</p>
               )}
@@ -437,7 +436,7 @@ function PublicPaymentFormPageInner() {
           </div>
         ) : (
           <>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
               <CreditCard className="size-5 text-primary" style={accent ? { color: accent } : undefined} />
               {form.name}
             </CardTitle>
