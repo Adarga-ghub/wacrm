@@ -91,6 +91,16 @@ export interface CreateOrderArgs {
   /** Our `payment_transactions.id` (or a temp id) — round-trips back on the webhook event. */
   referenceId: string
   description?: string
+  /**
+   * The real product/offer name (e.g. the actual book/course title) —
+   * sent as `purchase_units[].items[0].name` so it appears in PayPal's
+   * notification email and the payer's receipt instead of a generic
+   * concept. Always priced at `amount` with quantity 1: this CRM never
+   * sells more than one line item per order.
+   */
+  itemName: string
+  /** Commercial description of the item — same 127-char PayPal limit as `description`. */
+  itemDescription?: string
 }
 
 export interface PayPalOrder {
@@ -99,7 +109,7 @@ export interface PayPalOrder {
 }
 
 export async function createOrder(args: CreateOrderArgs): Promise<PayPalOrder> {
-  const { accessToken, environment, currency, amount, referenceId, description } = args
+  const { accessToken, environment, currency, amount, referenceId, description, itemName, itemDescription } = args
   const response = await fetch(`${PAYPAL_API_BASE[environment]}/v2/checkout/orders`, {
     method: 'POST',
     headers: {
@@ -112,7 +122,23 @@ export async function createOrder(args: CreateOrderArgs): Promise<PayPalOrder> {
         {
           reference_id: referenceId,
           description: description?.slice(0, 127),
-          amount: { currency_code: currency, value: amount },
+          amount: {
+            currency_code: currency,
+            value: amount,
+            // Required by PayPal whenever `items` is present — with a
+            // single quantity-1 line item, the breakdown's item_total
+            // always equals the purchase unit's own total.
+            breakdown: { item_total: { currency_code: currency, value: amount } },
+          },
+          items: [
+            {
+              name: itemName.slice(0, 127),
+              description: itemDescription?.slice(0, 127),
+              unit_amount: { currency_code: currency, value: amount },
+              quantity: '1',
+              category: 'DIGITAL_GOODS',
+            },
+          ],
         },
       ],
       // Every product sold through this CRM is a digital download —

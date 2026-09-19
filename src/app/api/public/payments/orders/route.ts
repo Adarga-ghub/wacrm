@@ -125,6 +125,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'This merchant has not connected PayPal yet' }, { status: 400 })
   }
 
+  // Resolve the exact item name/description PayPal will show on its
+  // notification email and the payer's receipt — the actual
+  // book/resource being sold, never a generic "Payment" line. A
+  // `product_list` pick wins (it's the most specific), then a linked
+  // Producto (migration 054), falling back to the bare form name for
+  // a standalone form with neither.
+  let itemName = form.name
+  let itemDescription: string | undefined
+  if (productName) {
+    itemName = productName
+  } else if (form.product_id) {
+    const { data: productRow } = await db
+      .from('payment_products')
+      .select('name, description')
+      .eq('id', form.product_id)
+      .maybeSingle()
+    if (productRow) {
+      itemName = productRow.name
+      itemDescription = productRow.description ?? undefined
+    }
+  }
+
   let orderId: string
   try {
     const { accessToken } = await getAccessToken(gateway)
@@ -135,6 +157,8 @@ export async function POST(request: Request) {
       amount: amount.toFixed(2),
       referenceId: crypto.randomUUID(),
       description: productName ? `${form.name} — ${productName}` : form.name,
+      itemName,
+      itemDescription,
     })
     orderId = order.id
   } catch (err) {
