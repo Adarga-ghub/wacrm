@@ -233,7 +233,11 @@ function PublicPaymentFormPageInner() {
       const data = await res.json()
       if (!res.ok) {
         setErrorMessage(data.error || strings.startError)
-        throw new Error(data.error || "create-order-failed")
+        // "handled" tells `handleError` (below) a specific message is
+        // already on screen — PayPal still calls onError after a
+        // thrown createOrder, and without this marker it clobbers this
+        // message with the generic "problema con PayPal" one.
+        throw new Error("handled")
       }
       return data.order_id
     }
@@ -254,13 +258,21 @@ function PublicPaymentFormPageInner() {
       setResult({ inline_message: captureData.inline_message })
     }
 
-    const handleError = () => setErrorMessage(strings.paypalGenericError)
+    // A thrown createOrder always triggers onError too, on top of
+    // whatever we already told the buyer (a missing-field message, an
+    // order-creation failure) — skip the generic overwrite for those
+    // "handled" cases so the specific message stays on screen instead
+    // of being replaced by a misleading "problema con PayPal".
+    const handleError = (err?: unknown) => {
+      if (err instanceof Error && err.message === "handled") return
+      setErrorMessage(strings.paypalGenericError)
+    }
 
     const buttonConfig = (fundingSource: string) => ({
       fundingSource,
       createOrder: async () => {
         setErrorMessage(null)
-        if (!requiredFieldsOk()) throw new Error("validation")
+        if (!requiredFieldsOk()) throw new Error("handled")
         return submitOrder()
       },
       onApprove: handleApprove,
@@ -289,7 +301,7 @@ function PublicPaymentFormPageInner() {
           const ok = requiredFieldsOk([
             { label: strings.cardholderName, value: cardholderNameRef.current },
           ])
-          if (!ok) throw new Error("validation")
+          if (!ok) throw new Error("handled")
           return submitOrder()
         },
         onApprove: handleApprove,
