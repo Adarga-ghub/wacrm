@@ -596,15 +596,15 @@ function PublicPaymentFormPageInner() {
             <div className="min-w-0">
               {/* Typography below mirrors the Hotmart checkout template
                   this layout is modeled on (see the comment above this
-                  `product` block) — title in a serif "Times New Roman"
-                  stack at regular weight, author/price/description in
-                  Open Sans (loaded as `--font-open-sans` in
-                  `src/app/layout.tsx`), price bold, author/description
-                  in Hotmart's own muted neutral-700. Applies to every
-                  product-linked checkout, existing or new, since it's
-                  the shared render path, not per-form/per-skin styling. */}
+                  `product` block) — title in a bold serif "Times New
+                  Roman" stack, author/price/description in Open Sans
+                  (loaded as `--font-open-sans` in `src/app/layout.tsx`),
+                  price bold, author/description in Hotmart's own muted
+                  neutral-700. Applies to every product-linked checkout,
+                  existing or new, since it's the shared render path,
+                  not per-form/per-skin styling. */}
               <CardTitle
-                className="text-base font-normal text-[#181817]"
+                className="text-base font-bold text-[#181817]"
                 style={{ fontFamily: '"Times New Roman", Times, serif' }}
               >
                 {product.name}
@@ -625,8 +625,8 @@ function PublicPaymentFormPageInner() {
               </p>
               {form.checkout_description && (
                 <p
-                  className="mt-1 text-xs font-bold text-[#464542]"
-                  style={{ fontFamily: '"Times New Roman", Times, serif' }}
+                  className="mt-1 text-xs font-normal text-[#464542]"
+                  style={{ fontFamily: "var(--font-open-sans)" }}
                 >
                   {form.checkout_description}
                 </p>
