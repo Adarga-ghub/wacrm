@@ -16,6 +16,7 @@ import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock } from "lucide-r
 
 import type { PublicPaymentForm } from "@/types"
 import { formatPaymentAmount } from "@/lib/currency"
+import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -40,6 +41,32 @@ const PAYPAL_WORDMARK_COLORS = {
   pay: "#253B80",
   pal: "#179BD7",
 } as const
+
+/**
+ * Maps Advanced Card Fields' own per-field keys (from its
+ * `inputEvents` callbacks — see the `CardFields({...})` setup below)
+ * to the short local keys used in `cardFocusedField`/`cardFieldInvalid`
+ * state. There's no `cardNameField` here because the cardholder-name
+ * input is our own plain `<Input>`, not a PayPal-rendered field (see
+ * the comment on `cardholderName` state above).
+ */
+const CARD_SDK_FIELD_KEYS = {
+  cardNumberField: "number",
+  cardExpiryField: "expiry",
+  cardCvvField: "cvv",
+} as const
+
+/** Same visual language as the shadcn `Input`'s own focus/invalid states (see the `.pay-page-surface` rules in globals.css and `aria-invalid:*` in `input.tsx`), reimplemented with plain classes because Advanced Card Fields' Number/Expiry/CVV boxes are plain wrapper `<div>`s around cross-origin iframes — the actual `<input>` inside can't be reached for `:focus-visible`/`aria-invalid`, so focus/validity state has to be tracked in React (via `inputEvents`) and applied here instead. */
+function cardFieldBoxClassName(focused: boolean, invalid: boolean) {
+  return cn(
+    "h-8 rounded-lg border px-2.5 py-1 transition-colors",
+    invalid
+      ? "border-destructive ring-3 ring-destructive/20"
+      : focused
+        ? "border-black ring-[1.5px] ring-black/45"
+        : "border-input",
+  )
+}
 
 export default function PublicPaymentFormPage() {
   return (
@@ -90,6 +117,31 @@ function PublicPaymentFormPageInner() {
   const [sdkReady, setSdkReady] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<{ inline_message: string | null } | null>(null)
+
+  // Per-field "left empty" state for the red-outline validation on
+  // required fields — keyed by `field.id` (plus the synthetic
+  // "amount" key for the variable-amount input). Populated on blur
+  // (buyer tabs/clicks away leaving it empty) and on a failed submit
+  // attempt (`requiredFieldsOk` below), cleared as soon as the field
+  // has a value again.
+  const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>({})
+  const markFieldValidity = (id: string, value: string) => {
+    setInvalidFields((prev) => {
+      const nowInvalid = !value.trim()
+      if (Boolean(prev[id]) === nowInvalid) return prev
+      const next = { ...prev }
+      if (nowInvalid) next[id] = true
+      else delete next[id]
+      return next
+    })
+  }
+
+  // Focus/invalid state for the Advanced Card Fields boxes (Number/
+  // Expiry/CVV) — see `cardFieldBoxClassName` above for why this can't
+  // just be CSS like the plain `Input`/`Textarea` fields.
+  const [cardFocusedField, setCardFocusedField] = useState<string | null>(null)
+  const [cardFieldInvalid, setCardFieldInvalid] = useState<Record<string, boolean>>({})
+  const [cardholderNameInvalid, setCardholderNameInvalid] = useState(false)
 
   // Advanced Card Fields (inline Number/Expiry/CVV, no PayPal-hosted
   // billing-address overlay) when the merchant's PayPal account is
@@ -206,18 +258,30 @@ function PublicPaymentFormPageInner() {
 
     const strings = payPageStrings[locale]
 
-    const requiredFieldsOk = (extraChecks: { label: string; value: string }[] = []) => {
+    // Checks every required field (not just the first empty one) so a
+    // submit attempt paints ALL of them red at once, not just the one
+    // named in the error message below.
+    const requiredFieldsOk = (extraChecks: { id: string; label: string; value: string }[] = []) => {
+      let firstMissingLabel: string | null = null
+      const newlyInvalid: Record<string, boolean> = {}
       for (const field of form.fields) {
         if (field.required && !fieldValuesRef.current[field.id]?.trim()) {
-          setErrorMessage(strings.fieldRequired(translateFieldLabel(field, locale)))
-          return false
+          newlyInvalid[field.id] = true
+          firstMissingLabel ??= translateFieldLabel(field, locale)
         }
+      }
+      if (Object.keys(newlyInvalid).length > 0) {
+        setInvalidFields((prev) => ({ ...prev, ...newlyInvalid }))
       }
       for (const check of extraChecks) {
         if (!check.value.trim()) {
-          setErrorMessage(strings.fieldRequired(check.label))
-          return false
+          firstMissingLabel ??= check.label
+          if (check.id === "cardholderName") setCardholderNameInvalid(true)
         }
+      }
+      if (firstMissingLabel) {
+        setErrorMessage(strings.fieldRequired(firstMissingLabel))
+        return false
       }
       if (form.amount_type === "product_list" && !selectedProductIdRef.current) {
         setErrorMessage(strings.chooseProductError)
@@ -297,6 +361,34 @@ function PublicPaymentFormPageInner() {
     // accounts that don't have Advanced Card Payments enabled — that
     // way a card option is always offered and working, even when it
     // isn't our own trimmed-down form.
+    // `data.fields` keys (cardNumberField/cardExpiryField/cardCvvField)
+    // and their isFocused/isEmpty/isValid/isPotentiallyValid shape come
+    // straight from PayPal's documented Advanced Card Fields event API
+    // (https://developer.paypal.com/docs/checkout/advanced/customize/card-fields-events/)
+    // — see `CARD_SDK_FIELD_KEYS` above. Only touches a field that's
+    // NOT currently focused, so a box isn't flagged red while the buyer
+    // is still typing in it — only once they've left it empty or
+    // invalid, or corrected it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateCardFieldValidity = (data: any) => {
+      const fields = data?.fields
+      if (!fields) return
+      setCardFieldInvalid((prev) => {
+        const next = { ...prev }
+        let changed = false
+        for (const [sdkKey, localKey] of Object.entries(CARD_SDK_FIELD_KEYS)) {
+          const f = fields[sdkKey]
+          if (!f || f.isFocused) continue
+          const invalid = Boolean(f.isEmpty || (!f.isValid && !f.isPotentiallyValid))
+          if (next[localKey] !== invalid) {
+            next[localKey] = invalid
+            changed = true
+          }
+        }
+        return changed ? next : prev
+      })
+    }
+
     let cardFieldsInstance: ReturnType<typeof window.paypal.CardFields> | null = null
     if (window.paypal.CardFields) {
       cardFieldsInstance = window.paypal.CardFields({
@@ -304,10 +396,25 @@ function PublicPaymentFormPageInner() {
           input: { "font-size": "14px", "font-family": "inherit", color: "#0f172a" },
           ".invalid": { color: "#dc2626" },
         },
+        inputEvents: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onFocus: (data: any) => {
+            const focusedSdkKey = Object.keys(CARD_SDK_FIELD_KEYS).find(
+              (key) => data?.fields?.[key]?.isFocused,
+            ) as keyof typeof CARD_SDK_FIELD_KEYS | undefined
+            setCardFocusedField(focusedSdkKey ? CARD_SDK_FIELD_KEYS[focusedSdkKey] : null)
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onBlur: (data: any) => {
+            setCardFocusedField(null)
+            updateCardFieldValidity(data)
+          },
+          onChange: updateCardFieldValidity,
+        },
         createOrder: async () => {
           setErrorMessage(null)
           const ok = requiredFieldsOk([
-            { label: strings.cardholderName, value: cardholderNameRef.current },
+            { id: "cardholderName", label: strings.cardholderName, value: cardholderNameRef.current },
           ])
           if (!ok) throw new Error("handled")
           return submitOrder()
@@ -469,20 +576,26 @@ function PublicPaymentFormPageInner() {
             {field.type === "textarea" ? (
               <Textarea
                 rows={3}
+                aria-invalid={invalidFields[field.id] || undefined}
                 value={fieldValues[field.id] ?? ""}
-                onChange={(e) =>
+                onChange={(e) => {
                   setFieldValues((v) => ({ ...v, [field.id]: e.target.value }))
-                }
+                  if (field.required) markFieldValidity(field.id, e.target.value)
+                }}
+                onBlur={(e) => field.required && markFieldValidity(field.id, e.target.value)}
               />
             ) : (
               <Input
                 type={field.type === "phone" ? "tel" : field.type}
                 placeholder={field.type === "phone" ? (locale === "es" ? "Ej: 809-000-0000" : "e.g. 809-000-0000") : undefined}
                 className={field.type === "phone" ? "placeholder:text-muted-foreground/50" : undefined}
+                aria-invalid={invalidFields[field.id] || undefined}
                 value={fieldValues[field.id] ?? ""}
-                onChange={(e) =>
+                onChange={(e) => {
                   setFieldValues((v) => ({ ...v, [field.id]: e.target.value }))
-                }
+                  if (field.required) markFieldValidity(field.id, e.target.value)
+                }}
+                onBlur={(e) => field.required && markFieldValidity(field.id, e.target.value)}
               />
             )}
           </div>
@@ -497,8 +610,13 @@ function PublicPaymentFormPageInner() {
               type="number"
               min={form.min_amount ?? 0}
               step="0.01"
+              aria-invalid={invalidFields["amount"] || undefined}
               value={variableAmount}
-              onChange={(e) => setVariableAmount(e.target.value)}
+              onChange={(e) => {
+                setVariableAmount(e.target.value)
+                markFieldValidity("amount", e.target.value)
+              }}
+              onBlur={(e) => markFieldValidity("amount", e.target.value)}
             />
           </div>
         )}
@@ -559,26 +677,38 @@ function PublicPaymentFormPageInner() {
                 <p className="text-sm font-medium text-foreground">{t.cardSectionTitle}</p>
                 <div className="grid gap-1.5">
                   <Label className="text-muted-foreground">{t.cardNumber}</Label>
-                  <div id="card-number-field" className="h-8 rounded-lg border border-input px-2.5 py-1" />
+                  <div
+                    id="card-number-field"
+                    className={cardFieldBoxClassName(cardFocusedField === "number", Boolean(cardFieldInvalid.number))}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
                     <Label className="text-muted-foreground">{t.cardExpiry}</Label>
-                    <div id="card-expiry-field" className="h-8 rounded-lg border border-input px-2.5 py-1" />
+                    <div
+                      id="card-expiry-field"
+                      className={cardFieldBoxClassName(cardFocusedField === "expiry", Boolean(cardFieldInvalid.expiry))}
+                    />
                   </div>
                   <div className="grid gap-1.5">
                     <Label className="text-muted-foreground">{t.cardCvv}</Label>
-                    <div id="card-cvv-field" className="h-8 rounded-lg border border-input px-2.5 py-1" />
+                    <div
+                      id="card-cvv-field"
+                      className={cardFieldBoxClassName(cardFocusedField === "cvv", Boolean(cardFieldInvalid.cvv))}
+                    />
                   </div>
                 </div>
                 <div className="grid gap-1.5">
                   <Label className="text-muted-foreground">{t.cardholderName}</Label>
                   <Input
+                    aria-invalid={cardholderNameInvalid || undefined}
                     value={cardholderName}
                     onChange={(e) => {
                       setCardNameTouched(true)
                       setCardholderName(e.target.value)
+                      if (e.target.value.trim()) setCardholderNameInvalid(false)
                     }}
+                    onBlur={(e) => setCardholderNameInvalid(!e.target.value.trim())}
                   />
                 </div>
                 <button

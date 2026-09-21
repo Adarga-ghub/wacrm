@@ -250,6 +250,29 @@ html[data-theme="rose"] {
   --input: oklch(0.922 0.004 260);
 }
 
+/* ---- /pay checkout pages: black focus ring, not the app's accent ----
+ * The dashboard's shadcn `Input`/`Textarea` focus ring uses `--ring`,
+ * which is the ACCENT theme color (violet by default) — fine inside
+ * the dashboard, but on a public checkout page the buyer has never
+ * chosen a theme and a bright violet ring reads as an odd, unbranded
+ * accent. Override it to a thin black ring here instead, scoped to
+ * `.pay-page-surface` so the dashboard's own accent-colored focus
+ * rings are untouched. Written unlayered (outside `@layer`), which
+ * Tailwind v4's cascade-layer setup gives priority over the
+ * `focus-visible:ring-ring/50` utility class regardless of source
+ * order, so this doesn't need `!important`.
+ *
+ * `:not([aria-invalid="true"])` keeps a field that's already marked
+ * invalid (see the required-field validation in
+ * `src/app/pay/[slug]/page.tsx`) showing its red ring even while
+ * focused, instead of this black ring masking it.
+ */
+.pay-page-surface [data-slot="input"]:focus-visible:not([aria-invalid="true"]),
+.pay-page-surface [data-slot="textarea"]:focus-visible:not([aria-invalid="true"]) {
+  border-color: #000000;
+  box-shadow: 0 0 0 1.5px rgb(0 0 0 / 0.45);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

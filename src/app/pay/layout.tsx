@@ -16,16 +16,22 @@ export const metadata: Metadata = {
 
 export default function PayLayout({ children }: { children: ReactNode }) {
   return (
-    // `items-start` (not `items-center`) is deliberate: a checkout
+    // `flex-col` + `justify-center` (main-axis centering), NOT
+    // `items-center` on a row (cross-axis centering) — the checkout
     // card's height varies a lot (card-fields expand it, a
     // product_list or a validation error adds a line, a tall top-
     // section banner adds more) and can exceed a phone's viewport
-    // height. Flexbox cross-axis centering on overflowing content
-    // clips inconsistently across browsers — the payer can lose
-    // access to the top of the card (language toggle, logo) with no
-    // way to scroll back up to it. Top-anchoring with symmetric
-    // padding avoids that entirely and is how most checkout pages
-    // (Stripe, PayPal's own) already behave.
+    // height. Cross-axis centering on overflowing content clips
+    // inconsistently across browsers — the payer can lose access to
+    // the top of the card with no way to scroll back up to it.
+    // Main-axis `justify-center` doesn't have that failure mode: once
+    // the card is taller than `min-h-screen`, this container's own
+    // height grows to match its content (min-height only sets a
+    // floor), so there's no leftover space to center into — the card
+    // just renders top-to-bottom like `items-start` did, fully
+    // scrollable, nothing clipped. When the card DOES fit the
+    // viewport, `justify-center` centers it vertically instead of
+    // pinning it to the top.
     //
     // NO `bg-background` on this div itself, still on purpose — a
     // background painted directly on this wrapper would sit on top of
@@ -44,7 +50,7 @@ export default function PayLayout({ children }: { children: ReactNode }) {
     // become unreadable once the page (or a merchant's skin) renders a
     // white/light background. Edit the values in that CSS class to
     // change the checkout pages' palette.
-    <div className="pay-page-surface flex min-h-screen items-start justify-center px-4 py-6 sm:py-10">
+    <div className="pay-page-surface flex min-h-screen flex-col items-center justify-center px-4 py-6 sm:py-10">
       {children}
     </div>
   )
