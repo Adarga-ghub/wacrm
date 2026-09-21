@@ -82,6 +82,47 @@ export const CHECKOUT_COUNTRIES: { code: string; es: string; en: string }[] = [
   { code: 'GB', es: 'Reino Unido', en: 'United Kingdom' },
 ]
 
+/**
+ * Representative local mobile-number example for the checkout's
+ * "Número de WhatsApp" field placeholder — one per `CHECKOUT_COUNTRIES`
+ * entry above, continuous digits with no dashes/spaces (this field
+ * stores a raw digit string, not a formatted one). Each follows that
+ * country's own domestic mobile-number length and leading digit(s), so
+ * the example actually looks like a number from that country instead
+ * of just relabeling the Dominican one. Filler digits are all "5"
+ * (same convention as the original "Ej: 8095555555" placeholder) so
+ * it never reads as someone's real phone number.
+ */
+const PHONE_PLACEHOLDER_BY_COUNTRY: Record<string, string> = {
+  DO: '8095555555',
+  US: '3055555555',
+  MX: '5555555555',
+  CO: '3005555555',
+  AR: '1155555555',
+  CL: '955555555',
+  PE: '955555555',
+  EC: '0995555555',
+  VE: '04145555555',
+  GT: '55555555',
+  HN: '95555555',
+  SV: '75555555',
+  NI: '85555555',
+  CR: '85555555',
+  PA: '65555555',
+  BO: '75555555',
+  PY: '0985555555',
+  UY: '095555555',
+  PR: '7875555555',
+  ES: '655555555',
+  CA: '4165555555',
+  GB: '07555555555',
+}
+
+/** Falls back to the Dominican example (this merchant's own market — see `resolvePaypalSdkLocale` above) for a country code outside `CHECKOUT_COUNTRIES`, which shouldn't happen since the picker is a closed list, but keeps this safe to call with any string. */
+export function phonePlaceholderForCountry(countryCode: string): string {
+  return PHONE_PLACEHOLDER_BY_COUNTRY[countryCode] ?? PHONE_PLACEHOLDER_BY_COUNTRY.DO
+}
+
 const SPANISH_SPEAKING_COUNTRIES = new Set([
   'AR', 'BO', 'CL', 'CO', 'CR', 'DO', 'EC', 'SV', 'GT', 'HN',
   'MX', 'NI', 'PA', 'PY', 'PE', 'UY', 'VE', 'ES', 'PR',
