@@ -12,7 +12,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
-import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock, ShieldCheck } from "lucide-react"
+import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock } from "lucide-react"
 
 import type { PublicPaymentForm } from "@/types"
 import { formatPaymentAmount } from "@/lib/currency"
@@ -34,6 +34,12 @@ declare global {
     paypal?: any
   }
 }
+
+/** PayPal's own two-tone wordmark colors ("Pay" dark navy, "Pal" light blue) — used verbatim for the "Powered by PayPal" trust badge so it matches PayPal's brand rendering exactly. Don't substitute theme tokens here; these are fixed brand colors, not accent-dependent. */
+const PAYPAL_WORDMARK_COLORS = {
+  pay: "#253B80",
+  pal: "#179BD7",
+} as const
 
 export default function PublicPaymentFormPage() {
   return (
@@ -588,14 +594,20 @@ function PublicPaymentFormPageInner() {
               <div id="card-button-container" />
             )}
 
-            {/* Trust badge — sits below whichever payment action the
-                buyer sees (PayPal button, Advanced Card Fields' own
-                "Pagar" submit, or the FUNDING.CARD fallback). Move
-                this block if the badge should sit under one specific
-                button instead of the whole payment section. */}
-            <div className="flex items-center justify-center gap-1.5 pt-1 text-center text-xs text-muted-foreground">
-              <ShieldCheck className="size-3.5 shrink-0" />
-              <span>{t.secureBadge}</span>
+            {/* "Powered by PayPal" trust badge — sits below whichever
+                payment action the buyer sees (PayPal button, Advanced
+                Card Fields' own "Pagar" submit, or the FUNDING.CARD
+                fallback). Move this block if the badge should sit
+                under one specific button instead of the whole payment
+                section. Colors match PayPal's own wordmark (dark navy
+                "Pay" + light blue "Pal") — see the comment on
+                PAYPAL_WORDMARK_COLORS below before changing them. */}
+            <div className="flex items-center justify-center gap-1 pt-1 text-center text-xs">
+              <span className="italic text-muted-foreground">{t.securedByPrefix}</span>
+              <span className="text-sm font-bold italic">
+                <span style={{ color: PAYPAL_WORDMARK_COLORS.pay }}>Pay</span>
+                <span style={{ color: PAYPAL_WORDMARK_COLORS.pal }}>Pal</span>
+              </span>
             </div>
           </div>
         ) : (

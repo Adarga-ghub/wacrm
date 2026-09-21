@@ -132,8 +132,8 @@ interface PayPageStrings {
   previewPayNote: string
   /** "Autor: {name}" — exact label/format from the Hotmart checkout this mirrors, not a free paraphrase. */
   authorLabel: (author: string) => string
-  /** Trust badge rendered under the payment buttons — "processed securely by PayPal". */
-  secureBadge: string
+  /** Prefix for the "Powered by PayPal" trust badge under the payment buttons — the "PayPal" wordmark itself is rendered separately in fixed brand colors (see `PAYPAL_WORDMARK_COLORS` in the page), not translated. */
+  securedByPrefix: string
 }
 
 export const payPageStrings: Record<PayLocale, PayPageStrings> = {
@@ -166,7 +166,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     sampleProductName: 'Producto de ejemplo',
     previewPayNote: 'Esto es una vista previa — no se realizará ningún cobro real.',
     authorLabel: (author) => `Autor: ${author}`,
-    secureBadge: 'Pagos protegidos y procesados de forma segura por PayPal',
+    securedByPrefix: 'Protegido por',
   },
   en: {
     notAvailable: "This payment form isn't available.",
@@ -197,7 +197,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     sampleProductName: 'Sample product',
     previewPayNote: "This is a preview — no real charge will happen.",
     authorLabel: (author) => `Author: ${author}`,
-    secureBadge: 'Payments protected and securely processed by PayPal',
+    securedByPrefix: 'Powered by',
   },
 }
 
