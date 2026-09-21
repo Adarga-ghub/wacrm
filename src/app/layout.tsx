@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
-import { Inter } from "next/font/google";
+import { Inter, Open_Sans } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/hooks/use-theme";
@@ -17,6 +17,17 @@ import {
 
 const inter = Inter({
   variable: "--font-sans",
+  subsets: ["latin"],
+});
+
+// Only consumed today by the public checkout's product header
+// (`src/app/pay/[slug]/page.tsx` — author/price/description lines),
+// which matches the Hotmart checkout template's own typography.
+// Exposed as a variable here (not scoped to that page) so it's
+// self-hosted and preloaded like `inter` above, rather than an extra
+// blocking Google Fonts request on the checkout page itself.
+const openSans = Open_Sans({
+  variable: "--font-open-sans",
   subsets: ["latin"],
 });
 
@@ -90,7 +101,7 @@ export default async function RootLayout({
       lang={locale}
       data-theme={DEFAULT_THEME}
       data-mode={DEFAULT_MODE}
-      className={`${inter.variable} h-full antialiased`}
+      className={`${inter.variable} ${openSans.variable} h-full antialiased`}
       // The `theme-boot` script below rewrites `data-theme` and
       // `data-mode` on <html> from localStorage before React hydrates,
       // so for any non-default choice the client DOM intentionally

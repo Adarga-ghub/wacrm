@@ -594,13 +594,42 @@ function PublicPaymentFormPageInner() {
               />
             )}
             <div className="min-w-0">
-              <CardTitle className="text-base font-semibold">{product.name}</CardTitle>
+              {/* Typography below mirrors the Hotmart checkout template
+                  this layout is modeled on (see the comment above this
+                  `product` block) — title in a serif "Times New Roman"
+                  stack at regular weight, author/price/description in
+                  Open Sans (loaded as `--font-open-sans` in
+                  `src/app/layout.tsx`), price bold, author/description
+                  in Hotmart's own muted neutral-700. Applies to every
+                  product-linked checkout, existing or new, since it's
+                  the shared render path, not per-form/per-skin styling. */}
+              <CardTitle
+                className="text-base font-normal text-[#181817]"
+                style={{ fontFamily: '"Times New Roman", Times, serif' }}
+              >
+                {product.name}
+              </CardTitle>
               {product.author && (
-                <p className="mt-0.5 text-xs text-muted-foreground">{t.authorLabel(product.author)}</p>
+                <p
+                  className="mt-0.5 text-xs font-normal text-[#464542]"
+                  style={{ fontFamily: "var(--font-open-sans)" }}
+                >
+                  {t.authorLabel(product.author)}
+                </p>
               )}
-              <p className="mt-1 text-base font-semibold text-foreground">{priceLine}</p>
+              <p
+                className="mt-1 text-lg font-bold text-[#0d0d0d]"
+                style={{ fontFamily: "var(--font-open-sans)" }}
+              >
+                {priceLine}
+              </p>
               {form.checkout_description && (
-                <p className="mt-1 text-xs text-muted-foreground">{form.checkout_description}</p>
+                <p
+                  className="mt-1 text-xs font-normal text-[#464542]"
+                  style={{ fontFamily: "var(--font-open-sans)" }}
+                >
+                  {form.checkout_description}
+                </p>
               )}
             </div>
           </div>
