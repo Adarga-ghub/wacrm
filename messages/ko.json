@@ -1139,7 +1139,7 @@
       "createFailed": "폼을 만들 수 없습니다."
     },
     "editor": {
-      "back": "결제 폼",
+      "back": "뒤로",
       "loadFailed": "결제 폼을 불러올 수 없습니다.",
       "saveFailed": "폼을 저장할 수 없습니다.",
       "saveSuccess": "폼이 저장되었습니다.",

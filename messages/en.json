@@ -1139,7 +1139,7 @@
       "createFailed": "Could not create the form."
     },
     "editor": {
-      "back": "Payment forms",
+      "back": "Back",
       "loadFailed": "Could not load the payment form.",
       "saveFailed": "Could not save the form.",
       "saveSuccess": "Form saved.",

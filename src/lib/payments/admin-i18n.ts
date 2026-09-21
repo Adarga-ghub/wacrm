@@ -306,7 +306,11 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       },
     },
     skins: {
-      back: 'Payment forms',
+      // Was 'Payment forms' — a stale label from before prices moved
+      // under Products (that standalone list no longer exists). This
+      // page's actual parent is the Billing & Payments hub, same as
+      // `products.back` below.
+      back: 'Billing & Payments',
       title: 'Payment Skins',
       subtitle:
         'Reusable checkout designs — create one appearance and apply it to as many payment forms as you like.',
@@ -543,7 +547,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       },
     },
     skins: {
-      back: 'Formularios de pago',
+      back: 'Facturación y Pagos',
       title: 'Apariencias de pago',
       subtitle:
         'Diseños de pago reutilizables — crea una apariencia y aplícala a los formularios de pago que quieras.',

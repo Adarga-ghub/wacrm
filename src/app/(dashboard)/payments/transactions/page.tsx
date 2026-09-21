@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { ArrowLeft, CreditCard, Loader2 } from "lucide-react"
 
 import type { PaymentTransaction, PaymentTransactionStatus } from "@/types"
+import { usePaymentsT } from "@/hooks/use-payments-locale"
 import { BackLink } from "@/components/layout/back-link"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -24,6 +25,7 @@ const STATUS_BADGE: Record<PaymentTransactionStatus, string> = {
 }
 
 export default function PaymentTransactionsPage() {
+  const t = usePaymentsT("list")
   const [transactions, setTransactions] = useState<PaymentTransaction[] | null>(null)
 
   async function load() {
@@ -50,7 +52,7 @@ export default function PaymentTransactionsPage() {
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Payment forms
+        {t("title")}
       </BackLink>
 
       <div>
