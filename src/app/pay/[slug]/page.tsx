@@ -157,16 +157,13 @@ function PublicPaymentFormPageInner() {
   // so a scroll started only AFTER loading finishes is too late for the
   // buyer to ever see; starting it here means the smooth-scroll
   // animation runs *during* the loading gap and the card is already at
-  // the top of a mobile screen by the time PayPal's UI shows. Desktop is
-  // left alone — there's usually enough vertical room that the card is
-  // already fully visible.
+  // the top of the screen by the time PayPal's UI shows. Applied on
+  // every screen size (not just mobile) — the buyer may have scrolled
+  // down to reach the button regardless of device.
   const cardRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!paymentLoading) return
-    const isMobileViewport = window.matchMedia("(max-width: 640px)").matches
-    if (isMobileViewport) {
-      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-    }
+    cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
   }, [paymentLoading])
 
   // Focus/invalid state for the Advanced Card Fields boxes (Number/
