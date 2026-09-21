@@ -215,6 +215,11 @@ export interface PaymentsProductsStrings {
     amountLabel: string
     currencyLabel: string
     currencyWarning: string
+    /** "Descripción de la Página de Pago" — per-offer text shown to buyers on `/pay/[slug]`, under the price line (Hotmart-style). Distinct from the product's own `descriptionLabel` above, which never reaches the public checkout. */
+    checkoutDescriptionLabel: string
+    checkoutDescriptionPlaceholder: string
+    /** "Esta descripción aparecerá para tus compradores." */
+    checkoutDescriptionHint: string
     publishNow: string
     publishHint: string
     create: string
@@ -454,6 +459,9 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         amountLabel: 'Amount',
         currencyLabel: 'Currency',
         currencyWarning: "PayPal can't process payments in this currency — only USD and MXN are supported. You can still save it, but publishing will be blocked.",
+        checkoutDescriptionLabel: 'Checkout page description',
+        checkoutDescriptionPlaceholder: 'e.g. Full course + bonus workbook (PDF)',
+        checkoutDescriptionHint: 'This description will be shown to your buyers.',
         publishNow: 'Publish and generate link now',
         publishHint: 'Leave off to review it as a draft first.',
         create: 'Create price',
@@ -686,6 +694,9 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         amountLabel: 'Monto',
         currencyLabel: 'Moneda',
         currencyWarning: 'PayPal no puede procesar cobros en esta moneda — solo admite USD y MXN. Puedes guardarlo igual, pero no podrás publicarlo hasta cambiarla.',
+        checkoutDescriptionLabel: 'Descripción de la Página de Pago',
+        checkoutDescriptionPlaceholder: 'ej. Curso completo + libro de trabajo de regalo (PDF)',
+        checkoutDescriptionHint: 'Esta descripción aparecerá para tus compradores.',
         publishNow: 'Publicar y generar enlace ahora',
         publishHint: 'Déjalo sin marcar para revisarlo primero como borrador.',
         create: 'Crear precio',

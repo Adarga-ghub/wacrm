@@ -49,6 +49,7 @@ interface PutBody {
   submission_limit?: number | null
   design?: { accent_color?: string; logo_url?: string }
   currency?: string
+  checkout_description?: string | null
 }
 
 /**
@@ -177,6 +178,9 @@ export async function PUT(
   }
   if (body.submission_limit !== undefined) update.submission_limit = body.submission_limit
   if (body.design !== undefined) update.design = body.design
+  if (body.checkout_description !== undefined) {
+    update.checkout_description = body.checkout_description?.trim() || null
+  }
 
   const { data, error } = await ctx.supabase
     .from('payment_forms')

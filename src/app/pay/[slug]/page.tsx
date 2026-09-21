@@ -579,8 +579,11 @@ function PublicPaymentFormPageInner() {
           // different products without carrying one product's title
           // baked into shared design. Layout mirrors Hotmart's own
           // checkout exactly: small cover on the left, title/author/
-          // price stacked to its right — NOT the description, which
-          // stays product-page-only by design.
+          // price/description stacked to its right. `product.description`
+          // itself still stays product-page-only by design (see
+          // `PublicPaymentProduct` in src/types/index.ts) — the line
+          // below is `form.checkout_description`, a PER-OFFER field
+          // (migration 057), deliberately separate.
           <div className="flex items-start gap-3">
             {product.image_url && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -596,6 +599,9 @@ function PublicPaymentFormPageInner() {
                 <p className="mt-0.5 text-xs text-muted-foreground">{t.authorLabel(product.author)}</p>
               )}
               <p className="mt-1 text-base font-semibold text-foreground">{priceLine}</p>
+              {form.checkout_description && (
+                <p className="mt-1 text-xs text-muted-foreground">{form.checkout_description}</p>
+              )}
             </div>
           </div>
         ) : (
@@ -605,6 +611,9 @@ function PublicPaymentFormPageInner() {
               {form.name}
             </CardTitle>
             <CardDescription>{priceLine}</CardDescription>
+            {form.checkout_description && (
+              <p className="mt-1 text-xs text-muted-foreground">{form.checkout_description}</p>
+            )}
           </>
         )}
       </CardHeader>

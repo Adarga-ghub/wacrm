@@ -47,6 +47,8 @@ interface PostBody {
   currency?: string
   /** Publish immediately so `/pay/[slug]` is live right away — the "genera el enlace automáticamente" step of the product wizard. */
   publish?: boolean
+  /** "Descripción de la Página de Pago" (migration 057) — shown to buyers on `/pay/[slug]` under the price line. Optional at creation, editable later via `PUT /api/payments/forms/[id]`. */
+  checkout_description?: string
 }
 
 /**
@@ -134,6 +136,7 @@ export async function POST(
         amount_type: 'fixed',
         amount,
         currency,
+        checkout_description: body?.checkout_description?.trim() || null,
         send_automation_default: true,
       })
       .select()

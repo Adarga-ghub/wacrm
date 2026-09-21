@@ -63,6 +63,7 @@ export default function ProductDetailPage() {
   const [priceName, setPriceName] = useState("")
   const [priceAmount, setPriceAmount] = useState("")
   const [priceCurrency, setPriceCurrency] = useState("USD")
+  const [priceCheckoutDescription, setPriceCheckoutDescription] = useState("")
   const [publishNow, setPublishNow] = useState(true)
   const [creatingPrice, setCreatingPrice] = useState(false)
 
@@ -76,6 +77,7 @@ export default function ProductDetailPage() {
   const [editPriceName, setEditPriceName] = useState("")
   const [editPriceAmount, setEditPriceAmount] = useState("")
   const [editPriceCurrency, setEditPriceCurrency] = useState("USD")
+  const [editPriceCheckoutDescription, setEditPriceCheckoutDescription] = useState("")
   const [savingPrice, setSavingPrice] = useState(false)
 
   async function load() {
@@ -136,6 +138,7 @@ export default function ProductDetailPage() {
     setPriceName("")
     setPriceAmount("")
     setPriceCurrency(PAYMENT_CURRENCY_CODES.includes(defaultCurrency) ? defaultCurrency : "USD")
+    setPriceCheckoutDescription("")
     setPublishNow(true)
   }
 
@@ -149,6 +152,7 @@ export default function ProductDetailPage() {
         name: priceName.trim(),
         amount: Number(priceAmount),
         currency: priceCurrency,
+        checkout_description: priceCheckoutDescription.trim() || undefined,
         publish: publishNow,
       }),
     })
@@ -179,6 +183,7 @@ export default function ProductDetailPage() {
     setEditPriceName(price.name)
     setEditPriceAmount(String(price.amount ?? ""))
     setEditPriceCurrency(price.currency)
+    setEditPriceCheckoutDescription(price.checkout_description ?? "")
   }
 
   async function handleSavePrice() {
@@ -191,6 +196,7 @@ export default function ProductDetailPage() {
         name: editPriceName.trim(),
         amount: Number(editPriceAmount),
         currency: editPriceCurrency,
+        checkout_description: editPriceCheckoutDescription.trim() || null,
       }),
     })
     const data = await res.json()
@@ -452,6 +458,16 @@ export default function ProductDetailPage() {
                 />
               </div>
             </div>
+            <div className="grid gap-2">
+              <Label className="text-muted-foreground">{t("detail.checkoutDescriptionLabel")}</Label>
+              <Textarea
+                rows={2}
+                value={priceCheckoutDescription}
+                onChange={(e) => setPriceCheckoutDescription(e.target.value)}
+                placeholder={t("detail.checkoutDescriptionPlaceholder")}
+              />
+              <p className="text-xs text-muted-foreground">{t("detail.checkoutDescriptionHint")}</p>
+            </div>
             <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
               <p className="text-sm font-medium text-foreground">{t("detail.publishNow")}</p>
               <Switch checked={publishNow} onCheckedChange={(v) => setPublishNow(!!v)} />
@@ -508,6 +524,16 @@ export default function ProductDetailPage() {
                   warningText={t("detail.currencyWarning")}
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-muted-foreground">{t("detail.checkoutDescriptionLabel")}</Label>
+              <Textarea
+                rows={2}
+                value={editPriceCheckoutDescription}
+                onChange={(e) => setEditPriceCheckoutDescription(e.target.value)}
+                placeholder={t("detail.checkoutDescriptionPlaceholder")}
+              />
+              <p className="text-xs text-muted-foreground">{t("detail.checkoutDescriptionHint")}</p>
             </div>
           </div>
           <DialogFooter>

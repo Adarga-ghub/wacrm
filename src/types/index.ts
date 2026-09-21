@@ -935,6 +935,8 @@ export interface PaymentForm {
   skin_id: string | null;
   /** The `PaymentProduct` this form is a "price" of (see migration 054). Null = a standalone form, created directly rather than through the Products flow. */
   product_id: string | null;
+  /** "Descripción de la Página de Pago" (migration 057) — per-offer text shown to buyers on `/pay/[slug]`, under the price line. Distinct from `PaymentProduct.description`, which never reaches the public checkout. Null = no description set. */
+  checkout_description: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1008,6 +1010,8 @@ export interface PublicPaymentForm {
   paypal_client_id: string | null;
   /** Set when this price is linked to a Producto (migration 054) — the checkout page renders title/description/image/author from here instead of the bare form/skin fields. Null for a standalone form. */
   product: PublicPaymentProduct | null;
+  /** "Descripción de la Página de Pago" (migration 057) — unlike `PublicPaymentProduct`, which deliberately excludes `description`, this ONE is meant to reach the public checkout by design. Null = nothing configured for this offer. */
+  checkout_description: string | null;
 }
 
 export type PaymentLinkStatus = 'active' | 'revoked';

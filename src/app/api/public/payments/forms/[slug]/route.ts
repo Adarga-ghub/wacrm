@@ -36,7 +36,7 @@ export async function GET(
   const { data, error } = await supabaseAdmin()
     .from('payment_forms')
     .select(
-      'account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id, product_id',
+      'account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id, product_id, checkout_description',
     )
     .eq('slug', slug)
     .eq('status', 'published')
@@ -95,6 +95,7 @@ export async function GET(
     design,
     paypal_client_id: gateway?.clientId ?? null,
     product,
+    checkout_description: data.checkout_description ?? null,
   }
   return NextResponse.json({ form })
 }
