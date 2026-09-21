@@ -217,6 +217,39 @@ html[data-theme="rose"] {
   --sidebar-ring: oklch(0.645 0.22 16);
 }
 
+/* ---- /pay checkout pages: always render in light mode ----
+ * Public checkout pages (`/pay/[slug]`, `/pay/preview`) must stay
+ * legible regardless of the anonymous visitor's saved dashboard mode
+ * (or its dark default — `DEFAULT_MODE` in `lib/themes.ts`): a
+ * merchant-picked white/light "Fondo" skin color would otherwise
+ * collide with the dark-mode foreground/card tokens that visitor gets
+ * by default (light text on a light card = invisible). This mirrors
+ * `html[data-mode="light"]` above but is scoped to `.pay-page-surface`
+ * (applied to the wrapping div in `src/app/pay/layout.tsx`) instead of
+ * `<html>`, so it can't leak into the dashboard if a tab ever
+ * navigates between the two. To change the checkout pages' palette,
+ * edit the values here — they're intentionally a duplicate of the
+ * light-mode block above, not a reference to it, so checkout can be
+ * tuned independently of the dashboard's own light mode later.
+ */
+.pay-page-surface {
+  --background: oklch(0.99 0.002 260);
+  --foreground: oklch(0.21 0.01 260);
+  --card: oklch(1 0 0);
+  --card-2: oklch(0.985 0.002 260);
+  --card-foreground: oklch(0.21 0.01 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.01 260);
+  --secondary: oklch(0.967 0.003 260);
+  --secondary-foreground: oklch(0.25 0.01 260);
+  --muted: oklch(0.967 0.003 260);
+  --muted-foreground: oklch(0.52 0.015 260);
+  --accent: oklch(0.96 0.004 260);
+  --accent-foreground: oklch(0.25 0.01 260);
+  --border: oklch(0.922 0.004 260);
+  --input: oklch(0.922 0.004 260);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

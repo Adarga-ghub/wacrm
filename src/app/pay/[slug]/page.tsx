@@ -12,7 +12,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
-import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock } from "lucide-react"
+import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock, ShieldCheck } from "lucide-react"
 
 import type { PublicPaymentForm } from "@/types"
 import { formatPaymentAmount } from "@/lib/currency"
@@ -369,6 +369,11 @@ function PublicPaymentFormPageInner() {
   if (result) {
     return (
       <>
+        {/* Base white layer, always rendered first so the page never
+            falls back to the dashboard's dark default for visitors
+            with no saved theme preference; the skin's own background
+            (if any) paints on top of it. */}
+        <div className="fixed inset-0 -z-10 bg-background" />
         {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
         <Card className="w-full max-w-md sm:max-w-lg">
           <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
@@ -393,6 +398,9 @@ function PublicPaymentFormPageInner() {
 
   return (
     <>
+      {/* Base white layer, always rendered first — see the comment on
+          its twin above in the `result` branch. */}
+      <div className="fixed inset-0 -z-10 bg-background" />
       {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
       <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
         <CountryToggle country={country} locale={locale} onChange={handleCountryChange} />
@@ -579,6 +587,16 @@ function PublicPaymentFormPageInner() {
             ) : (
               <div id="card-button-container" />
             )}
+
+            {/* Trust badge — sits below whichever payment action the
+                buyer sees (PayPal button, Advanced Card Fields' own
+                "Pagar" submit, or the FUNDING.CARD fallback). Move
+                this block if the badge should sit under one specific
+                button instead of the whole payment section. */}
+            <div className="flex items-center justify-center gap-1.5 pt-1 text-center text-xs text-muted-foreground">
+              <ShieldCheck className="size-3.5 shrink-0" />
+              <span>{t.secureBadge}</span>
+            </div>
           </div>
         ) : (
           <p className="text-center text-sm text-muted-foreground">{t.noGateway}</p>

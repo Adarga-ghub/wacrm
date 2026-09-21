@@ -27,18 +27,24 @@ export default function PayLayout({ children }: { children: ReactNode }) {
     // padding avoids that entirely and is how most checkout pages
     // (Stripe, PayPal's own) already behave.
     //
-    // NO `bg-background` here on purpose — `body` already carries it
-    // (globals.css), which is what actually shows through when a
-    // skin sets no custom "Fondo". A skin's background renders as a
-    // `position: fixed` layer with a negative z-index
-    // (`backgroundStyle()` in `checkout-render.tsx`), and negative
-    // z-index content paints BELOW the in-flow content of its
-    // stacking context — including this div's own background, if it
-    // had one. Repainting `bg-background` here would sit on top of
-    // that layer and hide every custom background, color or image,
-    // permanently. Leave this div transparent; `body`'s background is
-    // the visual fallback.
-    <div className="flex min-h-screen items-start justify-center px-4 py-6 sm:py-10">
+    // NO `bg-background` on this div itself, still on purpose — a
+    // background painted directly on this wrapper would sit on top of
+    // the fixed, negative-z-index background layer(s) the page renders
+    // (see `src/app/pay/[slug]/page.tsx`) and hide them permanently.
+    // The white default + any custom skin "Fondo" are both rendered as
+    // `fixed inset-0 -z-10` siblings inside the page itself instead.
+    //
+    // `pay-page-surface` (see `src/app/globals.css`) forces the
+    // neutral surface tokens (`--background`, `--foreground`, `--card`,
+    // `--border`, `--muted*`, …) to their light values for every page
+    // under `/pay`, regardless of the visitor's saved dashboard theme
+    // (or its dark default — `DEFAULT_MODE` in `src/lib/themes.ts`).
+    // Without it, an anonymous visitor with no saved preference gets
+    // the dashboard's dark tokens here too: light text/borders that
+    // become unreadable once the page (or a merchant's skin) renders a
+    // white/light background. Edit the values in that CSS class to
+    // change the checkout pages' palette.
+    <div className="pay-page-surface flex min-h-screen items-start justify-center px-4 py-6 sm:py-10">
       {children}
     </div>
   )
