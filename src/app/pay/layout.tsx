@@ -25,13 +25,24 @@ export default function PayLayout({ children }: { children: ReactNode }) {
     // inconsistently across browsers — the payer can lose access to
     // the top of the card with no way to scroll back up to it.
     // Main-axis `justify-center` doesn't have that failure mode: once
-    // the card is taller than `min-h-screen`, this container's own
+    // the card is taller than `min-h-dvh`, this container's own
     // height grows to match its content (min-height only sets a
     // floor), so there's no leftover space to center into — the card
     // just renders top-to-bottom like `items-start` did, fully
     // scrollable, nothing clipped. When the card DOES fit the
     // viewport, `justify-center` centers it vertically instead of
     // pinning it to the top.
+    //
+    // `min-h-dvh` (dynamic viewport height), NOT `min-h-screen`
+    // (`100vh`) — on mobile, `100vh` is sized for the SHORTEST
+    // possible visible area (address bar collapsed), which is taller
+    // than what's actually on screen whenever the address bar is
+    // showing. That extra height was exactly what let the page
+    // rubber-band/slide a few pixels on load even though the card
+    // fit — nothing to scroll to, but the browser still had a few
+    // pixels of phantom overflow to bounce through. `100dvh` tracks
+    // the real, currently-visible viewport instead, so there's no
+    // leftover space to slide into.
     //
     // NO `bg-background` on this div itself, still on purpose — a
     // background painted directly on this wrapper would sit on top of
@@ -50,7 +61,7 @@ export default function PayLayout({ children }: { children: ReactNode }) {
     // become unreadable once the page (or a merchant's skin) renders a
     // white/light background. Edit the values in that CSS class to
     // change the checkout pages' palette.
-    <div className="pay-page-surface flex min-h-screen flex-col items-center justify-center px-4 py-6 sm:py-10">
+    <div className="pay-page-surface flex min-h-dvh flex-col items-center justify-center px-4 py-6 sm:py-10">
       {children}
     </div>
   )
