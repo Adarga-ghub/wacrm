@@ -668,7 +668,7 @@ function PublicPaymentFormPageInner() {
             ) : (
               <Input
                 type={field.type === "phone" ? "tel" : field.type}
-                placeholder={field.type === "phone" ? (locale === "es" ? "Ej: 809-000-0000" : "e.g. 809-000-0000") : undefined}
+                placeholder={field.type === "phone" ? (locale === "es" ? "Ej: 8095555555" : "e.g. 8095555555") : undefined}
                 className={field.type === "phone" ? "placeholder:text-muted-foreground/50" : undefined}
                 aria-invalid={invalidFields[field.id] || undefined}
                 value={fieldValues[field.id] ?? ""}
