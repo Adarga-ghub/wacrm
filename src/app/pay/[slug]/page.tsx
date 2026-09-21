@@ -625,7 +625,7 @@ function PublicPaymentFormPageInner() {
               </p>
               {form.checkout_description && (
                 <p
-                  className="mt-1 text-xs font-normal text-[#464542]"
+                  className="mt-1 text-xs font-bold text-[#464542]"
                   style={{ fontFamily: "var(--font-open-sans)" }}
                 >
                   {form.checkout_description}
