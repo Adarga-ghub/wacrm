@@ -134,6 +134,8 @@ interface PayPageStrings {
   authorLabel: (author: string) => string
   /** Prefix for the "Powered by PayPal" trust badge under the payment buttons — the "PayPal" wordmark itself is rendered separately in fixed brand colors (see `PAYPAL_WORDMARK_COLORS` in the page), not translated. */
   securedByPrefix: string
+  /** Full-screen overlay text shown from the click on the PayPal/card button until PayPal's own UI takes over — see `paymentLoading` in the page. */
+  loadingGateway: string
 }
 
 export const payPageStrings: Record<PayLocale, PayPageStrings> = {
@@ -167,6 +169,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     previewPayNote: 'Esto es una vista previa — no se realizará ningún cobro real.',
     authorLabel: (author) => `Autor: ${author}`,
     securedByPrefix: 'Protegido por',
+    loadingGateway: 'Cargando pasarela de pago...',
   },
   en: {
     notAvailable: "This payment form isn't available.",
@@ -198,6 +201,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     previewPayNote: "This is a preview — no real charge will happen.",
     authorLabel: (author) => `Author: ${author}`,
     securedByPrefix: 'Powered by',
+    loadingGateway: 'Loading payment gateway...',
   },
 }
 

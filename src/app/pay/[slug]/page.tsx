@@ -136,6 +136,19 @@ function PublicPaymentFormPageInner() {
     })
   }
 
+  // Full-screen overlay shown from the instant the buyer clicks the
+  // "PayPal" or "Tarjeta de débito o crédito" button until PayPal's
+  // own UI (its popup, or the hosted card panel) takes over — that
+  // gap is our own `createOrder`/`submitOrder` round trip, which has
+  // no visible feedback of its own otherwise. NOT used for the
+  // Advanced Card Fields "Pagar" submit (`cardSubmitting` below) —
+  // that button's gateway is already visible on screen by the time
+  // it's clicked, so an inline spinner there is enough; this overlay
+  // is specifically for the "loading the gateway" gap, not "submitting
+  // to it". See the `onClick`/`createOrder` wiring in the SDK-render
+  // effect below.
+  const [paymentLoading, setPaymentLoading] = useState(false)
+
   // Focus/invalid state for the Advanced Card Fields boxes (Number/
   // Expiry/CVV) — see `cardFieldBoxClassName` above for why this can't
   // just be CSS like the plain `Input`/`Textarea` fields.
@@ -336,16 +349,32 @@ function PublicPaymentFormPageInner() {
     // "handled" cases so the specific message stays on screen instead
     // of being replaced by a misleading "problema con PayPal".
     const handleError = (err?: unknown) => {
+      // Defensive — `createOrder`'s own `finally` (below) already
+      // clears this in the normal case; this only matters if PayPal
+      // calls onError without ever calling createOrder.
+      setPaymentLoading(false)
       if (err instanceof Error && err.message === "handled") return
       setErrorMessage(strings.paypalGenericError)
     }
 
     const buttonConfig = (fundingSource: string) => ({
       fundingSource,
+      // Fires the instant the buyer clicks — before PayPal does
+      // anything else — so the loading overlay appears immediately,
+      // not only after our own `createOrder`/`submitOrder` round trip
+      // has already started.
+      onClick: () => setPaymentLoading(true),
       createOrder: async () => {
-        setErrorMessage(null)
-        if (!requiredFieldsOk()) throw new Error("handled")
-        return submitOrder()
+        try {
+          setErrorMessage(null)
+          if (!requiredFieldsOk()) throw new Error("handled")
+          return await submitOrder()
+        } finally {
+          // Whether this succeeded or threw, PayPal takes over the
+          // visible loading state from here (its popup, or the hosted
+          // card panel expanding) — our overlay's job is done.
+          setPaymentLoading(false)
+        }
       },
       onApprove: handleApprove,
       onError: handleError,
@@ -515,6 +544,20 @@ function PublicPaymentFormPageInner() {
           its twin above in the `result` branch. */}
       <div className="fixed inset-0 -z-10 bg-background" />
       {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
+
+      {/* See the `paymentLoading` state comment above for exactly what
+          this spans (click → PayPal's own UI taking over). `z-50` sits
+          above the Card (no explicit z-index, so it stacks below any
+          positive z-index) and above PayPal's button iframes. */}
+      {paymentLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-xl bg-card px-6 py-5 shadow-lg">
+            <Loader2 className="size-8 animate-spin text-primary" />
+            <p className="text-sm font-medium text-foreground">{t.loadingGateway}</p>
+          </div>
+        </div>
+      )}
+
       <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
         <CountryToggle country={country} locale={locale} onChange={handleCountryChange} />
 
