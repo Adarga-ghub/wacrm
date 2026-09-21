@@ -63,9 +63,28 @@ export function CountryToggle({
           <span className="text-[10px] font-normal uppercase tracking-wide text-muted-foreground">{country}</span>
           <span className="font-semibold text-foreground">{t.changeCountry}</span>
         </SelectTrigger>
-        <SelectContent align="end">
+        {/* Base UI portals this popup straight to `document.body`, outside
+            the `.pay-page-surface` wrapper that overrides `--popover`/
+            `--popover-foreground`/`--accent` to light values (see
+            `globals.css`) — those CSS variables don't reach a portal
+            mounted outside the element that sets them, so without an
+            explicit light theme here this list would render with the
+            dashboard's own dark `--popover` instead. Colors are hardcoded
+            (not variable-based) for exactly that reason. `z-[110]` (on
+            both the popup and its positioner) clears the PayPal SDK's own
+            button iframes, which render at `z-index: 100` — the default
+            `z-50` this component ships with otherwise sits behind them. */}
+        <SelectContent
+          align="end"
+          positionerClassName="z-[110]"
+          className="z-[110] border border-slate-200 bg-white text-slate-900 shadow-lg ring-slate-200 [&_[data-slot=select-scroll-down-button]]:bg-white [&_[data-slot=select-scroll-up-button]]:bg-white"
+        >
           {CHECKOUT_COUNTRIES.map((c) => (
-            <SelectItem key={c.code} value={c.code}>
+            <SelectItem
+              key={c.code}
+              value={c.code}
+              className="text-slate-900 focus:bg-slate-100 focus:text-slate-900"
+            >
               {c[locale]}
             </SelectItem>
           ))}

@@ -58,6 +58,13 @@ function SelectTrigger({
 
 function SelectContent({
   className,
+  // Only needed by callers that portal into a context where the
+  // default `z-50` isn't high enough — e.g. the public checkout's
+  // country picker (`CountryToggle` in `src/lib/payments/checkout-render.tsx`),
+  // which has to clear PayPal SDK button iframes rendered at
+  // `z-index: 100`. Left undefined everywhere else, so every other
+  // `Select` in the app keeps today's `isolate z-50` unchanged.
+  positionerClassName,
   children,
   side = "bottom",
   sideOffset = 4,
@@ -69,7 +76,7 @@ function SelectContent({
   Pick<
     SelectPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "alignItemWithTrigger"
-  >) {
+  > & { positionerClassName?: string }) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner
@@ -78,7 +85,7 @@ function SelectContent({
         align={align}
         alignOffset={alignOffset}
         alignItemWithTrigger={alignItemWithTrigger}
-        className="isolate z-50"
+        className={cn("isolate z-50", positionerClassName)}
       >
         <SelectPrimitive.Popup
           data-slot="select-content"
