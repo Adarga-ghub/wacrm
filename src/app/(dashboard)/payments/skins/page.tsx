@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { toast } from "sonner"
 import { ArrowLeft, Copy, Eye, Loader2, Palette, Pencil, Trash2 } from "lucide-react"
 
 import { useCan } from "@/hooks/use-can"
+import { BackLink } from "@/components/layout/back-link"
 import type { PaymentForm, PaymentSkin } from "@/types"
 import { Button } from "@/components/ui/button"
 import { GatedButton } from "@/components/ui/gated-button"
@@ -124,13 +124,13 @@ export default function PaymentSkinsPage() {
 
   return (
     <div className="space-y-6">
-      <Link
+      <BackLink
         href="/payments"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         {t("back")}
-      </Link>
+      </BackLink>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

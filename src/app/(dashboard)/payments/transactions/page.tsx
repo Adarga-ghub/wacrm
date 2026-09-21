@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { ArrowLeft, CreditCard, Loader2 } from "lucide-react"
 
 import type { PaymentTransaction, PaymentTransactionStatus } from "@/types"
+import { BackLink } from "@/components/layout/back-link"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -45,13 +45,13 @@ export default function PaymentTransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <Link
+      <BackLink
         href="/payments"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         Payment forms
-      </Link>
+      </BackLink>
 
       <div>
         <h1 className="text-2xl font-bold text-foreground">Transactions</h1>

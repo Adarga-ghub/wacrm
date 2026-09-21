@@ -8,6 +8,7 @@ import { ArrowLeft, Copy, ExternalLink, Loader2, MoreVertical, Pencil, Plus } fr
 
 import { useAuth } from "@/hooks/use-auth"
 import { usePaymentsT } from "@/hooks/use-payments-locale"
+import { BackLink } from "@/components/layout/back-link"
 import type { PaymentForm, PaymentProduct, PaymentSkin } from "@/types"
 import { PAYMENT_CURRENCY_CODES, formatPaymentAmount } from "@/lib/currency"
 import { Button } from "@/components/ui/button"
@@ -220,13 +221,13 @@ export default function ProductDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link
+      <BackLink
         href="/payments/products"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         {t("title")}
-      </Link>
+      </BackLink>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">

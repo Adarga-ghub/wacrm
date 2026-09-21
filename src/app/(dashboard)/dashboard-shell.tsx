@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { useTrackInternalNavigation } from "@/hooks/use-smart-back";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { AccountAccessAlert } from "@/components/layout/account-access-alert";
@@ -15,6 +16,10 @@ import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
 function DashboardShellInner({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  // Powers every `BackLink` ("Atrás") in the dashboard — see
+  // `src/hooks/use-smart-back.ts` for why this lives here, once, above
+  // all child routes, rather than in each page that uses it.
+  useTrackInternalNavigation();
 
   // Sidebar drawer state — only used on mobile. On lg+ the sidebar is
   // always visible and this stays at `false` (ignored by the component).

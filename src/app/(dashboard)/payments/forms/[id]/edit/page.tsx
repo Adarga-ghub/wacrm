@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 
 import type { Automation, PaymentForm, PaymentFormField } from "@/types"
+import { BackLink } from "@/components/layout/back-link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -133,13 +134,13 @@ export default function EditPaymentFormPage() {
 
   return (
     <div className="space-y-6">
-      <Link
+      <BackLink
         href="/payments"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         {t("back")}
-      </Link>
+      </BackLink>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
