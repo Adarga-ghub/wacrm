@@ -169,7 +169,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     previewPayNote: 'Esto es una vista previa — no se realizará ningún cobro real.',
     authorLabel: (author) => `Autor: ${author}`,
     securedByPrefix: 'Protegido por',
-    loadingGateway: 'Cargando pasarela de pago...',
+    loadingGateway: 'Cargando método de pago...',
   },
   en: {
     notAvailable: "This payment form isn't available.",
