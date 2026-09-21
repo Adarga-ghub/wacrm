@@ -240,9 +240,13 @@ export interface PaymentsProductsStrings {
     saving: string
     table: {
       name: string
+      /** New "Forms and Payments" column header — takes over the full form editor link that used to live on the offer name itself (see `formsAndPaymentsButton` below). Deliberately the same literal label in both `en` and `es` — it's a fixed product-terminology string, not translated. */
+      formsAndPayments: string
       value: string
       code: string
     }
+    /** Button label for the "Forms and Payments" column's per-row button (`/payments/forms/[id]/edit`) — same fixed string as the column header. */
+    formsAndPaymentsButton: string
     actions: {
       edit: string
       copyLink: string
@@ -482,9 +486,11 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         saving: 'Saving…',
         table: {
           name: 'Offer name',
+          formsAndPayments: 'Forms and Payments',
           value: 'Value / Currency',
           code: 'Code',
         },
+        formsAndPaymentsButton: 'Forms and Payments',
         actions: {
           edit: 'Edit',
           copyLink: 'Copy link',
@@ -717,9 +723,11 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         saving: 'Guardando…',
         table: {
           name: 'Nombre de la oferta',
+          formsAndPayments: 'Forms and Payments',
           value: 'Valor / Moneda',
           code: 'Código',
         },
+        formsAndPaymentsButton: 'Forms and Payments',
         actions: {
           edit: 'Editar',
           copyLink: 'Copiar enlace',

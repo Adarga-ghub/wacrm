@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Copy, ExternalLink, Loader2, MoreVertical, Pencil, Plus } from "lucide-react"
+import { ArrowLeft, Copy, ExternalLink, Loader2, MoreVertical, Pencil, Plus, Settings2 } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { usePaymentsT } from "@/hooks/use-payments-locale"
@@ -337,87 +337,109 @@ export default function ProductDetailPage() {
               {t("detail.noPrices")}
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-border bg-card">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-muted-foreground">{t("detail.table.name")}</TableHead>
-                    <TableHead className="text-muted-foreground">{t("detail.table.value")}</TableHead>
-                    <TableHead className="hidden text-muted-foreground sm:table-cell">
-                      {t("detail.table.code")}
-                    </TableHead>
-                    <TableHead className="w-10" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {prices.map((price) => (
-                    <TableRow key={price.id} className="border-border hover:bg-muted/50">
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Link
-                            href={`/payments/forms/${price.id}/edit`}
-                            className="truncate font-medium text-foreground hover:underline"
-                          >
-                            {price.name}
-                          </Link>
-                          <Badge
+            // Each price/offer gets its OWN small table (header + single
+            // row), stacked with a gap between them, rather than sharing
+            // one long table — every offer's "Forms and Payments" button
+            // (the full form editor at `/payments/forms/[id]/edit`, see
+            // the column below) stays visually attached to just that
+            // offer's row. No `table-fixed`/`truncate` anywhere here on
+            // purpose: columns use the browser's default auto layout, so
+            // a longer offer name simply widens its column and pushes
+            // "Forms and Payments"/Value/Code rightward instead of
+            // clipping — the same table auto-sizes for every existing
+            // and future product, with no per-row styling needed.
+            <div className="space-y-4">
+              {prices.map((price) => (
+                <div key={price.id} className="overflow-x-auto rounded-xl border border-border bg-card">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-muted-foreground">{t("detail.table.name")}</TableHead>
+                        <TableHead className="text-muted-foreground">
+                          {t("detail.table.formsAndPayments")}
+                        </TableHead>
+                        <TableHead className="text-muted-foreground">{t("detail.table.value")}</TableHead>
+                        <TableHead className="hidden text-muted-foreground sm:table-cell">
+                          {t("detail.table.code")}
+                        </TableHead>
+                        <TableHead className="w-10" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow className="border-border hover:bg-muted/50">
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-foreground">{price.name}</span>
+                            <Badge
+                              variant="outline"
+                              className={
+                                price.status === "published"
+                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                  : "border-slate-500/30 bg-slate-500/10 text-muted-foreground"
+                              }
+                            >
+                              {price.status === "published"
+                                ? t("detail.priceStatus.published")
+                                : t("detail.priceStatus.draft")}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button
                             variant="outline"
-                            className={
-                              price.status === "published"
-                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                                : "border-slate-500/30 bg-slate-500/10 text-muted-foreground"
-                            }
+                            size="sm"
+                            nativeButton={false}
+                            render={<Link href={`/payments/forms/${price.id}/edit`} />}
                           >
-                            {price.status === "published"
-                              ? t("detail.priceStatus.published")
-                              : t("detail.priceStatus.draft")}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatPaymentAmount(price.amount ?? 0, price.currency)}
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <code className="truncate rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs">
-                          /pay/{price.slug}
-                        </code>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            aria-label={t("detail.actions.menu")}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[popup-open]:bg-muted"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditPrice(price)}>
-                              <Pencil className="h-4 w-4" />
-                              {t("detail.actions.edit")}
-                            </DropdownMenuItem>
-                            {price.status === "published" && (
-                              <>
-                                <DropdownMenuItem onClick={() => copyPriceLink(price.slug)}>
-                                  <Copy className="h-4 w-4" />
-                                  {t("detail.actions.copyLink")}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  render={
-                                    <a href={`/pay/${price.slug}`} target="_blank" rel="noreferrer" />
-                                  }
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                  {t("detail.actions.viewLink")}
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                            <Settings2 className="h-4 w-4" />
+                            {t("detail.formsAndPaymentsButton")}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatPaymentAmount(price.amount ?? 0, price.currency)}
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <code className="rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs">
+                            /pay/{price.slug}
+                          </code>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              aria-label={t("detail.actions.menu")}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[popup-open]:bg-muted"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditPrice(price)}>
+                                <Pencil className="h-4 w-4" />
+                                {t("detail.actions.edit")}
+                              </DropdownMenuItem>
+                              {price.status === "published" && (
+                                <>
+                                  <DropdownMenuItem onClick={() => copyPriceLink(price.slug)}>
+                                    <Copy className="h-4 w-4" />
+                                    {t("detail.actions.copyLink")}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    render={
+                                      <a href={`/pay/${price.slug}`} target="_blank" rel="noreferrer" />
+                                    }
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                    {t("detail.actions.viewLink")}
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
             </div>
           )}
         </TabsContent>
