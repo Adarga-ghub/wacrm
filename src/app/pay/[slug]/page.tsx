@@ -149,6 +149,28 @@ function PublicPaymentFormPageInner() {
   // effect below.
   const [paymentLoading, setPaymentLoading] = useState(false)
 
+  // Once the "Cargando método de pago..." overlay above clears (PayPal's
+  // own UI — popup or hosted card panel — has taken over), smooth-scroll
+  // the checkout card back to the top of the viewport on mobile. On a
+  // short phone screen the buyer may have scrolled down mid-form, and
+  // without this they'd have to swipe back up themselves to see PayPal's
+  // panel or any error message that lands at the top of the card.
+  // Desktop is left alone — there's usually enough vertical room that the
+  // card is already fully visible. `wasPaymentLoadingRef` lets the effect
+  // fire only on the true → false transition, not on mount or on every
+  // unrelated render.
+  const cardRef = useRef<HTMLDivElement>(null)
+  const wasPaymentLoadingRef = useRef(false)
+  useEffect(() => {
+    if (wasPaymentLoadingRef.current && !paymentLoading) {
+      const isMobileViewport = window.matchMedia("(max-width: 640px)").matches
+      if (isMobileViewport) {
+        cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }
+    }
+    wasPaymentLoadingRef.current = paymentLoading
+  }, [paymentLoading])
+
   // Focus/invalid state for the Advanced Card Fields boxes (Number/
   // Expiry/CVV) — see `cardFieldBoxClassName` above for why this can't
   // just be CSS like the plain `Input`/`Textarea` fields.
@@ -558,7 +580,7 @@ function PublicPaymentFormPageInner() {
         </div>
       )}
 
-      <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
+      <Card ref={cardRef} className="w-full max-w-md overflow-hidden sm:max-w-lg">
         <CountryToggle country={country} locale={locale} onChange={handleCountryChange} />
 
         <TopSectionBlock topSection={topSection} />
