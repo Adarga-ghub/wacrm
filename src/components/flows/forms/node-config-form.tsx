@@ -46,7 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { uploadAccountMedia, MEDIA_MAX_BYTES } from "@/lib/storage/upload-media";
+import { uploadAccountMedia, MEDIA_MAX_BYTES_BY_KIND } from "@/lib/storage/upload-media";
 import { slugify, type BuilderNode } from "../shared";
 import { NextNodeRow, NodeKeySelect, TextRow } from "./fields";
 
@@ -909,11 +909,16 @@ function SendMediaForm({
     cfg.filename ||
     (cfg.media_url ? cfg.media_url.split("/").pop() ?? "" : "");
 
+  // Per-kind ceiling mirrors Meta's caps (image 5 MB, video 16 MB,
+  // document 100 MB) so an oversized file is rejected before upload
+  // rather than orphaning a bucket object that Meta would then refuse.
+  const limitBytes = MEDIA_MAX_BYTES_BY_KIND[mediaType];
+
   const handleFile = useCallback(
     async (file: File) => {
-      if (file.size > MEDIA_MAX_BYTES) {
+      if (file.size > limitBytes) {
         toast.error(
-          `File is ${(file.size / 1024 / 1024).toFixed(1)} MB — limit is 16 MB.`,
+          `File is ${(file.size / 1024 / 1024).toFixed(1)} MB — limit is ${Math.round(limitBytes / 1024 / 1024)} MB.`,
         );
         return;
       }
@@ -936,7 +941,7 @@ function SendMediaForm({
         setUploading(false);
       }
     },
-    [onUpdateConfig],
+    [onUpdateConfig, limitBytes],
   );
 
   const handleClear = () => {
@@ -1012,7 +1017,7 @@ function SendMediaForm({
             ) : (
               <>
                 <Upload className="h-3.5 w-3.5" />
-                {t("clickToUpload")}
+                {t("clickToUpload", { max: Math.round(limitBytes / 1024 / 1024) })}
               </>
             )}
           </button>

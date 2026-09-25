@@ -9,6 +9,24 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.8.2] — 2026-09-25
+
+Raises the document size limit from 16 MB to 100 MB (WhatsApp's actual
+document cap) so large PDFs can be uploaded and sent.
+
+> **Migration required:** apply `supabase/migrations/058_raise_media_bucket_limit.sql`
+> (raises the `flow-media` and `chat-media` Storage buckets'
+> `file_size_limit` from 16 MB to 100 MB).
+
+### Changed
+
+- **Document uploads now allow files up to 100 MB**, up from 16 MB.
+  Applies to the automations builder's "Send Document" step, the Flows
+  `send_media` node, and the inbox composer's document attachments.
+  Images (5 MB) and video/audio (16 MB) keep their existing caps —
+  those already matched Meta's per-kind limits. (`MEDIA_MAX_BYTES_BY_KIND`
+  in `src/lib/storage/upload-media.ts`)
+
 ## [0.8.1] — 2026-07-10
 
 Fixes inbound chats fragmenting into multiple threads for the same

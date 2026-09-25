@@ -64,7 +64,7 @@ docker run -d --env-file .env.local -e PORT=3000 -p 3000:3000 wacrm
   with inbound volume, so it's worth watching your project's storage
   quota. Turn it off per account under Settings → WhatsApp →
   Attachment Storage; attachments received while it's off become
-  unviewable once Meta drops them. Files over 16 MB (the bucket's
+  unviewable once Meta drops them. Files over 100 MB (the bucket's
   limit) are never copied.
 - The `app` container itself schedules nothing. Compose ships a
   second `cron` service alongside it — a tiny sidecar with no
