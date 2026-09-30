@@ -231,6 +231,24 @@ export default function PaymentTransactionsPage() {
                           so the log stays readable, but always visible for
                           touch screens. */}
                       <div className="flex items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <button
+                                type="button"
+                                onClick={() => setPendingDelete(txn)}
+                                aria-label={t("actions.delete")}
+                                className={cn(
+                                  iconButton,
+                                  "text-muted-foreground hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20",
+                                )}
+                              />
+                            }
+                          >
+                            <Trash2 />
+                          </TooltipTrigger>
+                          <TooltipContent side="top">{t("actions.delete")}</TooltipContent>
+                        </Tooltip>
                         {txn.conversation_id ? (
                           <Tooltip>
                             <TooltipTrigger
@@ -263,24 +281,6 @@ export default function PaymentTransactionsPage() {
                             <TooltipContent side="top">{t("actions.noChat")}</TooltipContent>
                           </Tooltip>
                         )}
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <button
-                                type="button"
-                                onClick={() => setPendingDelete(txn)}
-                                aria-label={t("actions.delete")}
-                                className={cn(
-                                  iconButton,
-                                  "text-muted-foreground hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20",
-                                )}
-                              />
-                            }
-                          >
-                            <Trash2 />
-                          </TooltipTrigger>
-                          <TooltipContent side="top">{t("actions.delete")}</TooltipContent>
-                        </Tooltip>
                       </div>
                     </div>
                   </TableCell>
