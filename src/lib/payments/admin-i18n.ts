@@ -256,10 +256,57 @@ export interface PaymentsProductsStrings {
   }
 }
 
+export interface PaymentsTransactionsStrings {
+  title: string
+  subtitle: string
+  empty: string
+  emptyFiltered: string
+  clearFilter: string
+  /** `{count}` = rows shown after the date filter. */
+  count: string
+  date: {
+    label: string
+    all: string
+    today: string
+    yesterday: string
+    last3days: string
+    last7days: string
+  }
+  table: {
+    date: string
+    form: string
+    contact: string
+    amount: string
+    status: string
+    automation: string
+  }
+  status: Record<'created' | 'approved' | 'completed' | 'failed' | 'refunded', string>
+  automation: {
+    sent: string
+    pending: string
+    off: string
+  }
+  actions: {
+    openChat: string
+    noChat: string
+    delete: string
+  }
+  deleteTitle: string
+  /** `{contact}`, `{amount}`, `{date}` */
+  deleteDesc: string
+  deleteCompletedWarning: string
+  deleteConfirm: string
+  cancel: string
+  deleteSuccess: string
+  deleteFailed: string
+  loadFailed: string
+}
+
 export interface PaymentsAdminNamespaces {
   list: PaymentsListStrings
   skins: PaymentsSkinsStrings
   products: PaymentsProductsStrings
+  transactions: PaymentsTransactionsStrings
 }
 
 export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> = {
@@ -503,6 +550,55 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         },
       },
     },
+    transactions: {
+      title: 'Transactions',
+      subtitle: 'Every payment your checkout forms have recorded.',
+      empty: 'No transactions yet.',
+      emptyFiltered: 'No transactions in this date range.',
+      clearFilter: 'Show all dates',
+      count: '{count} transactions',
+      date: {
+        label: 'Date',
+        all: 'All dates',
+        today: 'Today',
+        yesterday: 'Yesterday',
+        last3days: 'Last 3 days',
+        last7days: 'Last 7 days',
+      },
+      table: {
+        date: 'Date',
+        form: 'Form',
+        contact: 'Contact',
+        amount: 'Amount',
+        status: 'Status',
+        automation: 'Automation',
+      },
+      status: {
+        created: 'created',
+        approved: 'approved',
+        completed: 'completed',
+        failed: 'failed',
+        refunded: 'refunded',
+      },
+      automation: {
+        sent: 'Sent',
+        pending: 'Pending',
+        off: 'Off',
+      },
+      actions: {
+        openChat: 'Open chat in Inbox',
+        noChat: 'No conversation with this contact',
+        delete: 'Delete transaction',
+      },
+      deleteTitle: 'Delete this transaction?',
+      deleteDesc: '{amount} from {contact} ({date}) will be permanently removed from the payments log. The contact and their conversation are kept.',
+      deleteCompletedWarning: 'This payment was completed. Deleting it removes it from your revenue history — the money is not refunded in PayPal.',
+      deleteConfirm: 'Delete',
+      cancel: 'Cancel',
+      deleteSuccess: 'Transaction deleted.',
+      deleteFailed: 'Could not delete the transaction.',
+      loadFailed: 'Could not load transactions.',
+    },
   },
   es: {
     list: {
@@ -739,6 +835,55 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
           menu: 'Acciones',
         },
       },
+    },
+    transactions: {
+      title: 'Transacciones',
+      subtitle: 'Todos los pagos registrados por tus formularios de pago.',
+      empty: 'Aún no hay transacciones.',
+      emptyFiltered: 'No hay transacciones en este rango de fechas.',
+      clearFilter: 'Ver todas las fechas',
+      count: '{count} transacciones',
+      date: {
+        label: 'Fecha',
+        all: 'Todas las fechas',
+        today: 'Hoy',
+        yesterday: 'Ayer',
+        last3days: 'Últimos 3 días',
+        last7days: 'Últimos 7 días',
+      },
+      table: {
+        date: 'Fecha',
+        form: 'Formulario',
+        contact: 'Contacto',
+        amount: 'Monto',
+        status: 'Estado',
+        automation: 'Automatización',
+      },
+      status: {
+        created: 'creada',
+        approved: 'aprobada',
+        completed: 'completada',
+        failed: 'fallida',
+        refunded: 'reembolsada',
+      },
+      automation: {
+        sent: 'Enviada',
+        pending: 'Pendiente',
+        off: 'Desactivada',
+      },
+      actions: {
+        openChat: 'Abrir chat en el Inbox',
+        noChat: 'No hay conversación con este contacto',
+        delete: 'Eliminar transacción',
+      },
+      deleteTitle: '¿Eliminar esta transacción?',
+      deleteDesc: 'El registro de {amount} de {contact} ({date}) se eliminará definitivamente del historial de pagos. El contacto y su conversación se conservan.',
+      deleteCompletedWarning: 'Este pago está completado. Al eliminarlo desaparece de tu historial de ingresos — el dinero no se reembolsa en PayPal.',
+      deleteConfirm: 'Eliminar',
+      cancel: 'Cancelar',
+      deleteSuccess: 'Transacción eliminada.',
+      deleteFailed: 'No se pudo eliminar la transacción.',
+      loadFailed: 'No se pudieron cargar las transacciones.',
     },
   },
 }
