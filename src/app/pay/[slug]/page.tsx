@@ -150,6 +150,27 @@ function PublicPaymentFormPageInner() {
   // effect below.
   const [paymentLoading, setPaymentLoading] = useState(false)
 
+  // Second full-screen overlay, for the OTHER dead gap: from PayPal's
+  // `onApprove` (buyer finished paying) until the browser leaves for
+  // the form's Redirect URL. "confirming" spans our own capture round
+  // trip (server → PayPal → finalize), which can take a few seconds;
+  // "redirecting" is shown only once the capture actually succeeded,
+  // so the "¡Pago exitoso!" copy is never shown for a payment that
+  // then fails. Deliberately NOT cleared on the redirect branch — it
+  // must stay up until the new page replaces this one.
+  const [postPayment, setPostPayment] = useState<"confirming" | "redirecting" | null>(null)
+
+  // If the buyer hits "Back" from the download page, the browser may
+  // restore this page from the back/forward cache with the overlay
+  // still up — clear it so the page isn't stuck behind it.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setPostPayment(null)
+    }
+    window.addEventListener("pageshow", onPageShow)
+    return () => window.removeEventListener("pageshow", onPageShow)
+  }, [])
+
   // Focus/invalid state for the Advanced Card Fields boxes (Number/
   // Expiry/CVV) — see `cardFieldBoxClassName` above for why this can't
   // just be CSS like the plain `Input`/`Textarea` fields.
@@ -329,18 +350,37 @@ function PublicPaymentFormPageInner() {
     }
 
     const handleApprove = async (data: { orderID: string }) => {
-      const res = await fetch(`/api/public/payments/orders/${data.orderID}/capture`, {
-        method: "POST",
-      })
-      const captureData = await res.json()
-      if (!res.ok) {
-        setErrorMessage(captureData.error || strings.paymentIncomplete)
+      setPostPayment("confirming")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let captureData: any
+      try {
+        const res = await fetch(`/api/public/payments/orders/${data.orderID}/capture`, {
+          method: "POST",
+        })
+        captureData = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          setPostPayment(null)
+          setErrorMessage(captureData.error || strings.paymentIncomplete)
+          return
+        }
+      } catch {
+        setPostPayment(null)
+        setErrorMessage(strings.paymentIncomplete)
         return
       }
       if (captureData.redirect_url) {
-        window.location.href = captureData.redirect_url
+        setPostPayment("redirecting")
+        // Brief hold so "¡Pago exitoso!" actually registers before the
+        // browser starts tearing the page down — without it, a fast or
+        // cached Redirect URL can replace the page before the success
+        // state has even painted, leaving only the "confirming" frame.
+        const redirectUrl = captureData.redirect_url
+        setTimeout(() => {
+          window.location.href = redirectUrl
+        }, 1200)
         return
       }
+      setPostPayment(null)
       setResult({ inline_message: captureData.inline_message })
     }
 
@@ -547,14 +587,44 @@ function PublicPaymentFormPageInner() {
       {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
 
       {/* See the `paymentLoading` state comment above for exactly what
-          this spans (click → PayPal's own UI taking over). `z-50` sits
-          above the Card (no explicit z-index, so it stacks below any
-          positive z-index) and above PayPal's button iframes. */}
+          this spans (click → PayPal's own UI taking over). `z-[1000]`
+          sits above the Card (no explicit z-index) AND above PayPal's
+          button iframes, which the SDK renders with an inline
+          `z-index: 100` — a plain `z-50` leaves them poking through. */}
       {paymentLoading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 rounded-xl bg-card px-6 py-5 shadow-lg">
             <Loader2 className="size-8 animate-spin text-primary" />
             <p className="text-sm font-medium text-foreground">{t.loadingGateway}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Post-payment overlay — see the `postPayment` state comment
+          above. `aria-live` so screen readers announce the switch from
+          "confirming" to "success, redirecting". */}
+      {postPayment && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div className="mx-4 flex max-w-xs flex-col items-center gap-3 rounded-xl bg-card px-6 py-6 text-center shadow-lg">
+            {postPayment === "redirecting" ? (
+              <>
+                <CheckCircle2 className="size-10 text-emerald-500 animate-in zoom-in duration-300" />
+                <p className="text-base font-semibold text-foreground">{t.paymentSuccessTitle}</p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 shrink-0 animate-spin" />
+                  <span>{t.redirectingToDownload}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <Loader2 className="size-8 animate-spin text-primary" />
+                <p className="text-sm font-medium text-foreground">{t.confirmingPayment}</p>
+              </>
+            )}
           </div>
         </div>
       )}
