@@ -1,5 +1,6 @@
 import type { AccountRole } from "@/lib/auth/roles";
 import type { InteractiveMessagePayload } from "@/lib/whatsapp/interactive";
+import type { CtaUrlMessageConfig } from "@/lib/whatsapp/cta-url";
 
 export type {
   InteractiveMessagePayload,
@@ -558,6 +559,9 @@ export type AutomationStepType =
   | 'send_message'
   | 'send_buttons'
   | 'send_list'
+  /** "Call to Action URL" message — body + one button that opens an
+   *  external link, optional image / solid-color header. */
+  | 'send_cta_url'
   | 'send_template'
   | 'send_audio'
   | 'send_documents'
@@ -629,6 +633,10 @@ export interface SendMessageStepConfig {
  */
 export type SendButtonsStepConfig = InteractiveMessagePayload;
 export type SendListStepConfig = InteractiveMessagePayload;
+
+/** `send_cta_url` — same shape as the Flows node (minus next_node_key);
+ *  see `@/lib/whatsapp/cta-url` for limits and header semantics. */
+export type SendCtaUrlStepConfig = CtaUrlMessageConfig;
 
 export interface SendTemplateStepConfig {
   template_name: string;

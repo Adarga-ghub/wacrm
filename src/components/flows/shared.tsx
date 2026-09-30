@@ -17,6 +17,7 @@
  */
 
 import {
+  ExternalLink,
   Flag,
   GitFork,
   Inbox,
@@ -46,6 +47,7 @@ export type NodeType =
   | 'send_buttons'
   | 'send_list'
   | 'send_media'
+  | 'send_cta_url'
   | 'collect_input'
   | 'condition'
   | 'set_tag'
@@ -131,6 +133,13 @@ export const NODE_META: Record<
     blurb: 'Sends an image, video, or document',
     category: 'messaging',
   },
+  send_cta_url: {
+    label: 'Send link button',
+    icon: ExternalLink,
+    color: 'text-blue-400',
+    blurb: 'Sends a button that opens a web link',
+    category: 'messaging',
+  },
   collect_input: {
     label: 'Collect input',
     icon: Inbox,
@@ -202,6 +211,7 @@ const NODE_HUE: Record<NodeType, { l: number; c: number; h: number }> = {
   send_buttons: { l: 0.62, c: 0.16, h: 254 }, // cobalt
   send_list: { l: 0.62, c: 0.15, h: 277 }, // indigo
   send_media: { l: 0.65, c: 0.12, h: 210 }, // sky
+  send_cta_url: { l: 0.64, c: 0.14, h: 232 }, // azure — a link out
   collect_input: { l: 0.65, c: 0.1, h: 185 }, // teal — capture
   condition: { l: 0.72, c: 0.15, h: 65 }, // amber — a fork in the road
   set_tag: { l: 0.65, c: 0.15, h: 350 }, // pink
@@ -368,6 +378,18 @@ export function summarizeNode(
       return caption
         ? `${label}: ${truncate(name, 30)} · ${truncate(caption, 40)}`
         : `${label}: ${truncate(name, 60)}`;
+    }
+    case 'send_cta_url': {
+      const text = typeof cfg.body === 'string' ? cfg.body : '';
+      const button = typeof cfg.button_text === 'string' ? cfg.button_text : '';
+      const url = typeof cfg.url === 'string' ? cfg.url : '';
+      const target = button
+        ? `${button}${url ? ` → ${url.replace(/^https?:\/\//, '')}` : ''}`
+        : url;
+      if (text.length > 0) {
+        return target ? `${truncate(text, 40)} · ${truncate(target, 40)}` : truncate(text);
+      }
+      return target ? truncate(target) : null;
     }
     case 'collect_input': {
       const prompt = typeof cfg.prompt_text === 'string' ? cfg.prompt_text : '';

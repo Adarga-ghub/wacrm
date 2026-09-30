@@ -10,6 +10,7 @@ import type {
   SendMessageStepConfig,
   SendButtonsStepConfig,
   SendListStepConfig,
+  SendCtaUrlStepConfig,
   SendTemplateStepConfig,
   SendAudioStepConfig,
   SendDocumentsStepConfig,
@@ -34,6 +35,8 @@ import {
 } from './meta-send'
 import { sendMetaConversionEvent } from './meta-conversion'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
+import { ctaHeaderImageUrl, validateCtaUrlConfig } from '@/lib/whatsapp/cta-url'
+import { engineSendCtaUrl } from '@/lib/flows/meta-send'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
 import { MAX_INLINE_WAIT_SECONDS } from './validate'
 
@@ -549,6 +552,38 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       return `interactive sent via Meta (${whatsapp_message_id})`
     }
 
+    case 'send_cta_url': {
+      const cfg = step.step_config as SendCtaUrlStepConfig
+      if (!args.contactId) throw new Error('send_cta_url needs a contact')
+      const check = validateCtaUrlConfig(cfg)
+      if (!check.ok) throw new Error(check.error)
+      const bodyText = interpolate(cfg.body, args)
+      if (!bodyText.trim()) throw new Error('send_cta_url has empty text')
+      const url = interpolateUrl(cfg.url, args).trim()
+      const headerImageUrl = ctaHeaderImageUrl(cfg)
+      const conversationId = await resolveConversationId(args)
+      const { whatsapp_message_id } = await engineSendCtaUrl({
+        accountId: args.automation.account_id,
+        userId: args.automation.user_id,
+        conversationId,
+        contactId: args.contactId,
+        bodyText,
+        buttonText: cfg.button_text,
+        url,
+        headerImageUrl,
+        headerText: headerImageUrl ? undefined : cfg.header_text || undefined,
+        footerText: cfg.footer || undefined,
+      })
+      await dispatchOutboundMessage({
+        accountId: args.automation.account_id,
+        contactId: args.contactId,
+        conversationId,
+        text: bodyText,
+        chainDepth: getOutboundChainDepth(args.context),
+      })
+      return `link button sent via Meta (${whatsapp_message_id})`
+    }
+
     case 'send_template': {
       const cfg = step.step_config as SendTemplateStepConfig
       if (!args.contactId) throw new Error('send_template needs a contact')
@@ -1057,6 +1092,14 @@ function interpolate(s: string, args: ExecuteArgs): string {
     if (ns === 'vars' && prop) return String(args.context.vars?.[prop] ?? '')
     return ''
   })
+}
+
+/** Like `interpolate`, but URL-encodes each value so it can sit in a
+ *  query string (e.g. `?name={{ vars.name }}`) without breaking the link. */
+function interpolateUrl(s: string, args: ExecuteArgs): string {
+  return s.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match) =>
+    encodeURIComponent(interpolate(match, args)),
+  )
 }
 
 async function appendResults(

@@ -901,6 +901,7 @@
         "send_message": "메시지 보내기",
         "send_buttons": "버튼 보내기",
         "send_list": "목록 보내기",
+        "send_cta_url": "링크 버튼 보내기",
         "send_template": "템플릿 보내기",
         "send_audio": "오디오 보내기",
         "send_documents": "PDF 보내기",
@@ -1433,6 +1434,10 @@
         "send_media": {
           "label": "미디어 보내기",
           "blurb": "이미지, 동영상, 문서를 보냅니다"
+        },
+        "send_cta_url": {
+          "label": "링크 버튼 보내기",
+          "blurb": "웹 링크를 여는 버튼을 보냅니다"
         },
         "collect_input": {
           "label": "입력 수집",

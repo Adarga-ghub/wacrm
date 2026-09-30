@@ -34,12 +34,14 @@
 
 import { supabaseAdmin } from "./admin-client";
 import {
+  engineSendCtaUrl,
   engineSendInteractiveButtons,
   engineSendInteractiveList,
   engineSendMedia,
   engineSendText,
 } from "./meta-send";
 import { decideFallback, resolveFallbackPolicy } from "./fallback";
+import { ctaHeaderImageUrl } from "@/lib/whatsapp/cta-url";
 import { dispatchOutboundMessage } from "@/lib/automations/engine";
 import { addContactTagAndDispatch } from "@/lib/contacts/tag-events";
 import { removeContactTag } from "@/lib/contacts/tag-write";
@@ -53,6 +55,7 @@ import {
   type FlowRunRow,
   type ParsedInbound,
   type SendButtonsNodeConfig,
+  type SendCtaUrlNodeConfig,
   type SendListNodeConfig,
   type SendMediaNodeConfig,
   type SendMessageNodeConfig,
@@ -140,6 +143,7 @@ export function isAutoAdvancing(node_type: string): boolean {
     node_type === "start" ||
     node_type === "send_message" ||
     node_type === "send_media" ||
+    node_type === "send_cta_url" ||
     node_type === "condition" ||
     node_type === "set_tag"
   );
@@ -568,6 +572,16 @@ function interpolateVars(template: string, vars: Record<string, unknown>): strin
   });
 }
 
+/** Like interpolateVars, but URL-encodes each value so a captured
+ *  name/email can go into a query string without breaking the link. */
+function interpolateUrlVars(template: string, vars: Record<string, unknown>): string {
+  if (!template) return "";
+  return template.replace(/\{\{vars\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
+    const v = vars[key];
+    return v === undefined || v === null ? "" : encodeURIComponent(String(v));
+  });
+}
+
 async function endRun(
   db: AdminClient,
   runId: string,
@@ -691,6 +705,50 @@ async function advanceFromNodeKey(
           detail: err instanceof Error ? err.message : String(err),
         });
         await endRun(db, run.id, "failed", "send_media_failed");
+        return { outcome: "completed" };
+      }
+      currentKey = cfg.next_node_key;
+      continue;
+    }
+    if (node.node_type === "send_cta_url") {
+      const cfg = node.config as unknown as SendCtaUrlNodeConfig;
+      try {
+        const bodyText = interpolateVars(cfg.body, run.vars);
+        const url = interpolateUrlVars(cfg.url, run.vars).trim();
+        const headerImageUrl = ctaHeaderImageUrl(cfg);
+        const { whatsapp_message_id } = await engineSendCtaUrl({
+          accountId: run.account_id,
+          userId: run.user_id,
+          conversationId: run.conversation_id!,
+          contactId: run.contact_id!,
+          bodyText,
+          buttonText: cfg.button_text,
+          url,
+          headerImageUrl,
+          headerText: headerImageUrl
+            ? undefined
+            : cfg.header_text
+              ? interpolateVars(cfg.header_text, run.vars)
+              : undefined,
+          footerText: cfg.footer || undefined,
+        });
+        await dispatchOutboundMessage({
+          accountId: run.account_id,
+          contactId: run.contact_id,
+          conversationId: run.conversation_id ?? undefined,
+          text: bodyText,
+        });
+        await logEvent(db, run.id, "message_sent", node.node_key, {
+          node_type: "send_cta_url",
+          url,
+          whatsapp_message_id,
+        });
+      } catch (err) {
+        await logEvent(db, run.id, "error", node.node_key, {
+          reason: "send_cta_url_failed",
+          detail: err instanceof Error ? err.message : String(err),
+        });
+        await endRun(db, run.id, "failed", "send_cta_url_failed");
         return { outcome: "completed" };
       }
       currentKey = cfg.next_node_key;

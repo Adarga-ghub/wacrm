@@ -52,6 +52,7 @@ import {
 import { useTranslations } from "next-intl";
 import { unlinkNodeReferences } from "@/lib/flows/edges";
 import type { FlowNodeRow, FlowRow } from "@/lib/flows/types";
+import { blankCtaUrlConfig } from "@/lib/whatsapp/cta-url";
 import { NODE_META, slugify, type BuilderNode, type NodeType } from "./shared";
 
 // ============================================================
@@ -166,6 +167,8 @@ export function defaultConfigFor(type: NodeType): Record<string, unknown> {
         filename: "",
         next_node_key: "",
       };
+    case "send_cta_url":
+      return { ...blankCtaUrlConfig(), next_node_key: "" };
     case "collect_input":
       return {
         prompt_text: "",

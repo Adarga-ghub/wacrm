@@ -24,6 +24,7 @@
  */
 
 import { INTERACTIVE_LIMITS } from "@/lib/whatsapp/meta-api";
+import { validateCtaUrlConfig } from "@/lib/whatsapp/cta-url";
 
 export interface ValidationIssue {
   severity: "error" | "warning";
@@ -296,6 +297,40 @@ function validateNode(
           node_key: node.node_key,
           field: "next_node_key",
           message: `Send-media points to non-existent node "${cfg.next_node_key}".`,
+        });
+      }
+      break;
+    }
+
+    case "send_cta_url": {
+      const cfg = node.config as { next_node_key?: string };
+      // Meta limits + URL/header checks live in the shared validator so
+      // the Automations step and this node can never disagree.
+      const result = validateCtaUrlConfig(node.config);
+      if (!result.ok) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: result.field,
+          message: result.error,
+        });
+      }
+      if (!cfg.next_node_key) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: "next_node_key",
+          message: "Link-button node must point to a next node.",
+        });
+      } else if (!knownKeys.has(cfg.next_node_key)) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: "next_node_key",
+          message: `Link-button node points to non-existent node "${cfg.next_node_key}".`,
         });
       }
       break;
@@ -750,6 +785,7 @@ function outgoingEdges(node: NodeInput): string[] {
     case "start":
     case "send_message":
     case "send_media":
+    case "send_cta_url":
     case "collect_input":
     case "set_tag": {
       const cfg = node.config as { next_node_key?: string };

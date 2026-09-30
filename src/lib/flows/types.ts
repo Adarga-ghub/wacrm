@@ -1,3 +1,5 @@
+import type { CtaUrlMessageConfig } from "@/lib/whatsapp/cta-url";
+
 /**
  * Type definitions for the Flows runtime.
  *
@@ -97,6 +99,18 @@ export interface SendMediaNodeConfig {
   next_node_key: string;
 }
 
+/**
+ * Sends a WhatsApp "Call to Action URL" message — body text plus one
+ * centered button that opens an external link (payment page, store…),
+ * with an optional image or solid-color header. Auto-advances: the
+ * button opens the browser and never produces a webhook reply. Shape
+ * shared with the Automations step; see `@/lib/whatsapp/cta-url`.
+ */
+export interface SendCtaUrlNodeConfig extends CtaUrlMessageConfig {
+  /** Auto-advance target after the send lands at Meta. */
+  next_node_key: string;
+}
+
 export interface HandoffNodeConfig {
   /** Optional internal note written to flow_run_events.payload.note. */
   note?: string;
@@ -190,6 +204,7 @@ export type FlowNodeConfig =
   | { node_type: "send_buttons"; config: SendButtonsNodeConfig }
   | { node_type: "send_list"; config: SendListNodeConfig }
   | { node_type: "send_media"; config: SendMediaNodeConfig }
+  | { node_type: "send_cta_url"; config: SendCtaUrlNodeConfig }
   | { node_type: "collect_input"; config: CollectInputNodeConfig }
   | { node_type: "condition"; config: ConditionNodeConfig }
   | { node_type: "set_tag"; config: SetTagNodeConfig }

@@ -965,6 +965,94 @@ export async function sendInteractiveList(
   return { messageId: data.messages[0].id }
 }
 
+export interface SendInteractiveCtaUrlArgs {
+  phoneNumberId: string
+  accessToken: string
+  to: string
+  bodyText: string
+  /** Visible label of the URL button (≤ 20 chars per Meta). */
+  displayText: string
+  /** External http(s) URL the button opens. */
+  url: string
+  /** Optional header image (public URL Meta fetches). Wins over headerText. */
+  headerImageUrl?: string
+  /** Optional plain-text header (≤ 60 chars). */
+  headerText?: string
+  footerText?: string
+  contextMessageId?: string
+}
+
+/**
+ * Send a "Call to Action URL" interactive message: body + one button
+ * that opens an external link. No webhook fires when it's tapped.
+ * See https://developers.facebook.com/docs/whatsapp/cloud-api/messages/interactive-cta-url-messages
+ */
+export async function sendInteractiveCtaUrl(
+  args: SendInteractiveCtaUrlArgs
+): Promise<MetaSendResult> {
+  const {
+    phoneNumberId, accessToken, to,
+    bodyText, displayText, url: targetUrl,
+    headerImageUrl, headerText, footerText, contextMessageId,
+  } = args
+  validateInteractiveBody(bodyText)
+  validateInteractiveHeaderFooter(headerImageUrl ? undefined : headerText, footerText)
+  if (!displayText) throw new Error('CTA URL message requires button text.')
+  if (displayText.length > INTERACTIVE_LIMITS.buttonTitleMaxLength) {
+    throw new Error(
+      `CTA URL button text "${displayText}" exceeds ${INTERACTIVE_LIMITS.buttonTitleMaxLength} chars.`
+    )
+  }
+  let parsed: URL
+  try {
+    parsed = new URL(targetUrl)
+  } catch {
+    throw new Error(`CTA URL "${targetUrl}" is not a valid URL.`)
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new Error(`CTA URL "${targetUrl}" must use http or https.`)
+  }
+
+  const interactive: Record<string, unknown> = {
+    type: 'cta_url',
+    body: { text: bodyText },
+    action: {
+      name: 'cta_url',
+      parameters: { display_text: displayText, url: parsed.toString() },
+    },
+  }
+  if (headerImageUrl) {
+    interactive.header = { type: 'image', image: { link: headerImageUrl } }
+  } else if (headerText) {
+    interactive.header = { type: 'text', text: headerText }
+  }
+  if (footerText) interactive.footer = { text: footerText }
+
+  const body: Record<string, unknown> = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to,
+    type: 'interactive',
+    interactive,
+  }
+  if (contextMessageId) body.context = { message_id: contextMessageId }
+
+  const url = `${META_API_BASE}/${phoneNumberId}/messages`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
+  const data = await response.json()
+  return { messageId: data.messages[0].id }
+}
+
 function validateInteractiveBody(bodyText: string): void {
   if (!bodyText) throw new Error('Interactive message requires bodyText.')
   if (bodyText.length > INTERACTIVE_LIMITS.bodyMaxLength) {

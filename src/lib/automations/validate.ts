@@ -1,5 +1,6 @@
 import type { AutomationTriggerType } from '@/types'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
+import { validateCtaUrlConfig } from '@/lib/whatsapp/cta-url'
 
 // ------------------------------------------------------------
 // Pre-flight config validation for automations about to be activated.
@@ -74,6 +75,13 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
       const result = validateInteractivePayload(c)
       if (!result.ok) {
         issues.push({ path: `${path}.interactive`, message: result.error })
+      }
+      break
+    }
+    case 'send_cta_url': {
+      const result = validateCtaUrlConfig(c)
+      if (!result.ok) {
+        issues.push({ path: `${path}.${result.field}`, message: result.error })
       }
       break
     }

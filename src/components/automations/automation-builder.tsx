@@ -35,6 +35,7 @@ import {
   ArrowDown,
   ArrowUp,
   MousePointerClick,
+  ExternalLink,
   List,
   Mic,
   Upload,
@@ -70,6 +71,8 @@ import {
   blankListPayload,
 } from "@/components/interactive/interactive-builder"
 import { interactivePayloadPreviewText } from "@/lib/whatsapp/interactive"
+import { CtaUrlEditor } from "@/components/interactive/cta-url-editor"
+import { blankCtaUrlConfig, type CtaUrlMessageConfig } from "@/lib/whatsapp/cta-url"
 import { MAX_INLINE_WAIT_SECONDS } from "@/lib/automations/validate"
 import { createClient } from "@/lib/supabase/client"
 import { uploadAccountMedia, MEDIA_MAX_BYTES_BY_KIND } from "@/lib/storage/upload-media"
@@ -121,6 +124,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   send_message: { label: "send_message", icon: MessageSquare, border: "border-l-primary" },
   send_buttons: { label: "send_buttons", icon: MousePointerClick, border: "border-l-primary" },
   send_list: { label: "send_list", icon: List, border: "border-l-primary" },
+  send_cta_url: { label: "send_cta_url", icon: ExternalLink, border: "border-l-primary" },
   send_template: { label: "send_template", icon: FileText, border: "border-l-primary" },
   send_audio: { label: "send_audio", icon: Mic, border: "border-l-primary" },
   send_documents: { label: "send_documents", icon: Files, border: "border-l-primary" },
@@ -140,6 +144,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "send_message",
   "send_buttons",
   "send_list",
+  "send_cta_url",
   "send_template",
   "send_audio",
   "send_documents",
@@ -196,6 +201,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return toStepConfig(blankButtonsPayload())
     case "send_list":
       return toStepConfig(blankListPayload())
+    case "send_cta_url":
+      return { ...blankCtaUrlConfig() }
     case "send_template":
       return { template_name: "", language: "en_US" }
     case "send_audio":
@@ -1723,6 +1730,13 @@ function StepEditor({
           }
         />
       )
+    case "send_cta_url":
+      return (
+        <CtaUrlEditor
+          value={cfg as Partial<CtaUrlMessageConfig>}
+          onChange={(patch) => set(patch)}
+        />
+      )
     case "send_template":
       return (
         <SendTemplateFields
@@ -2006,6 +2020,12 @@ function previewFor(step: BuilderStep): string {
     case "send_buttons":
     case "send_list":
       return interactivePayloadPreviewText(asInteractive(step.step_config)) || "no body yet"
+    case "send_cta_url": {
+      const body = (step.step_config.body as string) || ""
+      const button = (step.step_config.button_text as string) || "button"
+      const url = (step.step_config.url as string) || "no link yet"
+      return body ? `${body} · ${button} → ${url}` : `${button} → ${url}`
+    }
     case "send_template":
       return (step.step_config.template_name as string) || "pick a template"
     case "send_audio":

@@ -48,6 +48,8 @@ import {
 import { cn } from "@/lib/utils";
 import { uploadAccountMedia, MEDIA_MAX_BYTES_BY_KIND } from "@/lib/storage/upload-media";
 import { slugify, type BuilderNode } from "../shared";
+import { CtaUrlEditor } from "@/components/interactive/cta-url-editor";
+import type { CtaUrlMessageConfig } from "@/lib/whatsapp/cta-url";
 import { NextNodeRow, NodeKeySelect, TextRow } from "./fields";
 
 interface NodeConfigFormProps {
@@ -128,6 +130,23 @@ export function NodeConfigForm({
           onUpdateConfig={onUpdateConfig}
           t={t}
         />
+      );
+
+    case "send_cta_url":
+      return (
+        <>
+          <CtaUrlEditor
+            value={cfg as Partial<CtaUrlMessageConfig>}
+            onChange={(patch) => onUpdateConfig(patch)}
+          />
+          <NextNodeRow
+            value={(cfg as { next_node_key?: string }).next_node_key ?? ""}
+            allNodes={allNodes}
+            currentKey={node.node_key}
+            onChange={(v) => onUpdateConfig({ next_node_key: v })}
+            label={t("advanceAfterSending")}
+          />
+        </>
       );
 
     case "collect_input":
