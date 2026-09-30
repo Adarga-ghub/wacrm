@@ -28,6 +28,7 @@ import {
   resolvePaypalSdkLocale,
   translateFieldLabel,
 } from "@/lib/payments/pay-page-i18n"
+import { PayPageLoading } from "./pay-page-loading"
 import { backgroundStyle, CountryToggle, TopSectionBlock } from "@/lib/payments/checkout-render"
 
 declare global {
@@ -71,7 +72,7 @@ function cardFieldBoxClassName(focused: boolean, invalid: boolean) {
 
 export default function PublicPaymentFormPage() {
   return (
-    <Suspense fallback={<Loader2 className="size-6 animate-spin text-primary" />}>
+    <Suspense fallback={<PayPageLoading />}>
       <PublicPaymentFormPageInner />
     </Suspense>
   )
@@ -544,7 +545,7 @@ function PublicPaymentFormPageInner() {
   }
 
   if (!form) {
-    return <Loader2 className="size-6 animate-spin text-primary" />
+    return <PayPageLoading label={t.loadingCheckout} />
   }
 
   const bgStyle = backgroundStyle(form.design?.background)

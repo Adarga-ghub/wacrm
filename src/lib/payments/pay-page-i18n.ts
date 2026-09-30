@@ -177,6 +177,8 @@ interface PayPageStrings {
   securedByPrefix: string
   /** Full-screen overlay text shown from the click on the PayPal/card button until PayPal's own UI takes over — see `paymentLoading` in the page. */
   loadingGateway: string
+  /** Initial page-load screen (see `PayPageLoading`) — first thing a buyer sees after tapping a link to this checkout. */
+  loadingCheckout: string
   /** Post-approval overlay, phase 1: our server is capturing the payment with PayPal — see `postPayment` in the page. */
   confirmingPayment: string
   /** Post-approval overlay, phase 2: capture succeeded and the browser is navigating to the form's Redirect URL. */
@@ -216,6 +218,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     authorLabel: (author) => `Autor: ${author}`,
     securedByPrefix: 'Protegido por',
     loadingGateway: 'Cargando método de pago...',
+    loadingCheckout: 'Cargando tu pago seguro...',
     confirmingPayment: 'Confirmando tu pago...',
     paymentSuccessTitle: '¡Pago exitoso!',
     redirectingToDownload: 'Redirigiéndote a tu página de descarga...',
@@ -251,6 +254,7 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     authorLabel: (author) => `Author: ${author}`,
     securedByPrefix: 'Powered by',
     loadingGateway: 'Loading payment gateway...',
+    loadingCheckout: 'Loading your secure checkout...',
     confirmingPayment: 'Confirming your payment...',
     paymentSuccessTitle: 'Payment successful!',
     redirectingToDownload: 'Redirecting you to your download page...',
