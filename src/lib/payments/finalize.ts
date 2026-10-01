@@ -58,6 +58,17 @@ export async function finalizePaymentTransaction(
     })
     .eq('id', txn.id)
 
+  // Checkout funnel (migration 060) — best-effort, never blocks the
+  // receipt/automation steps below.
+  const completedAt = new Date().toISOString()
+  const { error: sessionErr } = await db
+    .from('checkout_sessions')
+    .update({ status: 'completed', completed_at: completedAt, last_activity_at: completedAt })
+    .eq('transaction_id', txn.id)
+  if (sessionErr) {
+    console.error('[payments/finalize] failed to mark checkout session completed:', sessionErr)
+  }
+
   const [{ data: form }, { data: account }, { data: gatewayConfig }] = await Promise.all([
     db
       .from('payment_forms')

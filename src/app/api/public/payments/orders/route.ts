@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { resolveGateway } from '@/lib/payments/gateway'
 import { getAccessToken, createOrder } from '@/lib/payments/paypal-client'
 import { normalizePhone } from '@/lib/whatsapp/phone-utils'
+import { isUuid } from '@/lib/payments/checkout-tracking'
 import type { PaymentFormField } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,6 +26,8 @@ interface OrderBody {
   amount?: number
   /** Chosen product's id — required when `amount_type === 'product_list'`. */
   product_id?: string
+  /** `checkout_sessions` row opened by the page on load — linked to the transaction for the checkout funnel. */
+  checkout_session_id?: string
 }
 
 /**
@@ -167,7 +170,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Could not start the payment — please try again' }, { status: 502 })
   }
 
-  const { error: insertErr } = await db.from('payment_transactions').insert({
+  const { data: txnRow, error: insertErr } = await db.from('payment_transactions').insert({
     account_id: form.account_id,
     form_id: form.id,
     link_id: link?.id ?? null,
@@ -180,10 +183,39 @@ export async function POST(request: Request) {
       ? { ...body.field_values, _product_name: productName }
       : body.field_values,
     send_automation: link ? link.send_automation : form.send_automation_default,
-  })
+  }).select('id').single()
   if (insertErr) {
     console.error('[public/payments/orders POST] failed to record transaction:', insertErr)
     return NextResponse.json({ error: 'Could not start the payment — please try again' }, { status: 500 })
+  }
+
+  // Funnel tracking — best-effort, never blocks the payment. Linking
+  // the transaction lets `finalizePaymentTransaction` mark the
+  // session 'completed'; scoped to this form so a forged id can't
+  // touch another merchant's session.
+  if (isUuid(body.checkout_session_id) && txnRow) {
+    const now = new Date().toISOString()
+    const { data: session } = await db
+      .from('checkout_sessions')
+      .select('id, initiate_checkout_at')
+      .eq('id', body.checkout_session_id)
+      .eq('form_id', form.id)
+      .neq('status', 'completed')
+      .maybeSingle()
+    if (session) {
+      const { error: sessionErr } = await db
+        .from('checkout_sessions')
+        .update({
+          transaction_id: txnRow.id,
+          status: 'initiated',
+          initiate_checkout_at: session.initiate_checkout_at ?? now,
+          last_activity_at: now,
+        })
+        .eq('id', session.id)
+      if (sessionErr) {
+        console.error('[public/payments/orders POST] failed to link checkout session:', sessionErr)
+      }
+    }
   }
 
   return NextResponse.json({ order_id: orderId })

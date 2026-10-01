@@ -10,7 +10,7 @@
 // SDK reports back to the browser beyond "the payer approved it".
 // ============================================================
 
-import { Suspense, useEffect, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock } from "lucide-react"
 
@@ -82,6 +82,81 @@ function PublicPaymentFormPageInner() {
   const { slug } = useParams<{ slug: string }>()
   const searchParams = useSearchParams()
   const linkCode = searchParams.get("l")
+  // Visitor identity for "Analíticas de Checkout" — appended to
+  // checkout links by automation CTA buttons (see
+  // `withCheckoutContactParams`). Both optional.
+  const telefonoParam = searchParams.get("telefono")
+  const contactIdParam = searchParams.get("contact_id")
+
+  // Checkout funnel tracking (`checkout_sessions`, migration 060).
+  // "Checkout Page View" opens a session on load; "Initiate Checkout"
+  // fires once, on the first focus/input in any form field. The
+  // session id is kept in sessionStorage per slug so a reload in the
+  // same tab doesn't count as a second visit, and the started ref
+  // keeps StrictMode's double-run from posting twice. All of it is
+  // best-effort — a failed tracking call never affects the checkout.
+  const sessionIdRef = useRef<string | null>(null)
+  const sessionStartedRef = useRef(false)
+  const initiatedRef = useRef(false)
+  const initiatePendingRef = useRef(false)
+  const sendInitiate = (sessionId: string) => {
+    fetch(`/api/public/payments/checkout-sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "initiate" }),
+      keepalive: true,
+    }).catch(() => {})
+  }
+  useEffect(() => {
+    if (sessionStartedRef.current) return
+    sessionStartedRef.current = true
+    const storageKey = `wacrm:checkout-session:${slug}`
+    let stored: string | null = null
+    try {
+      stored = sessionStorage.getItem(storageKey)
+    } catch {}
+    if (stored) {
+      sessionIdRef.current = stored
+      return
+    }
+    fetch("/api/public/payments/checkout-sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        slug,
+        link_code: linkCode ?? undefined,
+        telefono: telefonoParam ?? undefined,
+        contact_id: contactIdParam ?? undefined,
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data?.session_id) return
+        sessionIdRef.current = data.session_id
+        try {
+          sessionStorage.setItem(storageKey, data.session_id)
+        } catch {}
+        if (initiatePendingRef.current) sendInitiate(data.session_id)
+      })
+      .catch(() => {})
+  }, [slug, linkCode, telefonoParam, contactIdParam])
+  const markCheckoutInitiated = useCallback(() => {
+    if (initiatedRef.current) return
+    initiatedRef.current = true
+    if (sessionIdRef.current) sendInitiate(sessionIdRef.current)
+    else initiatePendingRef.current = true
+  }, [])
+  /** Focus/input anywhere in the checkout card — only real form controls count, not the country picker's button. */
+  const handleFieldInteraction = (e: SyntheticEvent) => {
+    const target = e.target
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement
+    ) {
+      markCheckoutInitiated()
+    }
+  }
 
   // Hotmart-style "Cambiar país" picker (see `CountryToggle`) replaces
   // a bare ES/EN toggle — the page's language is DERIVED from the
@@ -334,6 +409,7 @@ function PublicPaymentFormPageInner() {
           slug,
           link_code: linkCode ?? undefined,
           field_values: overrideFieldValues ?? fieldValuesRef.current,
+          checkout_session_id: sessionIdRef.current ?? undefined,
           amount: form.amount_type === "variable" ? Number(variableAmountRef.current) : undefined,
           product_id: form.amount_type === "product_list" ? selectedProductIdRef.current : undefined,
         }),
@@ -405,7 +481,10 @@ function PublicPaymentFormPageInner() {
       // anything else — so the loading overlay appears immediately,
       // not only after our own `createOrder`/`submitOrder` round trip
       // has already started.
-      onClick: () => setPaymentLoading(true),
+      onClick: () => {
+        markCheckoutInitiated()
+        setPaymentLoading(true)
+      },
       createOrder: async () => {
         try {
           setErrorMessage(null)
@@ -470,6 +549,7 @@ function PublicPaymentFormPageInner() {
         inputEvents: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onFocus: (data: any) => {
+            markCheckoutInitiated()
             const focusedSdkKey = Object.keys(CARD_SDK_FIELD_KEYS).find(
               (key) => data?.fields?.[key]?.isFocused,
             ) as keyof typeof CARD_SDK_FIELD_KEYS | undefined
@@ -518,7 +598,7 @@ function PublicPaymentFormPageInner() {
         if (cardButtons.isEligible()) cardButtons.render("#card-button-container")
       }
     }
-  }, [sdkReady, form, linkCode, slug, locale])
+  }, [sdkReady, form, linkCode, slug, locale, markCheckoutInitiated])
 
   const handleCardSubmit = async () => {
     if (!cardFieldsRef.current) return
@@ -630,7 +710,11 @@ function PublicPaymentFormPageInner() {
         </div>
       )}
 
-      <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
+      <Card
+        className="w-full max-w-md overflow-hidden sm:max-w-lg"
+        onFocusCapture={handleFieldInteraction}
+        onInputCapture={handleFieldInteraction}
+      >
         <CountryToggle country={country} locale={locale} onChange={handleCountryChange} />
 
         <TopSectionBlock topSection={topSection} />

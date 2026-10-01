@@ -10,6 +10,7 @@ import {
 } from '@/lib/whatsapp/meta-api'
 import type { InteractiveMessagePayload } from '@/lib/whatsapp/interactive'
 import { ctaUrlInboxText } from '@/lib/whatsapp/cta-url'
+import { withCheckoutContactParams } from '@/lib/payments/checkout-tracking'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   sanitizePhoneForMeta,
@@ -516,6 +517,10 @@ export async function engineSendCtaUrl(
 
   const accessToken = decrypt(config.access_token)
 
+  // Checkout links get the contact's phone/id appended so
+  // `/pay/[slug]` can attribute the visit in "Analíticas de Checkout".
+  const url = withCheckoutContactParams(args.url, contact)
+
   const attempt = async (phone: string): Promise<string> => {
     const r = await sendInteractiveCtaUrl({
       phoneNumberId: config.phone_number_id,
@@ -523,7 +528,7 @@ export async function engineSendCtaUrl(
       to: phone,
       bodyText: args.bodyText,
       displayText: args.buttonText,
-      url: args.url,
+      url,
       headerImageUrl: args.headerImageUrl,
       headerText: args.headerText,
       footerText: args.footerText,
@@ -553,7 +558,7 @@ export async function engineSendCtaUrl(
     await db.from('contacts').update({ phone: workingPhone }).eq('id', contact.id)
   }
 
-  const contentText = ctaUrlInboxText(args.bodyText, args.buttonText, args.url)
+  const contentText = ctaUrlInboxText(args.bodyText, args.buttonText, url)
   const { error: msgErr } = await db.from('messages').insert({
     conversation_id: args.conversationId,
     sender_type: 'bot',

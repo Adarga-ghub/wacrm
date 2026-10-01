@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { CreditCard, Package, Palette, Receipt, Settings } from "lucide-react"
+import { CreditCard, Package, Palette, Receipt, Settings, TrendingUp } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -19,7 +19,7 @@ export default function PaymentsPage() {
   // not app state, so it's fine to rebuild this array every render.
   // Prices are now created and managed exclusively inside a Product's
   // own "Fijación de precios y ofertas" tab, so this hub no longer
-  // lists loose payment forms — it's just direct access to the four
+  // lists loose payment forms — it's just direct access to the
   // sections that make up Billing & Payments.
   const headerActions: ReorderableAction[] = [
     {
@@ -55,6 +55,15 @@ export default function PaymentsPage() {
         <Button variant="outline" render={<Link href="/payments/transactions" />}>
           <Receipt className="h-4 w-4" />
           {t("transactions")}
+        </Button>
+      ),
+    },
+    {
+      id: "checkout-analytics",
+      content: (
+        <Button variant="outline" render={<Link href="/payments/checkout-analytics" />}>
+          <TrendingUp className="h-4 w-4" />
+          {t("checkoutAnalytics")}
         </Button>
       ),
     },

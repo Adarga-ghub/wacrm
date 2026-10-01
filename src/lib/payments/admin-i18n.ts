@@ -23,6 +23,7 @@ export interface PaymentsListStrings {
   subtitle: string
   configureGateway: string
   transactions: string
+  checkoutAnalytics: string
   skins: string
   products: string
   newForm: string
@@ -302,11 +303,44 @@ export interface PaymentsTransactionsStrings {
   loadFailed: string
 }
 
+export interface PaymentsCheckoutAnalyticsStrings {
+  title: string
+  subtitle: string
+  empty: string
+  emptyFiltered: string
+  clearFilter: string
+  /** `{count}` = rows shown after the filters. */
+  count: string
+  anonymous: string
+  funnel: {
+    views: string
+    initiated: string
+    completed: string
+    /** Completed / page views. */
+    conversion: string
+  }
+  table: {
+    customer: string
+    product: string
+    pageView: string
+    initiated: string
+    status: string
+    lastActivity: string
+  }
+  notYet: string
+  status: Record<'viewed' | 'initiated' | 'abandoned' | 'completed', string>
+  statusFilter: {
+    all: string
+  }
+  loadFailed: string
+}
+
 export interface PaymentsAdminNamespaces {
   list: PaymentsListStrings
   skins: PaymentsSkinsStrings
   products: PaymentsProductsStrings
   transactions: PaymentsTransactionsStrings
+  checkoutAnalytics: PaymentsCheckoutAnalyticsStrings
 }
 
 export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> = {
@@ -317,6 +351,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         'Build PayPal checkout forms and send files automatically when a payment is confirmed.',
       configureGateway: 'Configure PayPal',
       transactions: 'Transactions',
+      checkoutAnalytics: 'Checkout Analytics',
       skins: 'Payment Skins',
       products: 'Products',
       newForm: 'New form',
@@ -599,6 +634,40 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       deleteFailed: 'Could not delete the transaction.',
       loadFailed: 'Could not load transactions.',
     },
+    checkoutAnalytics: {
+      title: 'Checkout Analytics',
+      subtitle: 'Who opened your checkout pages, who started filling them in, and who paid.',
+      empty: 'No checkout visits yet. They appear here as soon as someone opens a payment link.',
+      emptyFiltered: 'No checkout visits match these filters.',
+      clearFilter: 'Clear filters',
+      count: '{count} sessions',
+      anonymous: 'Anonymous visitor',
+      funnel: {
+        views: 'Page views',
+        initiated: 'Checkouts started',
+        completed: 'Completed',
+        conversion: 'Conversion rate',
+      },
+      table: {
+        customer: 'Customer / Phone',
+        product: 'Product',
+        pageView: 'Page view',
+        initiated: 'Checkout started',
+        status: 'Final status',
+        lastActivity: 'Date / Last activity',
+      },
+      notYet: 'Not yet',
+      status: {
+        viewed: 'Viewed only',
+        initiated: 'In progress',
+        abandoned: 'Abandoned',
+        completed: 'Completed',
+      },
+      statusFilter: {
+        all: 'All statuses',
+      },
+      loadFailed: 'Could not load checkout analytics.',
+    },
   },
   es: {
     list: {
@@ -607,6 +676,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         'Crea formularios de pago con PayPal y envía archivos automáticamente cuando se confirme un pago.',
       configureGateway: 'Configurar PayPal',
       transactions: 'Transacciones',
+      checkoutAnalytics: 'Analíticas de Checkout',
       skins: 'Apariencias de pago',
       products: 'Productos',
       newForm: 'Nuevo formulario',
@@ -884,6 +954,40 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       deleteSuccess: 'Transacción eliminada.',
       deleteFailed: 'No se pudo eliminar la transacción.',
       loadFailed: 'No se pudieron cargar las transacciones.',
+    },
+    checkoutAnalytics: {
+      title: 'Analíticas de Checkout',
+      subtitle: 'Quién abrió tus páginas de pago, quién empezó a llenarlas y quién pagó.',
+      empty: 'Aún no hay visitas al checkout. Aparecerán aquí en cuanto alguien abra un enlace de pago.',
+      emptyFiltered: 'Ninguna visita coincide con estos filtros.',
+      clearFilter: 'Quitar filtros',
+      count: '{count} sesiones',
+      anonymous: 'Visitante anónimo',
+      funnel: {
+        views: 'Vistas de página',
+        initiated: 'Pagos iniciados',
+        completed: 'Completados',
+        conversion: 'Tasa de conversión',
+      },
+      table: {
+        customer: 'Cliente / Teléfono',
+        product: 'Producto',
+        pageView: 'Vista de página',
+        initiated: 'Pago iniciado',
+        status: 'Estado final',
+        lastActivity: 'Fecha / Última actividad',
+      },
+      notYet: 'Aún no',
+      status: {
+        viewed: 'Solo visto',
+        initiated: 'En curso',
+        abandoned: 'Abandonado',
+        completed: 'Completado',
+      },
+      statusFilter: {
+        all: 'Todos los estados',
+      },
+      loadFailed: 'No se pudieron cargar las analíticas de checkout.',
     },
   },
 }

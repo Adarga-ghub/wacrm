@@ -1073,3 +1073,27 @@ export interface PaymentTransaction {
   form?: { name: string } | null;
   contact?: { name: string | null; phone: string } | null;
 }
+
+export type CheckoutSessionStatus = 'viewed' | 'initiated' | 'abandoned' | 'completed';
+
+/** One visit to a public checkout page (migration 060) — "Analíticas de Checkout". */
+export interface CheckoutSession {
+  id: string;
+  account_id: string;
+  form_id: string | null;
+  link_id: string | null;
+  contact_id: string | null;
+  transaction_id: string | null;
+  telefono: string | null;
+  slug_producto: string;
+  status: CheckoutSessionStatus;
+  page_view_at: string;
+  initiate_checkout_at: string | null;
+  completed_at: string | null;
+  last_activity_at: string;
+  created_at: string;
+  updated_at: string;
+  /** Embedded via the API's select. */
+  form?: { name: string; product: { name: string } | null } | null;
+  contact?: { name: string | null; phone: string } | null;
+}
