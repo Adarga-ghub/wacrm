@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   CHECKOUT_ABANDON_AFTER_MS,
   applyContactPlaceholders,
-  checkoutSlugFromUrl,
   effectiveCheckoutStatus,
   withContactTrackingParams,
 } from './checkout-tracking'
@@ -14,41 +13,29 @@ const contact = {
 }
 
 describe('withContactTrackingParams', () => {
-  it('appends telefono (digits only) and contact_id to a checkout link', () => {
-    const out = new URL(withContactTrackingParams('https://crm.example.com/pay/ebook?l=abc', contact, true))
-    expect(out.searchParams.get('telefono')).toBe('18095551234')
-    expect(out.searchParams.get('contact_id')).toBe(contact.id)
+  it('appends only the opaque cid to a checkout link — never the phone', () => {
+    const out = withContactTrackingParams('https://crm.example.com/pay/ebook', contact)
+    expect(out).toBe(`https://crm.example.com/pay/ebook?cid=${contact.id}`)
+    expect(out).not.toContain('8095551234')
+  })
+
+  it('keeps existing params and works for any page', () => {
+    const out = new URL(withContactTrackingParams('https://landing.lovable.app/?l=abc', contact))
     expect(out.searchParams.get('l')).toBe('abc')
-    expect(out.searchParams.get('cid')).toBeNull()
-  })
-
-  it('keeps params the merchant already set', () => {
-    const out = new URL(withContactTrackingParams('https://crm.example.com/pay/ebook?telefono=999999', contact, true))
-    expect(out.searchParams.get('telefono')).toBe('999999')
-    expect(out.searchParams.get('contact_id')).toBe(contact.id)
-  })
-
-  it('tags an external landing page with the opaque cid only — never the phone', () => {
-    const out = new URL(withContactTrackingParams('https://landing.lovable.app/', contact, false))
     expect(out.searchParams.get('cid')).toBe(contact.id)
     expect(out.searchParams.get('telefono')).toBeNull()
-    expect(out.toString()).not.toContain('8095551234')
+  })
+
+  it('leaves links that already identify the contact untouched', () => {
+    const withCid = 'https://crm.example.com/pay/ebook?cid=other'
+    const legacy = 'https://crm.example.com/pay/ebook?contact_id=other'
+    expect(withContactTrackingParams(withCid, contact)).toBe(withCid)
+    expect(withContactTrackingParams(legacy, contact)).toBe(legacy)
   })
 
   it('leaves unparseable and non-http links untouched', () => {
-    expect(withContactTrackingParams('not a url', contact, false)).toBe('not a url')
-    expect(withContactTrackingParams('mailto:a@b.co', contact, false)).toBe('mailto:a@b.co')
-  })
-})
-
-describe('checkoutSlugFromUrl', () => {
-  it('extracts the slug of /pay/<slug> links only', () => {
-    expect(checkoutSlugFromUrl('https://crm.example.com/pay/pago-al-contado-o0yq7d?x=1')).toBe(
-      'pago-al-contado-o0yq7d',
-    )
-    expect(checkoutSlugFromUrl('https://crm.example.com/pay/preview')).toBeNull()
-    expect(checkoutSlugFromUrl('https://landing.lovable.app/')).toBeNull()
-    expect(checkoutSlugFromUrl('nope')).toBeNull()
+    expect(withContactTrackingParams('not a url', contact)).toBe('not a url')
+    expect(withContactTrackingParams('mailto:a@b.co', contact)).toBe('mailto:a@b.co')
   })
 })
 

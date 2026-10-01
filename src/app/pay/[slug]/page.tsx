@@ -82,10 +82,10 @@ function PublicPaymentFormPageInner() {
   const { slug } = useParams<{ slug: string }>()
   const searchParams = useSearchParams()
   const linkCode = searchParams.get("l")
-  // Visitor identity for "Analíticas de Checkout" — appended to links
-  // by automation CTA buttons (see `withContactTrackingParams`):
-  // `telefono` + `contact_id` on direct checkout links, or `cid`
-  // forwarded by an external landing page. All optional.
+  // Visitor identity for "Analíticas de Checkout" — automation CTA
+  // buttons append `cid` (see `withContactTrackingParams`); the server
+  // resolves the contact's name and phone from it. `telefono` /
+  // `contact_id` are still read for links sent before `cid`. All optional.
   const telefonoParam = searchParams.get("telefono")
   const contactIdParam = searchParams.get("contact_id") ?? searchParams.get("cid")
 

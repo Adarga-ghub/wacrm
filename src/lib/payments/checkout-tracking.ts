@@ -5,19 +5,18 @@
 //
 // The public checkout page has no session, so the only way to know
 // WHO opened it is the link itself. At send time, `engineSendCtaUrl`
-// (shared by Flows and Automations) tags every CTA button link:
-//   - a link straight to one of the account's checkouts (`/pay/<slug>`)
-//     gets `?telefono=<digits>&contact_id=<uuid>`;
-//   - any other page (e.g. an external sales/landing page) gets only
-//     `?cid=<uuid>` — an opaque id, so the buyer's phone never lands in
-//     a third party's URL logs/analytics. The landing page forwards
-//     `cid` onto its own "buy" link to the checkout.
-// The checkout page sends whatever it received to
-// `POST /api/public/payments/checkout-sessions`, which resolves the
-// contact's name and phone server-side.
+// (shared by Flows and Automations) tags every CTA button link with
+// `?cid=<contact uuid>` — an opaque id only, so the buyer's phone never
+// travels in plain text in a link that can be forwarded, screenshotted
+// or logged by a third party. The checkout page (`/pay/[slug]`) sends
+// it to `POST /api/public/payments/checkout-sessions`, which resolves
+// the contact's name and phone server-side. An external landing page
+// in between just has to forward `cid` onto its "buy" link.
 //
-// Merchants can also place `{{contact.phone}}`, `{{contact.name}}` or
-// `{{contact.id}}` in a button URL themselves (`applyContactPlaceholders`).
+// Links sent before this used `?telefono=…&contact_id=…`; the checkout
+// still accepts both. Merchants can also place `{{contact.phone}}`,
+// `{{contact.name}}` or `{{contact.id}}` in a button URL themselves
+// (`applyContactPlaceholders`).
 // ============================================================
 
 export type CheckoutSessionStatus = 'viewed' | 'initiated' | 'abandoned' | 'completed'
@@ -25,8 +24,8 @@ export type CheckoutSessionStatus = 'viewed' | 'initiated' | 'abandoned' | 'comp
 /** An 'initiated' session with no activity for this long counts as abandoned. */
 export const CHECKOUT_ABANDON_AFTER_MS = 30 * 60 * 1000
 
-/** Public checkout path — `/pay/<slug>`, excluding the admin-only `/pay/preview`. */
-const CHECKOUT_PATH = /^\/pay\/(?!preview\/?$)[^/]+\/?$/
+/** Query param carrying the contact id on CTA links. */
+export const CONTACT_REF_PARAM = 'cid'
 
 /** Digits only, capped — the same shape whether it came from a contact row or a URL. */
 export function sanitizeTelefono(raw: unknown): string | null {
@@ -39,25 +38,6 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export function isUuid(raw: unknown): raw is string {
   return typeof raw === 'string' && UUID_RE.test(raw)
-}
-
-/** Query param carrying the contact id through a non-checkout page. */
-export const CONTACT_REF_PARAM = 'cid'
-
-/**
- * The slug of a `/pay/<slug>`-shaped link, or null. Shape only — the
- * caller confirms the slug is one of the account's published forms
- * before treating the link as a checkout, so an unrelated site that
- * happens to use a `/pay/...` path never receives the phone number.
- */
-export function checkoutSlugFromUrl(rawUrl: string): string | null {
-  try {
-    const { pathname } = new URL(rawUrl)
-    if (!CHECKOUT_PATH.test(pathname)) return null
-    return decodeURIComponent(pathname.split('/')[2])
-  } catch {
-    return null
-  }
 }
 
 export interface TrackedContact {
@@ -82,16 +62,12 @@ export function applyContactPlaceholders(rawUrl: string, contact: TrackedContact
 }
 
 /**
- * Tags a CTA link with the contact so the checkout can attribute the
- * visit (see the header comment for which params go where). Params
- * already present are left untouched; non-http(s) or unparseable URLs
- * are returned as-is.
+ * Tags a CTA link with `?cid=<contact id>` so the checkout can attribute
+ * the visit. Left untouched when the link already identifies the
+ * contact (`cid` or a legacy `contact_id`), or is non-http(s) or
+ * unparseable.
  */
-export function withContactTrackingParams(
-  rawUrl: string,
-  contact: TrackedContact,
-  isCheckout: boolean,
-): string {
+export function withContactTrackingParams(rawUrl: string, contact: TrackedContact): string {
   let url: URL
   try {
     url = new URL(rawUrl)
@@ -99,14 +75,9 @@ export function withContactTrackingParams(
     return rawUrl
   }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return rawUrl
+  if (url.searchParams.get(CONTACT_REF_PARAM) || url.searchParams.get('contact_id')) return rawUrl
 
-  if (isCheckout) {
-    const telefono = sanitizeTelefono(contact.phone)
-    if (telefono && !url.searchParams.get('telefono')) url.searchParams.set('telefono', telefono)
-    if (!url.searchParams.get('contact_id')) url.searchParams.set('contact_id', contact.id)
-  } else if (!url.searchParams.get(CONTACT_REF_PARAM)) {
-    url.searchParams.set(CONTACT_REF_PARAM, contact.id)
-  }
+  url.searchParams.set(CONTACT_REF_PARAM, contact.id)
   return url.toString()
 }
 
