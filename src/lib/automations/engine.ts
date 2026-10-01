@@ -1095,10 +1095,12 @@ function interpolate(s: string, args: ExecuteArgs): string {
 }
 
 /** Like `interpolate`, but URL-encodes each value so it can sit in a
- *  query string (e.g. `?name={{ vars.name }}`) without breaking the link. */
+ *  query string (e.g. `?name={{ vars.name }}`) without breaking the link.
+ *  `{{contact.*}}` is left in place — `engineSendCtaUrl` resolves it
+ *  against the contact row it already loads. */
 function interpolateUrl(s: string, args: ExecuteArgs): string {
-  return s.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match) =>
-    encodeURIComponent(interpolate(match, args)),
+  return s.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, key: string) =>
+    key.startsWith('contact.') ? match : encodeURIComponent(interpolate(match, args)),
   )
 }
 

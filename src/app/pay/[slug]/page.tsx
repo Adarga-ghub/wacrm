@@ -82,11 +82,12 @@ function PublicPaymentFormPageInner() {
   const { slug } = useParams<{ slug: string }>()
   const searchParams = useSearchParams()
   const linkCode = searchParams.get("l")
-  // Visitor identity for "Analíticas de Checkout" — appended to
-  // checkout links by automation CTA buttons (see
-  // `withCheckoutContactParams`). Both optional.
+  // Visitor identity for "Analíticas de Checkout" — appended to links
+  // by automation CTA buttons (see `withContactTrackingParams`):
+  // `telefono` + `contact_id` on direct checkout links, or `cid`
+  // forwarded by an external landing page. All optional.
   const telefonoParam = searchParams.get("telefono")
-  const contactIdParam = searchParams.get("contact_id")
+  const contactIdParam = searchParams.get("contact_id") ?? searchParams.get("cid")
 
   // Checkout funnel tracking (`checkout_sessions`, migration 060).
   // "Checkout Page View" opens a session on load; "Initiate Checkout"
@@ -110,7 +111,9 @@ function PublicPaymentFormPageInner() {
   useEffect(() => {
     if (sessionStartedRef.current) return
     sessionStartedRef.current = true
-    const storageKey = `wacrm:checkout-session:${slug}`
+    // Identity is part of the key, so an anonymous visit followed by
+    // the tagged link in the same tab opens a new, attributed session.
+    const storageKey = `wacrm:checkout-session:${slug}:${contactIdParam ?? telefonoParam ?? ""}`
     let stored: string | null = null
     try {
       stored = sessionStorage.getItem(storageKey)

@@ -10,7 +10,11 @@ import {
 } from '@/lib/whatsapp/meta-api'
 import type { InteractiveMessagePayload } from '@/lib/whatsapp/interactive'
 import { ctaUrlInboxText } from '@/lib/whatsapp/cta-url'
-import { withCheckoutContactParams } from '@/lib/payments/checkout-tracking'
+import {
+  applyContactPlaceholders,
+  checkoutSlugFromUrl,
+  withContactTrackingParams,
+} from '@/lib/payments/checkout-tracking'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   sanitizePhoneForMeta,
@@ -493,7 +497,7 @@ export async function engineSendCtaUrl(
 
   const { data: contact, error: contactErr } = await db
     .from('contacts')
-    .select('id, phone')
+    .select('id, phone, name')
     .eq('id', args.contactId)
     .eq('account_id', args.accountId)
     .maybeSingle()
@@ -517,9 +521,24 @@ export async function engineSendCtaUrl(
 
   const accessToken = decrypt(config.access_token)
 
-  // Checkout links get the contact's phone/id appended so
-  // `/pay/[slug]` can attribute the visit in "Analíticas de Checkout".
-  const url = withCheckoutContactParams(args.url, contact)
+  // Tag the link with the contact for "Analíticas de Checkout" (see
+  // src/lib/payments/checkout-tracking.ts). A `/pay/<slug>` link only
+  // counts as a checkout — and gets the phone — when the slug is one
+  // of this account's published forms.
+  const resolvedUrl = applyContactPlaceholders(args.url, contact)
+  const checkoutSlug = checkoutSlugFromUrl(resolvedUrl)
+  let isCheckout = false
+  if (checkoutSlug) {
+    const { data: form } = await db
+      .from('payment_forms')
+      .select('id')
+      .eq('account_id', args.accountId)
+      .eq('slug', checkoutSlug)
+      .eq('status', 'published')
+      .maybeSingle()
+    isCheckout = !!form
+  }
+  const url = withContactTrackingParams(resolvedUrl, contact, isCheckout)
 
   const attempt = async (phone: string): Promise<string> => {
     const r = await sendInteractiveCtaUrl({
