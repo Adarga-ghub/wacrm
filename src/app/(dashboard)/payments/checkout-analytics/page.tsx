@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { toast } from "sonner"
 import { isToday, isYesterday, startOfDay, subDays } from "date-fns"
 import {
@@ -9,8 +10,10 @@ import {
   CheckCircle2,
   ChevronDown,
   Circle,
+  Eye,
   Filter,
   Loader2,
+  Trash2,
   TrendingUp,
 } from "lucide-react"
 
@@ -20,7 +23,15 @@ import { effectiveCheckoutStatus } from "@/lib/payments/checkout-tracking"
 import { cn } from "@/lib/utils"
 import { BackLink } from "@/components/layout/back-link"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +46,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 const STATUS_BADGE: Record<CheckoutSessionStatus, string> = {
   viewed: "border-slate-500/30 bg-slate-500/10 text-muted-foreground",
@@ -66,7 +78,19 @@ function formatStamp(iso: string): string {
   return `${date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}, ${time}`
 }
 
-type Row = CheckoutSession & { effectiveStatus: CheckoutSessionStatus }
+/** `conversation_id` is resolved server-side so rows can deep-link to the Inbox. */
+type Row = CheckoutSession & {
+  conversation_id: string | null
+  effectiveStatus: CheckoutSessionStatus
+}
+
+function contactName(s: CheckoutSession): string | null {
+  return s.contact?.name && s.contact.name !== s.contact.phone ? s.contact.name : null
+}
+
+function contactPhone(s: CheckoutSession): string | null {
+  return s.telefono ? `+${s.telefono}` : s.contact?.phone ?? null
+}
 
 function StepIndicator({ at, notYet }: { at: string | null; notYet: string }) {
   if (!at) {
@@ -96,6 +120,8 @@ export default function CheckoutAnalyticsPage() {
   const [sessions, setSessions] = useState<Row[] | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeFilter>("all")
   const [statusFilter, setStatusFilter] = useState<CheckoutSessionStatus | "all">("all")
+  const [pendingDelete, setPendingDelete] = useState<Row | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   async function load() {
     const res = await fetch("/api/payments/checkout-sessions")
@@ -109,7 +135,7 @@ export default function CheckoutAnalyticsPage() {
     // fetch time — the server sweep may lag a stale 'initiated' row.
     const now = Date.now()
     setSessions(
-      ((data.sessions ?? []) as CheckoutSession[]).map((s) => ({
+      ((data.sessions ?? []) as Omit<Row, "effectiveStatus">[]).map((s) => ({
         ...s,
         effectiveStatus: effectiveCheckoutStatus(s.status, s.last_activity_at, now),
       })),
@@ -143,6 +169,30 @@ export default function CheckoutAnalyticsPage() {
     return { views, initiated, completed, rate }
   }, [inRange])
 
+  async function handleDelete() {
+    if (!pendingDelete) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/payments/checkout-sessions/${pendingDelete.id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || t("deleteFailed"))
+        return
+      }
+      const deletedId = pendingDelete.id
+      setSessions((prev) => prev?.filter((s) => s.id !== deletedId) ?? prev)
+      setPendingDelete(null)
+      toast.success(t("deleteSuccess"))
+    } catch {
+      toast.error(t("deleteFailed"))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const iconButton = buttonVariants({ variant: "ghost", size: "icon-xs" })
   const filtersActive = dateRange !== "all" || statusFilter !== "all"
   const filterTrigger = (active: boolean) =>
     cn(
@@ -268,16 +318,73 @@ export default function CheckoutAnalyticsPage() {
             </TableHeader>
             <TableBody>
               {visible.map((s) => {
-                const phone = s.telefono ? `+${s.telefono}` : s.contact?.phone ?? null
-                const name = s.contact?.name && s.contact.name !== s.contact.phone ? s.contact.name : null
+                const phone = contactPhone(s)
+                const name = contactName(s)
                 return (
-                  <TableRow key={s.id} className="border-border">
+                  <TableRow key={s.id} className="group border-border">
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="text-foreground">{name ?? phone ?? t("anonymous")}</span>
-                        {name && phone && (
-                          <span className="text-xs tabular-nums text-muted-foreground">{phone}</span>
-                        )}
+                      <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate text-foreground">{name ?? phone ?? t("anonymous")}</span>
+                          {name && phone && (
+                            <span className="text-xs tabular-nums text-muted-foreground">{phone}</span>
+                          )}
+                        </div>
+                        {/* Row actions — same pattern as the Transactions log:
+                            dimmed until the row is hovered/focused, but always
+                            visible for touch screens. */}
+                        <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <button
+                                  type="button"
+                                  onClick={() => setPendingDelete(s)}
+                                  aria-label={t("actions.delete")}
+                                  className={cn(
+                                    iconButton,
+                                    "text-muted-foreground hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20",
+                                  )}
+                                />
+                              }
+                            >
+                              <Trash2 />
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{t("actions.delete")}</TooltipContent>
+                          </Tooltip>
+                          {s.conversation_id ? (
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Link
+                                    href={`/inbox?c=${s.conversation_id}`}
+                                    aria-label={t("actions.openChat")}
+                                    className={cn(iconButton, "text-muted-foreground hover:text-primary")}
+                                  />
+                                }
+                              >
+                                <Eye />
+                              </TooltipTrigger>
+                              <TooltipContent side="top">{t("actions.openChat")}</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <span
+                                    role="button"
+                                    aria-disabled="true"
+                                    aria-label={t("actions.noChat")}
+                                    className={cn(iconButton, "cursor-not-allowed text-muted-foreground/40")}
+                                  />
+                                }
+                              >
+                                <Eye />
+                              </TooltipTrigger>
+                              <TooltipContent side="top">{t("actions.noChat")}</TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-foreground">
@@ -304,6 +411,30 @@ export default function CheckoutAnalyticsPage() {
           </Table>
         </div>
       )}
+
+      <Dialog open={!!pendingDelete} onOpenChange={(v) => !v && !deleting && setPendingDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("deleteTitle")}</DialogTitle>
+            <DialogDescription>
+              {pendingDelete &&
+                t("deleteDesc", {
+                  contact: contactName(pendingDelete) ?? contactPhone(pendingDelete) ?? t("anonymous"),
+                  date: new Date(pendingDelete.page_view_at).toLocaleString(),
+                })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={deleting} onClick={() => setPendingDelete(null)}>
+              {t("cancel")}
+            </Button>
+            <Button variant="destructive" disabled={deleting} onClick={handleDelete}>
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {t("deleteConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

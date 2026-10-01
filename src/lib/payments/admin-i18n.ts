@@ -332,6 +332,18 @@ export interface PaymentsCheckoutAnalyticsStrings {
   statusFilter: {
     all: string
   }
+  actions: {
+    openChat: string
+    noChat: string
+    delete: string
+  }
+  deleteTitle: string
+  /** `{contact}`, `{date}` */
+  deleteDesc: string
+  deleteConfirm: string
+  cancel: string
+  deleteSuccess: string
+  deleteFailed: string
   loadFailed: string
 }
 
@@ -666,6 +678,17 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       statusFilter: {
         all: 'All statuses',
       },
+      actions: {
+        openChat: 'Open chat in Inbox',
+        noChat: 'No conversation with this contact',
+        delete: 'Delete session',
+      },
+      deleteTitle: 'Delete this checkout session?',
+      deleteDesc: 'The visit from {contact} ({date}) will be permanently removed from Checkout Analytics. The contact, their conversation and any payment are kept.',
+      deleteConfirm: 'Delete',
+      cancel: 'Cancel',
+      deleteSuccess: 'Session deleted.',
+      deleteFailed: 'Could not delete the session.',
       loadFailed: 'Could not load checkout analytics.',
     },
   },
@@ -987,6 +1010,17 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       statusFilter: {
         all: 'Todos los estados',
       },
+      actions: {
+        openChat: 'Abrir chat en el Inbox',
+        noChat: 'No hay conversación con este contacto',
+        delete: 'Eliminar sesión',
+      },
+      deleteTitle: '¿Eliminar esta sesión de checkout?',
+      deleteDesc: 'La visita de {contact} ({date}) se eliminará definitivamente de Analíticas de Checkout. El contacto, su conversación y cualquier pago se conservan.',
+      deleteConfirm: 'Eliminar',
+      cancel: 'Cancelar',
+      deleteSuccess: 'Sesión eliminada.',
+      deleteFailed: 'No se pudo eliminar la sesión.',
       loadFailed: 'No se pudieron cargar las analíticas de checkout.',
     },
   },

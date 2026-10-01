@@ -24,7 +24,8 @@ function supabaseAdmin() {
  *
  * Backs the "Analíticas de Checkout" tab — one row per checkout visit,
  * newest activity first, with the form/product name and the resolved
- * contact embedded for display.
+ * contact embedded for display, plus `conversation_id` (the contact's
+ * latest inbox conversation) for the row's "open chat" link.
  *
  * Before reading, 'initiated' sessions idle for longer than
  * `CHECKOUT_ABANDON_AFTER_MS` are persisted as 'abandoned' for this
@@ -64,5 +65,33 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to list checkout sessions' }, { status: 500 })
   }
 
-  return NextResponse.json({ sessions: data ?? [] })
+  const rows = data ?? []
+
+  // Contact id → latest conversation id, so each row can deep-link to
+  // `/inbox?c=<id>` (same approach as the Transactions log). Ordered
+  // newest-first, so the first hit per contact wins.
+  const contactIds = [...new Set(rows.map((r) => r.contact_id).filter((id): id is string => !!id))]
+  const conversationByContact = new Map<string, string>()
+  if (contactIds.length > 0) {
+    const { data: convs, error: convErr } = await ctx.supabase
+      .from('conversations')
+      .select('id, contact_id')
+      .eq('account_id', ctx.accountId)
+      .in('contact_id', contactIds)
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+    if (convErr) {
+      // Non-fatal: the table still renders, just without inbox links.
+      console.error('[payments/checkout-sessions GET] conversation lookup failed:', convErr)
+    }
+    for (const c of convs ?? []) {
+      if (!conversationByContact.has(c.contact_id)) conversationByContact.set(c.contact_id, c.id)
+    }
+  }
+
+  const sessions = rows.map((r) => ({
+    ...r,
+    conversation_id: r.contact_id ? conversationByContact.get(r.contact_id) ?? null : null,
+  }))
+
+  return NextResponse.json({ sessions })
 }
