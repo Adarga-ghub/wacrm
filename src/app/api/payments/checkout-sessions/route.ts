@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
-import { CHECKOUT_ABANDON_AFTER_MS } from '@/lib/payments/checkout-tracking'
+import { CHECKOUT_ABANDON_AFTER_MS, isUuid } from '@/lib/payments/checkout-tracking'
 
 // Service-role client — only for the lazy "mark abandoned" sweep
 // below; `checkout_sessions` has no UPDATE policy for authenticated
@@ -94,4 +94,40 @@ export async function GET() {
   }))
 
   return NextResponse.json({ sessions })
+}
+
+/**
+ * DELETE /api/payments/checkout-sessions
+ *
+ * Bulk delete — body `{ ids: string[] }`. Backs the trash icon on a
+ * grouped row in "Analíticas de Checkout" (every visit of one contact
+ * to one product). Same rules as the single delete in `[id]/route.ts`:
+ * admin+, account-scoped, only analytics rows are removed.
+ */
+export async function DELETE(request: Request) {
+  let ctx
+  try {
+    ctx = await requireRole('admin')
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+
+  const body = (await request.json().catch(() => null)) as { ids?: unknown } | null
+  const ids = Array.isArray(body?.ids) ? body.ids.filter((id) => isUuid(id)) : []
+  if (ids.length === 0 || ids.length > 500) {
+    return NextResponse.json({ error: 'ids must be a list of 1-500 session ids' }, { status: 400 })
+  }
+
+  const { data, error } = await ctx.supabase
+    .from('checkout_sessions')
+    .delete()
+    .in('id', ids)
+    .eq('account_id', ctx.accountId)
+    .select('id')
+  if (error) {
+    console.error('[payments/checkout-sessions DELETE] failed:', error)
+    return NextResponse.json({ error: 'Failed to delete checkout sessions' }, { status: 500 })
+  }
+
+  return NextResponse.json({ deleted: (data ?? []).map((r: { id: string }) => r.id) })
 }

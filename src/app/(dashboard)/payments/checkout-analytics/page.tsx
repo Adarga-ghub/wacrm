@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { isToday, isYesterday, startOfDay, subDays } from "date-fns"
@@ -9,9 +9,11 @@ import {
   Calendar,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Circle,
   Eye,
   Filter,
+  History,
   Loader2,
   Trash2,
   TrendingUp,
@@ -84,12 +86,48 @@ type Row = CheckoutSession & {
   effectiveStatus: CheckoutSessionStatus
 }
 
+/**
+ * Every visit of one contact to one product (same form / checkout
+ * link), newest activity first. The table shows `latest` as the row and
+ * the full `visits` list in the expandable history. Anonymous visits
+ * can't be tied together, so each one is its own group.
+ */
+interface Group {
+  key: string
+  latest: Row
+  visits: Row[]
+}
+
+function groupKey(s: Row): string {
+  const who = s.contact_id ?? (s.telefono ? `tel:${s.telefono}` : `anon:${s.id}`)
+  return `${who}|${s.form_id ?? s.slug_producto}`
+}
+
+/** Groups visits, keeping the API's newest-activity-first order for both groups and visits. */
+function groupSessions(rows: Row[]): Group[] {
+  const byKey = new Map<string, Group>()
+  const sorted = [...rows].sort(
+    (a, b) => new Date(b.last_activity_at).getTime() - new Date(a.last_activity_at).getTime(),
+  )
+  for (const row of sorted) {
+    const key = groupKey(row)
+    const group = byKey.get(key)
+    if (group) group.visits.push(row)
+    else byKey.set(key, { key, latest: row, visits: [row] })
+  }
+  return [...byKey.values()]
+}
+
 function contactName(s: CheckoutSession): string | null {
   return s.contact?.name && s.contact.name !== s.contact.phone ? s.contact.name : null
 }
 
 function contactPhone(s: CheckoutSession): string | null {
   return s.telefono ? `+${s.telefono}` : s.contact?.phone ?? null
+}
+
+function productName(s: CheckoutSession): string {
+  return s.form?.product?.name ?? s.form?.name ?? s.slug_producto
 }
 
 function StepIndicator({ at, notYet }: { at: string | null; notYet: string }) {
@@ -112,6 +150,9 @@ function StepIndicator({ at, notYet }: { at: string | null; notYet: string }) {
   )
 }
 
+/** What the confirm dialog is about to delete: one visit, or a whole group. */
+type PendingDelete = { kind: "visit"; visit: Row } | { kind: "group"; group: Group }
+
 export default function CheckoutAnalyticsPage() {
   const tList = usePaymentsT("list")
   const t = usePaymentsT("checkoutAnalytics")
@@ -120,7 +161,8 @@ export default function CheckoutAnalyticsPage() {
   const [sessions, setSessions] = useState<Row[] | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeFilter>("all")
   const [statusFilter, setStatusFilter] = useState<CheckoutSessionStatus | "all">("all")
-  const [pendingDelete, setPendingDelete] = useState<Row | null>(null)
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   async function load() {
@@ -154,13 +196,17 @@ export default function CheckoutAnalyticsPage() {
     () => (sessions ?? []).filter((r) => inDateRange(r.page_view_at, dateRange)),
     [sessions, dateRange],
   )
-  const visible = useMemo(
-    () => (statusFilter === "all" ? inRange : inRange.filter((r) => r.effectiveStatus === statusFilter)),
-    [inRange, statusFilter],
-  )
+  // The status filter matches each group's LATEST visit — the state the
+  // row itself shows.
+  const visible = useMemo(() => {
+    const groups = groupSessions(inRange)
+    return statusFilter === "all"
+      ? groups
+      : groups.filter((g) => g.latest.effectiveStatus === statusFilter)
+  }, [inRange, statusFilter])
 
-  // Funnel over the date range (not the status filter — filtering to
-  // "Completed" would otherwise read as a 100% conversion).
+  // Funnel counts every visit in the date range (not the status filter —
+  // filtering to "Completed" would otherwise read as a 100% conversion).
   const funnel = useMemo(() => {
     const views = inRange.length
     const initiated = inRange.filter((r) => r.initiate_checkout_at).length
@@ -169,20 +215,38 @@ export default function CheckoutAnalyticsPage() {
     return { views, initiated, completed, rate }
   }, [inRange])
 
+  function toggleExpanded(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   async function handleDelete() {
     if (!pendingDelete) return
+    const ids =
+      pendingDelete.kind === "visit"
+        ? [pendingDelete.visit.id]
+        : pendingDelete.group.visits.map((v) => v.id)
     setDeleting(true)
     try {
-      const res = await fetch(`/api/payments/checkout-sessions/${pendingDelete.id}`, {
-        method: "DELETE",
-      })
+      const res =
+        ids.length === 1
+          ? await fetch(`/api/payments/checkout-sessions/${ids[0]}`, { method: "DELETE" })
+          : await fetch("/api/payments/checkout-sessions", {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ids }),
+            })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         toast.error(data.error || t("deleteFailed"))
         return
       }
-      const deletedId = pendingDelete.id
-      setSessions((prev) => prev?.filter((s) => s.id !== deletedId) ?? prev)
+      const deleted = new Set(ids)
+      setSessions((prev) => prev?.filter((s) => !deleted.has(s.id)) ?? prev)
       setPendingDelete(null)
       toast.success(t("deleteSuccess"))
     } catch {
@@ -201,6 +265,63 @@ export default function CheckoutAnalyticsPage() {
         ? "border-primary/40 bg-primary/10 text-primary"
         : "border-border text-muted-foreground hover:text-foreground",
     )
+
+  const deleteButton = (onClick: () => void) => (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            onClick={onClick}
+            aria-label={t("actions.delete")}
+            className={cn(
+              iconButton,
+              "text-muted-foreground hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20",
+            )}
+          />
+        }
+      >
+        <Trash2 />
+      </TooltipTrigger>
+      <TooltipContent side="top">{t("actions.delete")}</TooltipContent>
+    </Tooltip>
+  )
+
+  const chatButton = (conversationId: string | null) =>
+    conversationId ? (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Link
+              href={`/inbox?c=${conversationId}`}
+              aria-label={t("actions.openChat")}
+              className={cn(iconButton, "text-muted-foreground hover:text-primary")}
+            />
+          }
+        >
+          <Eye />
+        </TooltipTrigger>
+        <TooltipContent side="top">{t("actions.openChat")}</TooltipContent>
+      </Tooltip>
+    ) : (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span
+              role="button"
+              aria-disabled="true"
+              aria-label={t("actions.noChat")}
+              className={cn(iconButton, "cursor-not-allowed text-muted-foreground/40")}
+            />
+          }
+        >
+          <Eye />
+        </TooltipTrigger>
+        <TooltipContent side="top">{t("actions.noChat")}</TooltipContent>
+      </Tooltip>
+    )
+
+  const pendingContact = (s: CheckoutSession) => contactName(s) ?? contactPhone(s) ?? t("anonymous")
 
   return (
     <div className="space-y-6">
@@ -314,97 +435,116 @@ export default function CheckoutAnalyticsPage() {
                 <TableHead className="text-muted-foreground">{t("table.initiated")}</TableHead>
                 <TableHead className="text-muted-foreground">{t("table.status")}</TableHead>
                 <TableHead className="text-muted-foreground">{t("table.lastActivity")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("table.history")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visible.map((s) => {
+              {visible.map((group) => {
+                const s = group.latest
                 const phone = contactPhone(s)
                 const name = contactName(s)
+                const isOpen = expanded.has(group.key)
+                const multiple = group.visits.length > 1
                 return (
-                  <TableRow key={s.id} className="group border-border">
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-foreground">{name ?? phone ?? t("anonymous")}</span>
-                          {name && phone && (
-                            <span className="text-xs tabular-nums text-muted-foreground">{phone}</span>
-                          )}
+                  <Fragment key={group.key}>
+                    <TableRow className={cn("group border-border", isOpen && "bg-muted/30")}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 flex-col">
+                            <span className="truncate text-foreground">{name ?? phone ?? t("anonymous")}</span>
+                            {name && phone && (
+                              <span className="text-xs tabular-nums text-muted-foreground">{phone}</span>
+                            )}
+                          </div>
+                          {/* Row actions — same pattern as the Transactions log:
+                              dimmed until the row is hovered/focused, but always
+                              visible for touch screens. On a grouped row the
+                              trash deletes every visit in the group. */}
+                          <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                            {deleteButton(() =>
+                              setPendingDelete(
+                                multiple ? { kind: "group", group } : { kind: "visit", visit: s },
+                              ),
+                            )}
+                            {chatButton(s.conversation_id)}
+                          </div>
                         </div>
-                        {/* Row actions — same pattern as the Transactions log:
-                            dimmed until the row is hovered/focused, but always
-                            visible for touch screens. */}
-                        <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <button
-                                  type="button"
-                                  onClick={() => setPendingDelete(s)}
-                                  aria-label={t("actions.delete")}
-                                  className={cn(
-                                    iconButton,
-                                    "text-muted-foreground hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20",
-                                  )}
-                                />
-                              }
-                            >
-                              <Trash2 />
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{t("actions.delete")}</TooltipContent>
-                          </Tooltip>
-                          {s.conversation_id ? (
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <Link
-                                    href={`/inbox?c=${s.conversation_id}`}
-                                    aria-label={t("actions.openChat")}
-                                    className={cn(iconButton, "text-muted-foreground hover:text-primary")}
-                                  />
-                                }
-                              >
-                                <Eye />
-                              </TooltipTrigger>
-                              <TooltipContent side="top">{t("actions.openChat")}</TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <span
-                                    role="button"
-                                    aria-disabled="true"
-                                    aria-label={t("actions.noChat")}
-                                    className={cn(iconButton, "cursor-not-allowed text-muted-foreground/40")}
-                                  />
-                                }
-                              >
-                                <Eye />
-                              </TooltipTrigger>
-                              <TooltipContent side="top">{t("actions.noChat")}</TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-foreground">
-                      {s.form?.product?.name ?? s.form?.name ?? s.slug_producto}
-                    </TableCell>
-                    <TableCell>
-                      <StepIndicator at={s.page_view_at} notYet={t("notYet")} />
-                    </TableCell>
-                    <TableCell>
-                      <StepIndicator at={s.initiate_checkout_at} notYet={t("notYet")} />
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={STATUS_BADGE[s.effectiveStatus]}>
-                        {t(`status.${s.effectiveStatus}`)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(s.last_activity_at).toLocaleString()}
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                      <TableCell className="text-foreground">{productName(s)}</TableCell>
+                      <TableCell>
+                        <StepIndicator at={s.page_view_at} notYet={t("notYet")} />
+                      </TableCell>
+                      <TableCell>
+                        <StepIndicator at={s.initiate_checkout_at} notYet={t("notYet")} />
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={STATUS_BADGE[s.effectiveStatus]}>
+                          {t(`status.${s.effectiveStatus}`)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(s.last_activity_at).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        {multiple ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(group.key)}
+                            aria-expanded={isOpen}
+                            className={cn(
+                              "inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs transition-colors hover:bg-muted",
+                              isOpen
+                                ? "border-primary/40 bg-primary/10 text-primary"
+                                : "border-border text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            {isOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                            {isOpen ? t("history.hide") : t("history.visits", { count: group.visits.length })}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{t("history.oneVisit")}</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+
+                    {isOpen &&
+                      group.visits.map((visit, i) => (
+                        <TableRow key={visit.id} className="group/visit border-border bg-muted/20 hover:bg-muted/40">
+                          <TableCell>
+                            <div className="flex items-center gap-2 pl-4">
+                              <History className="size-3.5 shrink-0 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">
+                                {i === 0
+                                  ? t("history.latest")
+                                  : new Date(visit.page_view_at).toLocaleDateString(undefined, {
+                                      day: "numeric",
+                                      month: "short",
+                                    })}
+                              </span>
+                              <div className="flex items-center opacity-60 transition-opacity group-hover/visit:opacity-100 focus-within:opacity-100">
+                                {deleteButton(() => setPendingDelete({ kind: "visit", visit }))}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{productName(visit)}</TableCell>
+                          <TableCell>
+                            <StepIndicator at={visit.page_view_at} notYet={t("notYet")} />
+                          </TableCell>
+                          <TableCell>
+                            <StepIndicator at={visit.initiate_checkout_at} notYet={t("notYet")} />
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={STATUS_BADGE[visit.effectiveStatus]}>
+                              {t(`status.${visit.effectiveStatus}`)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(visit.last_activity_at).toLocaleString()}
+                          </TableCell>
+                          <TableCell />
+                        </TableRow>
+                      ))}
+                  </Fragment>
                 )
               })}
             </TableBody>
@@ -415,12 +555,20 @@ export default function CheckoutAnalyticsPage() {
       <Dialog open={!!pendingDelete} onOpenChange={(v) => !v && !deleting && setPendingDelete(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("deleteTitle")}</DialogTitle>
+            <DialogTitle>
+              {pendingDelete?.kind === "group" ? t("deleteGroupTitle") : t("deleteTitle")}
+            </DialogTitle>
             <DialogDescription>
-              {pendingDelete &&
+              {pendingDelete?.kind === "group" &&
+                t("deleteGroupDesc", {
+                  count: pendingDelete.group.visits.length,
+                  contact: pendingContact(pendingDelete.group.latest),
+                  product: productName(pendingDelete.group.latest),
+                })}
+              {pendingDelete?.kind === "visit" &&
                 t("deleteDesc", {
-                  contact: contactName(pendingDelete) ?? contactPhone(pendingDelete) ?? t("anonymous"),
-                  date: new Date(pendingDelete.page_view_at).toLocaleString(),
+                  contact: pendingContact(pendingDelete.visit),
+                  date: new Date(pendingDelete.visit.page_view_at).toLocaleString(),
                 })}
             </DialogDescription>
           </DialogHeader>

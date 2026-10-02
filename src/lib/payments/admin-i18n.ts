@@ -309,7 +309,7 @@ export interface PaymentsCheckoutAnalyticsStrings {
   empty: string
   emptyFiltered: string
   clearFilter: string
-  /** `{count}` = rows shown after the filters. */
+  /** `{count}` = grouped rows shown after the filters. */
   count: string
   anonymous: string
   funnel: {
@@ -326,7 +326,20 @@ export interface PaymentsCheckoutAnalyticsStrings {
     initiated: string
     status: string
     lastActivity: string
+    history: string
   }
+  history: {
+    /** `{count}` = visits in the group. */
+    visits: string
+    oneVisit: string
+    hide: string
+    /** Label for the latest visit inside the expanded history. */
+    latest: string
+  }
+  /** Grouped-row delete — every visit of one contact to one product. */
+  deleteGroupTitle: string
+  /** `{count}`, `{contact}`, `{product}` */
+  deleteGroupDesc: string
   notYet: string
   status: Record<'viewed' | 'initiated' | 'abandoned' | 'completed', string>
   statusFilter: {
@@ -652,7 +665,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       empty: 'No checkout visits yet. They appear here as soon as someone opens a payment link.',
       emptyFiltered: 'No checkout visits match these filters.',
       clearFilter: 'Clear filters',
-      count: '{count} sessions',
+      count: '{count} entries',
       anonymous: 'Anonymous visitor',
       funnel: {
         views: 'Page views',
@@ -667,7 +680,16 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         initiated: 'Checkout started',
         status: 'Final status',
         lastActivity: 'Date / Last activity',
+        history: 'History',
       },
+      history: {
+        visits: '{count} visits',
+        oneVisit: '1 visit',
+        hide: 'Hide',
+        latest: 'Latest',
+      },
+      deleteGroupTitle: 'Delete all these visits?',
+      deleteGroupDesc: 'The {count} visits from {contact} to {product} will be permanently removed from Checkout Analytics. The contact, their conversation and any payment are kept.',
       notYet: 'Not yet',
       status: {
         viewed: 'Viewed only',
@@ -984,7 +1006,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       empty: 'Aún no hay visitas al checkout. Aparecerán aquí en cuanto alguien abra un enlace de pago.',
       emptyFiltered: 'Ninguna visita coincide con estos filtros.',
       clearFilter: 'Quitar filtros',
-      count: '{count} sesiones',
+      count: '{count} registros',
       anonymous: 'Visitante anónimo',
       funnel: {
         views: 'Vistas de página',
@@ -999,7 +1021,16 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         initiated: 'Pago iniciado',
         status: 'Estado final',
         lastActivity: 'Fecha / Última actividad',
+        history: 'Historial',
       },
+      history: {
+        visits: '{count} visitas',
+        oneVisit: '1 visita',
+        hide: 'Ocultar',
+        latest: 'Última',
+      },
+      deleteGroupTitle: '¿Eliminar todas estas visitas?',
+      deleteGroupDesc: 'Las {count} visitas de {contact} a {product} se eliminarán definitivamente de Analíticas de Checkout. El contacto, su conversación y cualquier pago se conservan.',
       notYet: 'Aún no',
       status: {
         viewed: 'Solo visto',
