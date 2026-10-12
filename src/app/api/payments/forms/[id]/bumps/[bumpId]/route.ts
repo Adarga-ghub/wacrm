@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { parseBumpPrice } from '@/lib/payments/order-bumps'
 
 interface PutBody {
   title?: string | null
   description?: string | null
   active?: boolean
   position?: number
+  price?: number | string | null
+  compare_at_price?: number | string | null
 }
 
 /** PUT /api/payments/forms/[id]/bumps/[bumpId] — edit an order bump's copy, toggle it, or reorder it. */
@@ -28,6 +31,13 @@ export async function PUT(
   if (body.description !== undefined) update.description = body.description?.trim() || null
   if (body.active !== undefined) update.active = Boolean(body.active)
   if (body.position !== undefined && Number.isInteger(body.position)) update.position = body.position
+  const price = parseBumpPrice(body.price)
+  const compareAtPrice = parseBumpPrice(body.compare_at_price)
+  if (price === 'invalid' || compareAtPrice === 'invalid') {
+    return NextResponse.json({ error: 'Prices must be numbers greater than 0' }, { status: 400 })
+  }
+  if (price !== undefined) update.price = price
+  if (compareAtPrice !== undefined) update.compare_at_price = compareAtPrice
 
   const { data, error } = await ctx.supabase
     .from('payment_order_bumps')

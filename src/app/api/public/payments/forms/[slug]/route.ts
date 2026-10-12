@@ -106,6 +106,7 @@ export async function GET(
       title: b.title,
       description: b.description,
       price: b.price,
+      compare_at_price: b.compareAtPrice,
       image_url: b.imageUrl,
     })),
   }

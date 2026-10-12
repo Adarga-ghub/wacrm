@@ -42,6 +42,10 @@ export function OrderBumpsDialog({
   const [offerId, setOfferId] = useState("")
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
+  // Both optional, kept as typed strings — `price` empty = the bump
+  // offer's own price; `compareAt` empty = no struck-through price.
+  const [price, setPrice] = useState("")
+  const [compareAt, setCompareAt] = useState("")
   const [saving, setSaving] = useState(false)
 
   const formId = mainOffer?.id
@@ -81,6 +85,8 @@ export function OrderBumpsDialog({
     setOfferId("")
     setTitle("")
     setDescription("")
+    setPrice("")
+    setCompareAt("")
   }
 
   const productName = (offer: PaymentForm) =>
@@ -106,19 +112,37 @@ export function OrderBumpsDialog({
       )
     : []
 
+  // The price that will actually be charged: the bump's own, else the
+  // selected offer's — the struck-through price must be above it, or
+  // the "offer" would read as a price increase.
+  const selectedOffer = offers.find((o) => o.id === offerId)
+  const effectivePrice = Number(price) > 0 ? Number(price) : Number(selectedOffer?.amount ?? 0)
+
   async function handleSubmit() {
     if (!formId) return
+    if (price.trim() && !(Number(price) > 0)) {
+      toast.error(t("bumps.priceInvalid"))
+      return
+    }
+    if (compareAt.trim() && !(Number(compareAt) > effectivePrice)) {
+      toast.error(t("bumps.compareAtTooLow"))
+      return
+    }
+    const prices = {
+      price: price.trim() ? Number(price) : null,
+      compare_at_price: compareAt.trim() ? Number(compareAt) : null,
+    }
     setSaving(true)
     const res = editingId
       ? await fetch(`/api/payments/forms/${formId}/bumps/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, description }),
+          body: JSON.stringify({ title, description, ...prices }),
         })
       : await fetch(`/api/payments/forms/${formId}/bumps`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bump_form_id: offerId, title, description }),
+          body: JSON.stringify({ bump_form_id: offerId, title, description, ...prices }),
         })
     const data = await res.json().catch(() => ({}))
     setSaving(false)
@@ -161,6 +185,8 @@ export function OrderBumpsDialog({
     setOfferId(bump.bump_form_id)
     setTitle(bump.title ?? "")
     setDescription(bump.description ?? "")
+    setPrice(bump.price != null ? String(bump.price) : "")
+    setCompareAt(bump.compare_at_price != null ? String(bump.compare_at_price) : "")
   }
 
   return (
@@ -200,6 +226,18 @@ export function OrderBumpsDialog({
                       <p className="truncate text-xs text-muted-foreground">
                         {offer ? offerLabel(offer) : t("bumps.offerUnavailable")}
                       </p>
+                      {offer && (
+                        <p className="text-xs text-foreground">
+                          {bump.compare_at_price != null && (
+                            <span className="mr-1.5 text-muted-foreground line-through">
+                              {formatPaymentAmount(bump.compare_at_price, offer.currency)}
+                            </span>
+                          )}
+                          <span className="font-semibold">
+                            {formatPaymentAmount(bump.price ?? offer.amount ?? 0, offer.currency)}
+                          </span>
+                        </p>
+                      )}
                     </div>
                     <Switch
                       checked={bump.active}
@@ -267,6 +305,35 @@ export function OrderBumpsDialog({
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t("bumps.titlePlaceholder")}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label className="text-muted-foreground">{t("bumps.compareAtLabel")}</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={compareAt}
+                onChange={(e) => setCompareAt(e.target.value)}
+                placeholder="16.99"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-muted-foreground">{t("bumps.priceLabel")}</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder={selectedOffer?.amount != null ? String(selectedOffer.amount) : ""}
+              />
+            </div>
+            <p className="col-span-2 text-xs text-muted-foreground">
+              {t("bumps.priceHint", {
+                price: selectedOffer ? formatPaymentAmount(selectedOffer.amount ?? 0, selectedOffer.currency) : "—",
+              })}
+            </p>
           </div>
           <div className="grid gap-2">
             <Label className="text-muted-foreground">{t("bumps.descriptionLabel")}</Label>

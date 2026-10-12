@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { parseBumpPrice } from '@/lib/payments/order-bumps'
 
 /**
  * GET /api/payments/forms/[id]/bumps
@@ -39,6 +40,10 @@ interface PostBody {
   bump_form_id?: string
   title?: string | null
   description?: string | null
+  /** Bump-specific price (migration 062) — omitted/null = the bump offer's own amount. */
+  price?: number | string | null
+  /** Struck-through "before" price, display only. */
+  compare_at_price?: number | string | null
 }
 
 /**
@@ -67,6 +72,11 @@ export async function POST(
   }
   if (body.bump_form_id === id) {
     return NextResponse.json({ error: 'An offer cannot be an order bump of itself' }, { status: 400 })
+  }
+  const price = parseBumpPrice(body.price)
+  const compareAtPrice = parseBumpPrice(body.compare_at_price)
+  if (price === 'invalid' || compareAtPrice === 'invalid') {
+    return NextResponse.json({ error: 'Prices must be numbers greater than 0' }, { status: 400 })
   }
 
   const { data: offers } = await ctx.supabase
@@ -102,6 +112,8 @@ export async function POST(
       bump_form_id: body.bump_form_id,
       title: body.title?.trim() || null,
       description: body.description?.trim() || null,
+      price: price ?? null,
+      compare_at_price: compareAtPrice ?? null,
       position: count ?? 0,
     })
     .select()

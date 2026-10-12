@@ -8,6 +8,8 @@ export interface ResolvedOrderBump {
   title: string
   description: string | null
   price: number
+  /** Struck-through "before" price for display — null unless higher than `price`. */
+  compareAtPrice: number | null
   imageUrl: string | null
   /** Line name for the PayPal order, receipts and `payment_transactions.line_items`. */
   itemName: string
@@ -33,7 +35,7 @@ interface MainForm {
 export async function loadOrderBumps(db: AnySupabase, form: MainForm): Promise<ResolvedOrderBump[]> {
   const { data: bumps, error } = await db
     .from('payment_order_bumps')
-    .select('id, bump_form_id, title, description')
+    .select('id, bump_form_id, title, description, price, compare_at_price')
     .eq('form_id', form.id)
     .eq('active', true)
     .order('position', { ascending: true })
@@ -86,18 +88,36 @@ export async function loadOrderBumps(db: AnySupabase, form: MainForm): Promise<R
 
     const product = offer.product_id ? productById.get(offer.product_id) : undefined
     const itemName = product?.name ?? offer.name
+    // A bump-specific price (migration 062) wins over the offer's own.
+    const price = bump.price != null && Number(bump.price) > 0 ? Number(bump.price) : Number(offer.amount)
+    const compareAt = bump.compare_at_price != null ? Number(bump.compare_at_price) : null
     resolved.push({
       id: bump.id,
       bumpFormId: bump.bump_form_id,
       title: bump.title?.trim() || itemName,
       description: bump.description?.trim() || null,
-      price: Number(offer.amount),
+      price,
+      compareAtPrice: compareAt != null && compareAt > price ? compareAt : null,
       imageUrl: product?.image_url ?? null,
       itemName,
       automationId: offer.automation_id,
     })
   }
   return resolved
+}
+
+/**
+ * Parses an optional bump price from an admin request body:
+ * `undefined` = field not sent (leave as is), `null` = cleared,
+ * a number = set. Anything else (non-numeric, zero, negative) is
+ * `'invalid'` so the route can reject it with a 400.
+ */
+export function parseBumpPrice(value: unknown): number | null | undefined | 'invalid' {
+  if (value === undefined) return undefined
+  if (value === null || value === '') return null
+  const n = Number(value)
+  if (!Number.isFinite(n) || n <= 0) return 'invalid'
+  return Math.round(n * 100) / 100
 }
 
 /** Money math in integer cents — summing `5.99 + 2.99` as floats drifts, and PayPal rejects an order whose item total doesn't match the amount exactly. */

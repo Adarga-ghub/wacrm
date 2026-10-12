@@ -271,6 +271,12 @@ export interface PaymentsProductsStrings {
     titlePlaceholder: string
     descriptionLabel: string
     descriptionPlaceholder: string
+    compareAtLabel: string
+    priceLabel: string
+    /** `{price}` = the bump offer's own price, used when "Precio actual" is left empty. */
+    priceHint: string
+    priceInvalid: string
+    compareAtTooLow: string
     add: string
     save: string
     edit: string
@@ -651,6 +657,11 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         titlePlaceholder: 'e.g. Yes! Add the printable workbook',
         descriptionLabel: 'Short description (optional)',
         descriptionPlaceholder: 'e.g. 30 extra activities to put the book into practice.',
+        compareAtLabel: 'Previous price (struck through)',
+        priceLabel: 'Current price',
+        priceHint: 'Shown on checkout as a deal: previous price struck through next to the current one. Leave "Current price" empty to charge the offer price ({price}).',
+        priceInvalid: 'The current price must be greater than 0.',
+        compareAtTooLow: 'The previous price must be higher than the current price.',
         add: 'Add order bump',
         save: 'Save changes',
         edit: 'Edit',
@@ -1018,6 +1029,11 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         titlePlaceholder: 'ej. ¡Sí! Agrega el cuaderno de actividades imprimible',
         descriptionLabel: 'Descripción breve (opcional)',
         descriptionPlaceholder: 'ej. 30 actividades extra para poner en práctica el libro.',
+        compareAtLabel: 'Precio anterior (tachado)',
+        priceLabel: 'Precio actual',
+        priceHint: 'En el checkout se ve como oferta: el precio anterior tachado junto al actual. Deja "Precio actual" vacío para cobrar el precio de la oferta ({price}).',
+        priceInvalid: 'El precio actual debe ser mayor que 0.',
+        compareAtTooLow: 'El precio anterior debe ser mayor que el precio actual.',
         add: 'Añadir order bump',
         save: 'Guardar cambios',
         edit: 'Editar',

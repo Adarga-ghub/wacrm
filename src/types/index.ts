@@ -1033,6 +1033,10 @@ export interface PaymentOrderBump {
   /** Bump box headline — falls back to the bump offer's product/offer name when null. */
   title: string | null;
   description: string | null;
+  /** Price charged for this bump on this checkout (migration 062) — null = the bump offer's own amount. */
+  price: number | null;
+  /** "Before" price shown struck through next to the bump price — display only, never charged. */
+  compare_at_price: number | null;
   position: number;
   active: boolean;
   created_at: string;
@@ -1045,6 +1049,8 @@ export interface PublicOrderBump {
   title: string;
   description: string | null;
   price: number;
+  /** Struck-through "before" price — only set when higher than `price`. */
+  compare_at_price: number | null;
   image_url: string | null;
 }
 

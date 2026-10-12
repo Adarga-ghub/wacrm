@@ -993,16 +993,29 @@ function PublicPaymentFormPageInner() {
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
-                        {t.bumpCallToAction}
-                      </p>
+                      {/* Price sits on the call-to-action row — not on a
+                          line of its own — so it doesn't make the box
+                          taller; the struck-through "before" price
+                          (migration 062) frames it as a deal. */}
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                          {t.bumpCallToAction}
+                        </p>
+                        <p className="shrink-0 whitespace-nowrap">
+                          {bump.compare_at_price != null && (
+                            <span className="mr-1.5 text-xs text-muted-foreground/70 line-through">
+                              {formatPaymentAmount(bump.compare_at_price, form.currency)}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-foreground">
+                            {formatPaymentAmount(bump.price, form.currency)}
+                          </span>
+                        </p>
+                      </div>
                       <p className="mt-0.5 text-sm font-semibold text-foreground">{bump.title}</p>
                       {bump.description && (
                         <p className="mt-0.5 text-xs text-muted-foreground">{bump.description}</p>
                       )}
-                      <p className="mt-1 text-sm font-bold text-foreground">
-                        + {formatPaymentAmount(bump.price, form.currency)}
-                      </p>
                     </div>
                   </div>
                 </label>
