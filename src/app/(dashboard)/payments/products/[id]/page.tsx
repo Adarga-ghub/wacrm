@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Copy, ExternalLink, Layers, Loader2, MoreVertical, Pencil, Plus, Settings2 } from "lucide-react"
+import { ArrowLeft, Copy, ExternalLink, Layers, Loader2, MoreVertical, Pencil, Plus, Settings2, TrendingUp } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { usePaymentsT } from "@/hooks/use-payments-locale"
@@ -44,6 +44,7 @@ import {
 import { PaymentsLanguageToggle } from "@/components/payments/payments-language-toggle"
 import { PaymentCurrencySelect } from "@/components/payments/payment-currency-select"
 import { OrderBumpsDialog } from "@/components/payments/order-bumps-dialog"
+import { FunnelDialog } from "@/components/payments/funnel-dialog"
 
 const STATUS_BADGE: Record<PaymentProduct["status"], string> = {
   draft: "border-slate-500/30 bg-slate-500/10 text-muted-foreground",
@@ -82,6 +83,8 @@ export default function ProductDetailPage() {
   const [editPriceCheckoutDescription, setEditPriceCheckoutDescription] = useState("")
   // The offer whose "Order bumps" dialog is open (migration 061).
   const [bumpsOffer, setBumpsOffer] = useState<PaymentForm | null>(null)
+  // The offer whose "Upsell y Downsell" dialog is open (migration 063).
+  const [funnelOffer, setFunnelOffer] = useState<PaymentForm | null>(null)
   const [savingPrice, setSavingPrice] = useState(false)
 
   async function load() {
@@ -423,6 +426,10 @@ export default function ProductDetailPage() {
                                 <Layers className="h-4 w-4" />
                                 {t("detail.actions.bumps")}
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setFunnelOffer(price)}>
+                                <TrendingUp className="h-4 w-4" />
+                                {t("detail.actions.funnel")}
+                              </DropdownMenuItem>
                               {price.status === "published" && (
                                 <>
                                   <DropdownMenuItem onClick={() => copyPriceLink(price.slug)}>
@@ -583,6 +590,7 @@ export default function ProductDetailPage() {
       </Dialog>
 
       <OrderBumpsDialog mainOffer={bumpsOffer} onOpenChange={(v) => !v && setBumpsOffer(null)} />
+      <FunnelDialog mainOffer={funnelOffer} onOpenChange={(v) => !v && setFunnelOffer(null)} />
     </div>
   )
 }

@@ -254,7 +254,68 @@ export interface PaymentsProductsStrings {
       viewLink: string
       menu: string
       bumps: string
+      funnel: string
     }
+  }
+  /** Upsell / Downsell manager dialog — `src/components/payments/funnel-dialog.tsx` (migration 063). */
+  funnel: {
+    title: string
+    hint: string
+    flowCheckout: string
+    flowUpsell: string
+    flowDownsell: string
+    flowThankYou: string
+    flowNo: string
+    flowYes: string
+    tabUpsell: string
+    tabDownsell: string
+    upsellHint: string
+    downsellHint: string
+    notConfigured: string
+    active: string
+    activeHint: string
+    offersLabel: string
+    offersHint: string
+    noCandidates: string
+    compareAtLabel: string
+    compareAtPlaceholder: string
+    priceLabel: string
+    pricePlaceholder: string
+    /** `{price}` = sum of the selected offers' own prices. */
+    priceHint: string
+    priceInvalid: string
+    compareAtTooLow: string
+    pageSection: string
+    bannerLabel: string
+    bannerPlaceholder: string
+    headlineLabel: string
+    headlinePlaceholder: string
+    subheadlineLabel: string
+    subheadlinePlaceholder: string
+    imageLabel: string
+    imageHint: string
+    bulletsLabel: string
+    bulletsPlaceholder: string
+    bodyLabel: string
+    bodyPlaceholder: string
+    acceptLabel: string
+    acceptPlaceholder: string
+    declineLabel: string
+    declinePlaceholder: string
+    timerLabel: string
+    timerHint: string
+    guaranteeLabel: string
+    guaranteePlaceholder: string
+    preview: string
+    previewSaveFirst: string
+    save: string
+    remove: string
+    saved: string
+    removed: string
+    chooseOffer: string
+    loadFailed: string
+    saveFailed: string
+    removeFailed: string
   }
   /** Order Bumps manager dialog — `src/components/payments/order-bumps-dialog.tsx`. */
   bumps: {
@@ -644,7 +705,66 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
           viewLink: 'View / copy this offer link',
           menu: 'Actions',
           bumps: 'Order bumps',
+          funnel: 'Upsell & Downsell',
         },
+      },
+      funnel: {
+        title: 'Upsell & Downsell',
+        hint: 'After paying for this offer, the buyer sees an upsell page instead of the thank-you page. If they say "No", they see the downsell; then the thank-you page.',
+        flowCheckout: 'Checkout',
+        flowUpsell: 'Upsell',
+        flowDownsell: 'Downsell',
+        flowThankYou: 'Thank-you page',
+        flowNo: 'No',
+        flowYes: 'Yes',
+        tabUpsell: 'Upsell',
+        tabDownsell: 'Downsell',
+        upsellHint: 'A more complete or complementary product, shown right after the payment.',
+        downsellHint: 'Shown only if the upsell is declined: a cheaper version, a discount, or more value for the same price.',
+        notConfigured: 'Not configured',
+        active: 'Active',
+        activeHint: 'When off, the buyer skips this page.',
+        offersLabel: 'Offers sold on this page',
+        offersHint: 'Choose one, or several to sell them as a bundle. Each one is delivered with its own automation.',
+        noCandidates: 'No eligible offers: they need a fixed price in the same currency as this offer.',
+        compareAtLabel: 'Previous price (struck through)',
+        compareAtPlaceholder: 'Optional — e.g. 19.99',
+        priceLabel: 'Offer price',
+        pricePlaceholder: 'Empty = sum of the offers',
+        priceHint: 'Leave "Offer price" empty to charge the sum of the selected offers ({price}).',
+        priceInvalid: 'The offer price must be greater than 0.',
+        compareAtTooLow: 'The previous price must be higher than the offer price.',
+        pageSection: 'Sales page',
+        bannerLabel: 'Top alert bar',
+        bannerPlaceholder: 'Wait! Your order is not complete yet…',
+        headlineLabel: 'Headline',
+        headlinePlaceholder: 'e.g. Add the companion book at an exclusive price',
+        subheadlineLabel: 'Subheadline',
+        subheadlinePlaceholder: 'One sentence about the main benefit.',
+        imageLabel: 'Page image (optional)',
+        imageHint: 'Empty = the product cover(s).',
+        bulletsLabel: 'Benefits (one per line)',
+        bulletsPlaceholder: 'Benefit 1\nBenefit 2\nBenefit 3',
+        bodyLabel: 'Extra paragraph (optional)',
+        bodyPlaceholder: 'Why this offer only appears now…',
+        acceptLabel: '"Yes" button text',
+        acceptPlaceholder: 'Yes, add this to my order',
+        declineLabel: '"No" link text',
+        declinePlaceholder: "No thanks, I'll pass on this offer.",
+        timerLabel: 'Countdown (minutes)',
+        timerHint: '0 = no timer.',
+        guaranteeLabel: 'Guarantee line (optional)',
+        guaranteePlaceholder: 'e.g. 7-day satisfaction guarantee.',
+        preview: 'Preview',
+        previewSaveFirst: 'Save it first to preview it.',
+        save: 'Save',
+        remove: 'Delete',
+        saved: 'Saved.',
+        removed: 'Deleted.',
+        chooseOffer: 'Choose at least one offer.',
+        loadFailed: 'Could not load the upsell/downsell.',
+        saveFailed: 'Could not save.',
+        removeFailed: 'Could not delete.',
       },
       bumps: {
         title: 'Order bumps',
@@ -1018,7 +1138,66 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
           viewLink: 'Ver/copiar link de esta oferta',
           menu: 'Acciones',
           bumps: 'Order bumps',
+          funnel: 'Upsell y Downsell',
         },
+      },
+      funnel: {
+        title: 'Upsell y Downsell',
+        hint: 'Después de pagar esta oferta, el comprador ve una página de upsell en lugar de la página de gracias. Si dice "No", ve el downsell; luego la página de gracias.',
+        flowCheckout: 'Checkout',
+        flowUpsell: 'Upsell',
+        flowDownsell: 'Downsell',
+        flowThankYou: 'Página de gracias',
+        flowNo: 'No',
+        flowYes: 'Sí',
+        tabUpsell: 'Upsell',
+        tabDownsell: 'Downsell',
+        upsellHint: 'Un producto más completo o complementario, mostrado justo después del pago.',
+        downsellHint: 'Solo aparece si rechazan el upsell: una versión más económica, un descuento, o más valor por el mismo precio.',
+        notConfigured: 'Sin configurar',
+        active: 'Activo',
+        activeHint: 'Si está apagado, el comprador se salta esta página.',
+        offersLabel: 'Ofertas que se venden en esta página',
+        offersHint: 'Elige una, o varias para venderlas como paquete. Cada una se entrega con su propia automatización.',
+        noCandidates: 'No hay ofertas elegibles: deben tener precio fijo en la misma moneda que esta oferta.',
+        compareAtLabel: 'Precio anterior (tachado)',
+        compareAtPlaceholder: 'Opcional — ej. 19.99',
+        priceLabel: 'Precio de la oferta',
+        pricePlaceholder: 'Vacío = suma de las ofertas',
+        priceHint: 'Deja "Precio de la oferta" vacío para cobrar la suma de las ofertas elegidas ({price}).',
+        priceInvalid: 'El precio de la oferta debe ser mayor que 0.',
+        compareAtTooLow: 'El precio anterior debe ser mayor que el precio de la oferta.',
+        pageSection: 'Página de venta',
+        bannerLabel: 'Barra de alerta superior',
+        bannerPlaceholder: '¡Espera! Tu pedido aún no está completo…',
+        headlineLabel: 'Titular',
+        headlinePlaceholder: 'ej. Agrega el libro complementario con un precio exclusivo',
+        subheadlineLabel: 'Subtítulo',
+        subheadlinePlaceholder: 'Una frase sobre el beneficio principal.',
+        imageLabel: 'Imagen de la página (opcional)',
+        imageHint: 'Vacío = la(s) portada(s) del producto.',
+        bulletsLabel: 'Beneficios (uno por línea)',
+        bulletsPlaceholder: 'Beneficio 1\nBeneficio 2\nBeneficio 3',
+        bodyLabel: 'Párrafo adicional (opcional)',
+        bodyPlaceholder: 'Por qué esta oferta solo aparece ahora…',
+        acceptLabel: 'Texto del botón "Sí"',
+        acceptPlaceholder: 'Sí, quiero agregarlo a mi pedido',
+        declineLabel: 'Texto del enlace "No"',
+        declinePlaceholder: 'No, gracias. Prefiero dejar pasar esta oferta.',
+        timerLabel: 'Cuenta regresiva (minutos)',
+        timerHint: '0 = sin temporizador.',
+        guaranteeLabel: 'Línea de garantía (opcional)',
+        guaranteePlaceholder: 'ej. Garantía de satisfacción de 7 días.',
+        preview: 'Vista previa',
+        previewSaveFirst: 'Guárdalo primero para verlo.',
+        save: 'Guardar',
+        remove: 'Eliminar',
+        saved: 'Guardado.',
+        removed: 'Eliminado.',
+        chooseOffer: 'Elige al menos una oferta.',
+        loadFailed: 'No se pudo cargar el upsell/downsell.',
+        saveFailed: 'No se pudo guardar.',
+        removeFailed: 'No se pudo eliminar.',
       },
       bumps: {
         title: 'Order bumps',

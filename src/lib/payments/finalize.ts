@@ -93,9 +93,15 @@ export async function finalizePaymentTransaction(
   // in `form_field_values` alongside the real captured fields.
   const mainLabel = fieldValues['_product_name'] || form?.name || 'Payment'
   // Order bumps (migration 061) ride on the same transaction — name
-  // them on the receipt/notification too, not just the main offer.
-  const bumpLines = ((txn.line_items ?? []) as PaymentTransactionLineItem[]).filter((l) => l.kind === 'bump')
-  const itemLabel = [mainLabel, ...bumpLines.map((l) => l.name)].join(' + ')
+  // them on the receipt/notification too, not just the main offer. An
+  // upsell/downsell purchase (migration 063) is its own transaction
+  // whose `form_id` is the step's FIRST offer; any further offers of the
+  // step are extra lines here, delivered exactly like bumps.
+  const lineItems = (txn.line_items ?? []) as PaymentTransactionLineItem[]
+  const extraLines = lineItems.filter((l) => l.kind !== 'main' && l.form_id !== txn.form_id)
+  const itemLabel = txn.funnel_step
+    ? lineItems.map((l) => l.name).join(' + ') || mainLabel
+    : [mainLabel, ...extraLines.map((l) => l.name)].join(' + ')
 
   let contactId: string | null = null
   if (txn.whatsapp_phone && form) {
@@ -142,20 +148,21 @@ export async function finalizePaymentTransaction(
       .eq('id', txn.id)
   }
 
-  // Each ticked order bump delivers through ITS OWN offer's
-  // automation, exactly as if that offer had been bought on its own —
-  // same `send_automation` gate as the main offer above. An automation
-  // shared with the main offer (or another bump) only runs once.
-  if (txn.send_automation && contactId && bumpLines.length > 0) {
+  // Each ticked order bump (and each extra offer of an upsell/downsell
+  // bundle) delivers through ITS OWN offer's automation, exactly as if
+  // that offer had been bought on its own — same `send_automation` gate
+  // as the main offer above. An automation shared with the main offer
+  // (or another line) only runs once.
+  if (txn.send_automation && contactId && extraLines.length > 0) {
     const { data: bumpForms } = await db
       .from('payment_forms')
       .select('id, automation_id')
-      .in('id', bumpLines.map((l) => l.form_id))
+      .in('id', extraLines.map((l) => l.form_id))
     const dispatched = new Set<string>(form?.automation_id ? [form.automation_id] : [])
     for (const bumpForm of bumpForms ?? []) {
       if (!bumpForm.automation_id || dispatched.has(bumpForm.automation_id)) continue
       dispatched.add(bumpForm.automation_id)
-      const line = bumpLines.find((l) => l.form_id === bumpForm.id)
+      const line = extraLines.find((l) => l.form_id === bumpForm.id)
       try {
         await runAutomationsForTrigger({
           accountId: args.accountId,

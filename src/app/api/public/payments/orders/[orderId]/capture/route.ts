@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { resolveGateway } from '@/lib/payments/gateway'
 import { getAccessToken, captureOrder } from '@/lib/payments/paypal-client'
 import { finalizePaymentTransaction } from '@/lib/payments/finalize'
+import { resolvePostPurchaseRedirect } from '@/lib/payments/funnel'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _adminClient: any = null
@@ -50,18 +51,11 @@ export async function POST(
     return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
   }
 
-  const { data: form } = await db
-    .from('payment_forms')
-    .select('redirect_url, inline_success_message, automation_id, created_by, account_id')
-    .eq('id', txn.form_id)
-    .maybeSingle()
-
+  // Where the browser goes next: the upsell/downsell page when this
+  // offer has a post-purchase funnel (migration 063), else the offer's
+  // own thank-you — see `resolvePostPurchaseRedirect`.
   if (txn.status === 'completed') {
-    return NextResponse.json({
-      success: true,
-      redirect_url: form?.redirect_url ?? null,
-      inline_message: form?.inline_success_message ?? null,
-    })
+    return NextResponse.json({ success: true, ...(await resolvePostPurchaseRedirect(db, txn)) })
   }
 
   const gateway = await resolveGateway(db, txn.account_id)
@@ -93,9 +87,5 @@ export async function POST(
     captureId: capture.captureId,
   })
 
-  return NextResponse.json({
-    success: true,
-    redirect_url: form?.redirect_url ?? null,
-    inline_message: form?.inline_success_message ?? null,
-  })
+  return NextResponse.json({ success: true, ...(await resolvePostPurchaseRedirect(db, txn)) })
 }

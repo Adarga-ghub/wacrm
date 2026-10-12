@@ -225,9 +225,16 @@ export default function PaymentTransactionsPage() {
                   </TableCell>
                   <TableCell className="text-foreground">
                     {txn.form?.name ?? "—"}
-                    {/* Order bumps bought in the same payment (migration 061). */}
+                    {/* Bought on the post-purchase upsell/downsell page (migration 063). */}
+                    {txn.funnel_step && (
+                      <span className="ml-2 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-violet-500 uppercase">
+                        {txn.funnel_step}
+                      </span>
+                    )}
+                    {/* Order bumps bought in the same payment (migration 061), and the
+                        further offers of an upsell/downsell bundle. */}
                     {(txn.line_items ?? [])
-                      .filter((line) => line.kind === "bump")
+                      .filter((line) => line.kind !== "main" && line.form_id !== txn.form_id)
                       .map((line, i) => (
                         <p key={i} className="text-xs text-muted-foreground">
                           + {line.name} ({line.amount} {txn.currency})

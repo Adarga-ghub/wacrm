@@ -1054,14 +1054,75 @@ export interface PublicOrderBump {
   image_url: string | null;
 }
 
-/** One purchased line on `payment_transactions.line_items` (migration 061). */
+/** One purchased line on `payment_transactions.line_items` (migration 061). `upsell`/`downsell` lines (migration 063) live on their own transaction, one per offer the accepted step sold. */
 export interface PaymentTransactionLineItem {
-  kind: 'main' | 'bump';
+  kind: 'main' | 'bump' | PaymentFunnelStepKind;
   form_id: string;
   /** Set for `kind: 'bump'` — the `payment_order_bumps` row that was ticked. */
   bump_id?: string;
+  /** Set for `kind: 'upsell' | 'downsell'` — the `payment_funnel_steps` row that was accepted. */
+  step_id?: string;
   name: string;
   amount: number;
+}
+
+export type PaymentFunnelStepKind = 'upsell' | 'downsell';
+
+/** Where a buyer is in the post-purchase funnel — stored on the ORIGINAL purchase (`payment_transactions.funnel_stage`). */
+export type PaymentFunnelStage = PaymentFunnelStepKind | 'done';
+
+/**
+ * Sales copy of an upsell/downsell page (`payment_funnel_steps.page`,
+ * migration 063). Every field is optional — the public page falls back
+ * to sensible defaults (product name as headline, standard button
+ * labels) so a step is usable before any copy is written.
+ */
+export interface FunnelPageContent {
+  /** Red alert bar at the very top — e.g. "¡Espera! Tu pedido aún no está completo". */
+  banner?: string;
+  headline?: string;
+  subheadline?: string;
+  /** Cover shown on the page — empty = the first offer's product image. */
+  image_url?: string;
+  /** Benefit list, one per line in the admin. */
+  bullets?: string[];
+  /** Free paragraph under the bullets. */
+  body?: string;
+  accept_label?: string;
+  decline_label?: string;
+  /** Countdown shown above the price; 0/absent = no timer. */
+  timer_minutes?: number;
+  /** Small guarantee/trust line under the payment buttons. */
+  guarantee?: string;
+}
+
+/** An upsell or downsell step as configured in the admin (migration 063). */
+export interface PaymentFunnelStep {
+  id: string;
+  account_id: string;
+  /** The main offer whose checkout starts this funnel. */
+  form_id: string;
+  kind: PaymentFunnelStepKind;
+  /** Offers sold together by this step (1+). */
+  offer_form_ids: string[];
+  /** Price charged for the whole step — null = sum of the offers' own amounts. */
+  price: number | null;
+  /** Struck-through "before" price, display only. */
+  compare_at_price: number | null;
+  page: FunnelPageContent;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** What the public upsell/downsell page renders — served by `GET /api/public/payments/funnel/[token]` (and the admin preview). Never account/automation ids. */
+export interface PublicFunnelOffer {
+  kind: PaymentFunnelStepKind;
+  page: FunnelPageContent;
+  items: { name: string; image_url: string | null; author: string | null }[];
+  price: number;
+  compare_at_price: number | null;
+  currency: string;
 }
 
 export type PaymentLinkStatus = 'active' | 'revoked';
@@ -1111,6 +1172,9 @@ export interface PaymentTransaction {
   receipt_sent_at: string | null;
   /** What was bought — main offer plus any ticked order bumps (migration 061). Empty for transactions recorded before it. */
   line_items: PaymentTransactionLineItem[];
+  /** Upsell/downsell purchases (migration 063): the original checkout purchase this one was made after. */
+  parent_transaction_id: string | null;
+  funnel_step: PaymentFunnelStepKind | null;
   created_at: string;
   updated_at: string;
   /** Embedded via the API's select. */
