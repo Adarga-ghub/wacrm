@@ -4,7 +4,8 @@ import { resolveGateway } from '@/lib/payments/gateway'
 import { getAccessToken, createOrder } from '@/lib/payments/paypal-client'
 import { normalizePhone } from '@/lib/whatsapp/phone-utils'
 import { isUuid } from '@/lib/payments/checkout-tracking'
-import type { PaymentFormField } from '@/types'
+import { fromCents, loadOrderBumps, toCents, type ResolvedOrderBump } from '@/lib/payments/order-bumps'
+import type { PaymentFormField, PaymentTransactionLineItem } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _adminClient: any = null
@@ -28,6 +29,8 @@ interface OrderBody {
   product_id?: string
   /** `checkout_sessions` row opened by the page on load — linked to the transaction for the checkout funnel. */
   checkout_session_id?: string
+  /** Ticked order bumps (`payment_order_bumps.id`, migration 061) — only ids, never prices: each one is re-validated against this form and priced server-side. */
+  bump_ids?: string[]
 }
 
 /**
@@ -123,6 +126,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'This form type is not supported yet' }, { status: 400 })
   }
 
+  // Order bumps — the buyer's request only says WHICH bumps were
+  // ticked; whether each is still active/eligible and what it costs
+  // comes from `loadOrderBumps`, the same resolver the checkout page
+  // rendered them from. An id that isn't one of this form's eligible
+  // bumps is rejected outright rather than silently dropped, so the
+  // buyer is never charged a different total than the one on screen.
+  const requestedBumpIds = new Set(Array.isArray(body.bump_ids) ? body.bump_ids : [])
+  let selectedBumps: ResolvedOrderBump[] = []
+  if (requestedBumpIds.size > 0) {
+    const eligible = await loadOrderBumps(db, form)
+    selectedBumps = eligible.filter((b) => requestedBumpIds.has(b.id))
+    if (selectedBumps.length !== requestedBumpIds.size) {
+      return NextResponse.json(
+        { error: 'One of the selected add-ons is no longer available — please reload the page' },
+        { status: 400 },
+      )
+    }
+  }
+  const mainAmount = amount
+  const totalCents = toCents(mainAmount) + selectedBumps.reduce((sum, b) => sum + toCents(b.price), 0)
+  amount = totalCents / 100
+
   const gateway = await resolveGateway(db, form.account_id)
   if (!gateway) {
     return NextResponse.json({ error: 'This merchant has not connected PayPal yet' }, { status: 400 })
@@ -157,11 +182,12 @@ export async function POST(request: Request) {
       accessToken,
       environment: gateway.environment,
       currency: form.currency,
-      amount: amount.toFixed(2),
+      amount: fromCents(totalCents),
       referenceId: crypto.randomUUID(),
       description: productName ? `${form.name} — ${productName}` : form.name,
       itemName,
       itemDescription,
+      extraItems: selectedBumps.map((b) => ({ name: b.itemName, amount: fromCents(toCents(b.price)) })),
     })
     orderId = order.id
   } catch (err) {
@@ -170,6 +196,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Could not start the payment — please try again' }, { status: 502 })
   }
 
+  const lineItems: PaymentTransactionLineItem[] = [
+    { kind: 'main', form_id: form.id, name: itemName, amount: mainAmount },
+    ...selectedBumps.map((b) => ({
+      kind: 'bump' as const,
+      form_id: b.bumpFormId,
+      bump_id: b.id,
+      name: b.itemName,
+      amount: b.price,
+    })),
+  ]
+
   const { data: txnRow, error: insertErr } = await db.from('payment_transactions').insert({
     account_id: form.account_id,
     form_id: form.id,
@@ -177,6 +214,7 @@ export async function POST(request: Request) {
     paypal_order_id: orderId,
     status: 'created',
     amount,
+    line_items: lineItems,
     currency: form.currency,
     whatsapp_phone: rawPhone,
     form_field_values: productName

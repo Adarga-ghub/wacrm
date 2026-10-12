@@ -3,6 +3,7 @@ import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { sendEmail } from '@/lib/email/resend-client'
 import { customerReceiptEmailHtml, merchantNotificationEmailHtml } from './emails'
 import { generateReceiptPdf } from './receipt-pdf'
+import type { PaymentTransactionLineItem } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any
@@ -90,7 +91,11 @@ export async function finalizePaymentTransaction(
   // form's own name for anything customer-facing — see the
   // `_product_name` field `POST /api/public/payments/orders` stashes
   // in `form_field_values` alongside the real captured fields.
-  const itemLabel = fieldValues['_product_name'] || form?.name || 'Payment'
+  const mainLabel = fieldValues['_product_name'] || form?.name || 'Payment'
+  // Order bumps (migration 061) ride on the same transaction — name
+  // them on the receipt/notification too, not just the main offer.
+  const bumpLines = ((txn.line_items ?? []) as PaymentTransactionLineItem[]).filter((l) => l.kind === 'bump')
+  const itemLabel = [mainLabel, ...bumpLines.map((l) => l.name)].join(' + ')
 
   let contactId: string | null = null
   if (txn.whatsapp_phone && form) {
@@ -135,6 +140,43 @@ export async function finalizePaymentTransaction(
         automation_id: form.automation_id,
       })
       .eq('id', txn.id)
+  }
+
+  // Each ticked order bump delivers through ITS OWN offer's
+  // automation, exactly as if that offer had been bought on its own —
+  // same `send_automation` gate as the main offer above. An automation
+  // shared with the main offer (or another bump) only runs once.
+  if (txn.send_automation && contactId && bumpLines.length > 0) {
+    const { data: bumpForms } = await db
+      .from('payment_forms')
+      .select('id, automation_id')
+      .in('id', bumpLines.map((l) => l.form_id))
+    const dispatched = new Set<string>(form?.automation_id ? [form.automation_id] : [])
+    for (const bumpForm of bumpForms ?? []) {
+      if (!bumpForm.automation_id || dispatched.has(bumpForm.automation_id)) continue
+      dispatched.add(bumpForm.automation_id)
+      const line = bumpLines.find((l) => l.form_id === bumpForm.id)
+      try {
+        await runAutomationsForTrigger({
+          accountId: args.accountId,
+          triggerType: 'payment_received',
+          contactId,
+          automationId: bumpForm.automation_id,
+          context: {
+            vars: {
+              amount: String(line?.amount ?? txn.amount),
+              currency: txn.currency,
+              order_id: txn.paypal_order_id,
+              payer_name: buyerName,
+              payer_email: buyerEmail ?? '',
+            },
+          },
+        })
+      } catch (err) {
+        // One bump's delivery failing must not block the receipt below.
+        console.error('[payments/finalize] order bump automation failed:', err)
+      }
+    }
   }
 
   if (!txn.receipt_sent_at) {

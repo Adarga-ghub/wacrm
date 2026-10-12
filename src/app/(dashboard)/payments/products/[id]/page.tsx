@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Copy, ExternalLink, Loader2, MoreVertical, Pencil, Plus, Settings2 } from "lucide-react"
+import { ArrowLeft, Copy, ExternalLink, Layers, Loader2, MoreVertical, Pencil, Plus, Settings2 } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { usePaymentsT } from "@/hooks/use-payments-locale"
@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/dialog"
 import { PaymentsLanguageToggle } from "@/components/payments/payments-language-toggle"
 import { PaymentCurrencySelect } from "@/components/payments/payment-currency-select"
+import { OrderBumpsDialog } from "@/components/payments/order-bumps-dialog"
 
 const STATUS_BADGE: Record<PaymentProduct["status"], string> = {
   draft: "border-slate-500/30 bg-slate-500/10 text-muted-foreground",
@@ -79,6 +80,8 @@ export default function ProductDetailPage() {
   const [editPriceAmount, setEditPriceAmount] = useState("")
   const [editPriceCurrency, setEditPriceCurrency] = useState("USD")
   const [editPriceCheckoutDescription, setEditPriceCheckoutDescription] = useState("")
+  // The offer whose "Order bumps" dialog is open (migration 061).
+  const [bumpsOffer, setBumpsOffer] = useState<PaymentForm | null>(null)
   const [savingPrice, setSavingPrice] = useState(false)
 
   async function load() {
@@ -416,6 +419,10 @@ export default function ProductDetailPage() {
                                 <Pencil className="h-4 w-4" />
                                 {t("detail.actions.edit")}
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setBumpsOffer(price)}>
+                                <Layers className="h-4 w-4" />
+                                {t("detail.actions.bumps")}
+                              </DropdownMenuItem>
                               {price.status === "published" && (
                                 <>
                                   <DropdownMenuItem onClick={() => copyPriceLink(price.slug)}>
@@ -574,6 +581,8 @@ export default function ProductDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <OrderBumpsDialog mainOffer={bumpsOffer} onOpenChange={(v) => !v && setBumpsOffer(null)} />
     </div>
   )
 }

@@ -223,7 +223,17 @@ export default function PaymentTransactionsPage() {
                   <TableCell className="text-muted-foreground">
                     {new Date(txn.created_at).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-foreground">{txn.form?.name ?? "—"}</TableCell>
+                  <TableCell className="text-foreground">
+                    {txn.form?.name ?? "—"}
+                    {/* Order bumps bought in the same payment (migration 061). */}
+                    {(txn.line_items ?? [])
+                      .filter((line) => line.kind === "bump")
+                      .map((line, i) => (
+                        <p key={i} className="text-xs text-muted-foreground">
+                          + {line.name} ({line.amount} {txn.currency})
+                        </p>
+                      ))}
+                  </TableCell>
                   <TableCell className="text-foreground">
                     <div className="flex items-center gap-2">
                       <span className="truncate">{contactLabel(txn)}</span>

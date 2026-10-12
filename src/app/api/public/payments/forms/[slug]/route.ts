@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { resolveGateway } from '@/lib/payments/gateway'
+import { loadOrderBumps } from '@/lib/payments/order-bumps'
 import type { PublicPaymentForm } from '@/types'
 
 // Lazy-initialised service-role client — this route has no session
@@ -36,7 +37,7 @@ export async function GET(
   const { data, error } = await supabaseAdmin()
     .from('payment_forms')
     .select(
-      'account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id, product_id, checkout_description',
+      'id, account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id, product_id, checkout_description',
     )
     .eq('slug', slug)
     .eq('status', 'published')
@@ -83,6 +84,10 @@ export async function GET(
     if (productRow) product = productRow
   }
 
+  // Same resolver `POST /api/public/payments/orders` charges from — so
+  // the price shown in each bump box is exactly what gets billed.
+  const bumps = await loadOrderBumps(supabaseAdmin(), data)
+
   const form: PublicPaymentForm = {
     name: data.name,
     status: data.status,
@@ -96,6 +101,13 @@ export async function GET(
     paypal_client_id: gateway?.clientId ?? null,
     product,
     checkout_description: data.checkout_description ?? null,
+    order_bumps: bumps.map((b) => ({
+      id: b.id,
+      title: b.title,
+      description: b.description,
+      price: b.price,
+      image_url: b.imageUrl,
+    })),
   }
   return NextResponse.json({ form })
 }

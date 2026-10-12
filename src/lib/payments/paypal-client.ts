@@ -95,12 +95,18 @@ export interface CreateOrderArgs {
    * The real product/offer name (e.g. the actual book/course title) —
    * sent as `purchase_units[].items[0].name` so it appears in PayPal's
    * notification email and the payer's receipt instead of a generic
-   * concept. Always priced at `amount` with quantity 1: this CRM never
-   * sells more than one line item per order.
+   * concept. Priced at `amount` minus any `extraItems`, quantity 1.
    */
   itemName: string
   /** Commercial description of the item — same 127-char PayPal limit as `description`. */
   itemDescription?: string
+  /**
+   * Additional lines in the SAME order — the ticked order bumps.
+   * `amount` is the order total INCLUDING these; the main item is
+   * priced at the remainder so PayPal's `item_total` always equals the
+   * amount exactly.
+   */
+  extraItems?: { name: string; amount: string }[]
 }
 
 export interface PayPalOrder {
@@ -110,6 +116,9 @@ export interface PayPalOrder {
 
 export async function createOrder(args: CreateOrderArgs): Promise<PayPalOrder> {
   const { accessToken, environment, currency, amount, referenceId, description, itemName, itemDescription } = args
+  const extraItems = args.extraItems ?? []
+  const extraCents = extraItems.reduce((sum, item) => sum + Math.round(Number(item.amount) * 100), 0)
+  const mainItemValue = ((Math.round(Number(amount) * 100) - extraCents) / 100).toFixed(2)
   const response = await fetch(`${PAYPAL_API_BASE[environment]}/v2/checkout/orders`, {
     method: 'POST',
     headers: {
@@ -125,19 +134,25 @@ export async function createOrder(args: CreateOrderArgs): Promise<PayPalOrder> {
           amount: {
             currency_code: currency,
             value: amount,
-            // Required by PayPal whenever `items` is present — with a
-            // single quantity-1 line item, the breakdown's item_total
-            // always equals the purchase unit's own total.
+            // Required by PayPal whenever `items` is present — the main
+            // item is priced at the remainder after `extraItems`, so the
+            // item_total always equals the purchase unit's own total.
             breakdown: { item_total: { currency_code: currency, value: amount } },
           },
           items: [
             {
               name: itemName.slice(0, 127),
               description: itemDescription?.slice(0, 127),
-              unit_amount: { currency_code: currency, value: amount },
+              unit_amount: { currency_code: currency, value: mainItemValue },
               quantity: '1',
               category: 'DIGITAL_GOODS',
             },
+            ...extraItems.map((item) => ({
+              name: item.name.slice(0, 127),
+              unit_amount: { currency_code: currency, value: item.amount },
+              quantity: '1',
+              category: 'DIGITAL_GOODS',
+            })),
           ],
         },
       ],

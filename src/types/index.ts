@@ -1020,6 +1020,42 @@ export interface PublicPaymentForm {
   product: PublicPaymentProduct | null;
   /** "Descripción de la Página de Pago" (migration 057) — unlike `PublicPaymentProduct`, which deliberately excludes `description`, this ONE is meant to reach the public checkout by design. Null = nothing configured for this offer. */
   checkout_description: string | null;
+  /** Active, purchasable order bumps for this offer (migration 061), already resolved to a price — empty when none are configured. */
+  order_bumps: PublicOrderBump[];
+}
+
+/** An Order Bump as configured in the admin (migration 061) — `form_id` is the main offer, `bump_form_id` the offer it adds. */
+export interface PaymentOrderBump {
+  id: string;
+  account_id: string;
+  form_id: string;
+  bump_form_id: string;
+  /** Bump box headline — falls back to the bump offer's product/offer name when null. */
+  title: string | null;
+  description: string | null;
+  position: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Public-safe projection of an order bump, served on `PublicPaymentForm.order_bumps` — price resolved server-side from the bump offer. */
+export interface PublicOrderBump {
+  id: string;
+  title: string;
+  description: string | null;
+  price: number;
+  image_url: string | null;
+}
+
+/** One purchased line on `payment_transactions.line_items` (migration 061). */
+export interface PaymentTransactionLineItem {
+  kind: 'main' | 'bump';
+  form_id: string;
+  /** Set for `kind: 'bump'` — the `payment_order_bumps` row that was ticked. */
+  bump_id?: string;
+  name: string;
+  amount: number;
 }
 
 export type PaymentLinkStatus = 'active' | 'revoked';
@@ -1067,6 +1103,8 @@ export interface PaymentTransaction {
   automation_id: string | null;
   automation_dispatched_at: string | null;
   receipt_sent_at: string | null;
+  /** What was bought — main offer plus any ticked order bumps (migration 061). Empty for transactions recorded before it. */
+  line_items: PaymentTransactionLineItem[];
   created_at: string;
   updated_at: string;
   /** Embedded via the API's select. */

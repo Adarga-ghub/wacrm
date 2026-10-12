@@ -194,6 +194,9 @@ function PublicPaymentFormPageInner() {
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({})
   const [variableAmount, setVariableAmount] = useState("")
   const [selectedProductId, setSelectedProductId] = useState("")
+  // Ticked order bumps (migration 061) — only their ids go to the
+  // order route, which re-prices them server-side.
+  const [selectedBumpIds, setSelectedBumpIds] = useState<string[]>([])
   const [sdkReady, setSdkReady] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<{ inline_message: string | null } | null>(null)
@@ -296,11 +299,13 @@ function PublicPaymentFormPageInner() {
   const fieldValuesRef = useRef(fieldValues)
   const variableAmountRef = useRef(variableAmount)
   const selectedProductIdRef = useRef(selectedProductId)
+  const selectedBumpIdsRef = useRef(selectedBumpIds)
   const cardholderNameRef = useRef(cardholderName)
   useEffect(() => {
     fieldValuesRef.current = fieldValues
     variableAmountRef.current = variableAmount
     selectedProductIdRef.current = selectedProductId
+    selectedBumpIdsRef.current = selectedBumpIds
     cardholderNameRef.current = cardholderName
   })
 
@@ -415,6 +420,7 @@ function PublicPaymentFormPageInner() {
           checkout_session_id: sessionIdRef.current ?? undefined,
           amount: form.amount_type === "variable" ? Number(variableAmountRef.current) : undefined,
           product_id: form.amount_type === "product_list" ? selectedProductIdRef.current : undefined,
+          bump_ids: selectedBumpIdsRef.current.length > 0 ? selectedBumpIdsRef.current : undefined,
         }),
       })
       const data = await res.json()
@@ -663,6 +669,29 @@ function PublicPaymentFormPageInner() {
         ? t.fromAmount(formatPaymentAmount(form.min_amount ?? 0, form.currency))
         : t.chooseProduct
 
+  // Live total = main offer + ticked order bumps, summed in cents (see
+  // `toCents` in src/lib/payments/order-bumps.ts). Display only — the
+  // order route recomputes the real charge from the bump ids. Null
+  // until the main amount is known (variable amount not typed yet, or
+  // no product picked), in which case no total line is shown.
+  const orderBumps = form.order_bumps ?? []
+  const baseAmount =
+    form.amount_type === "fixed"
+      ? form.amount
+      : form.amount_type === "variable"
+        ? Number(variableAmount) > 0
+          ? Number(variableAmount)
+          : null
+        : (form.products ?? []).find((p) => p.id === selectedProductId)?.price ?? null
+  const totalAmount =
+    baseAmount == null
+      ? null
+      : (Math.round(baseAmount * 100) +
+          orderBumps
+            .filter((b) => selectedBumpIds.includes(b.id))
+            .reduce((sum, b) => sum + Math.round(b.price * 100), 0)) /
+        100
+
   return (
     <>
       {/* Base white layer, always rendered first — see the comment on
@@ -901,6 +930,69 @@ function PublicPaymentFormPageInner() {
                 </label>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Order bumps (migration 061) — deliberately AFTER every buyer
+            detail input above and BEFORE the payment buttons below, so
+            the offer is seen right at the moment of paying. */}
+        {orderBumps.length > 0 && (
+          <div className="space-y-3">
+            {orderBumps.map((bump) => {
+              const checked = selectedBumpIds.includes(bump.id)
+              return (
+                <label
+                  key={bump.id}
+                  className={cn(
+                    "block cursor-pointer rounded-lg border-2 border-dashed p-3 transition-colors",
+                    checked
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-amber-400 bg-amber-50/70 hover:bg-amber-50",
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) =>
+                        setSelectedBumpIds((prev) =>
+                          e.target.checked ? [...prev, bump.id] : prev.filter((id) => id !== bump.id),
+                        )
+                      }
+                      className="mt-0.5 size-4 shrink-0 cursor-pointer accent-emerald-600"
+                    />
+                    {bump.image_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={bump.image_url}
+                        alt=""
+                        className="size-12 shrink-0 rounded-md object-cover ring-1 ring-black/10"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                        {t.bumpCallToAction}
+                      </p>
+                      <p className="mt-0.5 text-sm font-semibold text-foreground">{bump.title}</p>
+                      {bump.description && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">{bump.description}</p>
+                      )}
+                      <p className="mt-1 text-sm font-bold text-foreground">
+                        + {formatPaymentAmount(bump.price, form.currency)}
+                      </p>
+                    </div>
+                  </div>
+                </label>
+              )
+            })}
+            {totalAmount != null && (
+              <div className="flex items-baseline justify-between border-t border-border pt-3">
+                <span className="text-sm font-medium text-muted-foreground">{t.totalLabel}</span>
+                <span className="text-lg font-bold text-foreground" aria-live="polite">
+                  {formatPaymentAmount(totalAmount, form.currency)}
+                </span>
+              </div>
+            )}
           </div>
         )}
 

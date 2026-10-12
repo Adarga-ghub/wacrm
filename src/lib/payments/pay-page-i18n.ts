@@ -177,6 +177,10 @@ interface PayPageStrings {
   securedByPrefix: string
   /** Full-screen overlay text shown from the click on the PayPal/card button until PayPal's own UI takes over — see `paymentLoading` in the page. */
   loadingGateway: string
+  /** Order bump box call-to-action above the bump's title (migration 061). */
+  bumpCallToAction: string
+  /** Label of the consolidated total shown under the order bumps. */
+  totalLabel: string
   /** Initial page-load screen (see `PayPageLoading`) — first thing a buyer sees after tapping a link to this checkout. */
   loadingCheckout: string
   /** Post-approval overlay, phase 1: our server is capturing the payment with PayPal — see `postPayment` in the page. */
@@ -218,6 +222,8 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     authorLabel: (author) => `Autor: ${author}`,
     securedByPrefix: 'Protegido por',
     loadingGateway: 'Cargando método de pago...',
+    bumpCallToAction: 'Sí, quiero agregarlo a mi compra',
+    totalLabel: 'Total a pagar',
     loadingCheckout: 'Cargando tu pago seguro...',
     confirmingPayment: 'Confirmando tu pago...',
     paymentSuccessTitle: '¡Pago exitoso!',
@@ -254,6 +260,8 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     authorLabel: (author) => `Author: ${author}`,
     securedByPrefix: 'Powered by',
     loadingGateway: 'Loading payment gateway...',
+    bumpCallToAction: 'Yes, add this to my order',
+    totalLabel: 'Total to pay',
     loadingCheckout: 'Loading your secure checkout...',
     confirmingPayment: 'Confirming your payment...',
     paymentSuccessTitle: 'Payment successful!',

@@ -253,7 +253,34 @@ export interface PaymentsProductsStrings {
       copyLink: string
       viewLink: string
       menu: string
+      bumps: string
     }
+  }
+  /** Order Bumps manager dialog — `src/components/payments/order-bumps-dialog.tsx`. */
+  bumps: {
+    title: string
+    hint: string
+    empty: string
+    addTitle: string
+    editTitle: string
+    offerLabel: string
+    offerPlaceholder: string
+    offerUnavailable: string
+    noCandidates: string
+    titleLabel: string
+    titlePlaceholder: string
+    descriptionLabel: string
+    descriptionPlaceholder: string
+    add: string
+    save: string
+    edit: string
+    remove: string
+    active: string
+    added: string
+    updated: string
+    loadFailed: string
+    saveFailed: string
+    removeFailed: string
   }
 }
 
@@ -607,7 +634,33 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
           copyLink: 'Copy link',
           viewLink: 'View / copy this offer link',
           menu: 'Actions',
+          bumps: 'Order bumps',
         },
+      },
+      bumps: {
+        title: 'Order bumps',
+        hint: 'Extra offers shown as a checkbox on this checkout, between the buyer details and the payment buttons. Ticking one adds its price to the same payment.',
+        empty: 'No order bumps yet.',
+        addTitle: 'Add an order bump',
+        editTitle: 'Edit order bump',
+        offerLabel: 'Offer to add',
+        offerPlaceholder: 'Choose an offer…',
+        offerUnavailable: 'Offer unavailable — it will not be shown',
+        noCandidates: 'No eligible offers: an order bump must have a fixed price in the same currency as this offer.',
+        titleLabel: 'Headline (optional)',
+        titlePlaceholder: 'e.g. Yes! Add the printable workbook',
+        descriptionLabel: 'Short description (optional)',
+        descriptionPlaceholder: 'e.g. 30 extra activities to put the book into practice.',
+        add: 'Add order bump',
+        save: 'Save changes',
+        edit: 'Edit',
+        remove: 'Remove',
+        active: 'Show on checkout',
+        added: 'Order bump added.',
+        updated: 'Order bump updated.',
+        loadFailed: 'Could not load the order bumps.',
+        saveFailed: 'Could not save the order bump.',
+        removeFailed: 'Could not remove the order bump.',
       },
     },
     transactions: {
@@ -948,7 +1001,33 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
           copyLink: 'Copiar enlace',
           viewLink: 'Ver/copiar link de esta oferta',
           menu: 'Acciones',
+          bumps: 'Order bumps',
         },
+      },
+      bumps: {
+        title: 'Order bumps',
+        hint: 'Ofertas adicionales que aparecen como casilla en este checkout, entre los datos del comprador y los botones de pago. Al marcarla, su precio se suma al mismo pago.',
+        empty: 'Aún no hay order bumps.',
+        addTitle: 'Añadir un order bump',
+        editTitle: 'Editar order bump',
+        offerLabel: 'Oferta a añadir',
+        offerPlaceholder: 'Elige una oferta…',
+        offerUnavailable: 'Oferta no disponible — no se mostrará',
+        noCandidates: 'No hay ofertas elegibles: un order bump debe tener precio fijo en la misma moneda que esta oferta.',
+        titleLabel: 'Titular (opcional)',
+        titlePlaceholder: 'ej. ¡Sí! Agrega el cuaderno de actividades imprimible',
+        descriptionLabel: 'Descripción breve (opcional)',
+        descriptionPlaceholder: 'ej. 30 actividades extra para poner en práctica el libro.',
+        add: 'Añadir order bump',
+        save: 'Guardar cambios',
+        edit: 'Editar',
+        remove: 'Quitar',
+        active: 'Mostrar en el checkout',
+        added: 'Order bump añadido.',
+        updated: 'Order bump actualizado.',
+        loadFailed: 'No se pudieron cargar los order bumps.',
+        saveFailed: 'No se pudo guardar el order bump.',
+        removeFailed: 'No se pudo quitar el order bump.',
       },
     },
     transactions: {
