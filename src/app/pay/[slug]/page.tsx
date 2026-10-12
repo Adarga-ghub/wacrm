@@ -12,7 +12,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react"
 import { useParams, useSearchParams } from "next/navigation"
-import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock } from "lucide-react"
+import { AlertTriangle, Check, CheckCircle2, CreditCard, Loader2, Lock } from "lucide-react"
 
 import type { PublicPaymentForm } from "@/types"
 import { formatPaymentAmount } from "@/lib/currency"
@@ -973,17 +973,30 @@ function PublicPaymentFormPageInner() {
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        setSelectedBumpIds((prev) =>
-                          e.target.checked ? [...prev, bump.id] : prev.filter((id) => id !== bump.id),
-                        )
-                        refreshButtonsIfOrderOpen()
-                      }}
-                      className="mt-0.5 size-4 shrink-0 cursor-pointer accent-emerald-600"
-                    />
+                    {/* Drawn by us (`appearance-none` + a Check icon), NOT
+                        the browser's native checkbox: a phone in system
+                        dark mode painted the native one dark/black even
+                        on this light page, so it looked different from
+                        desktop. These fixed colors render the same on
+                        every device and color scheme. */}
+                    <span className="relative mt-0.5 inline-flex size-4 shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          setSelectedBumpIds((prev) =>
+                            e.target.checked ? [...prev, bump.id] : prev.filter((id) => id !== bump.id),
+                          )
+                          refreshButtonsIfOrderOpen()
+                        }}
+                        className="peer size-4 cursor-pointer appearance-none rounded-[3px] border border-black bg-white transition-colors checked:border-emerald-600 checked:bg-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                      />
+                      <Check
+                        aria-hidden
+                        strokeWidth={3.5}
+                        className="pointer-events-none absolute inset-0 m-auto size-3 text-white opacity-0 peer-checked:opacity-100"
+                      />
+                    </span>
                     {bump.image_url && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img

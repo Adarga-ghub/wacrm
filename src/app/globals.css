@@ -233,6 +233,11 @@ html[data-theme="rose"] {
  * tuned independently of the dashboard's own light mode later.
  */
 .pay-page-surface {
+  /* The tokens below make the checkout light, but the browser still
+     draws NATIVE controls (radio buttons, autofill, scrollbars) from
+     the device's own color scheme — a phone in dark mode painted them
+     dark on this white page. Pin them to light as well. */
+  color-scheme: light;
   --background: oklch(0.99 0.002 260);
   --foreground: oklch(0.21 0.01 260);
   --card: oklch(1 0 0);

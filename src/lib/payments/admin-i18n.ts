@@ -272,7 +272,10 @@ export interface PaymentsProductsStrings {
     descriptionLabel: string
     descriptionPlaceholder: string
     compareAtLabel: string
+    /** Must read as an example, never as a saved value — a bare "16.99" placeholder was mistaken for one. */
+    compareAtPlaceholder: string
     priceLabel: string
+    pricePlaceholder: string
     /** `{price}` = the bump offer's own price, used when "Precio actual" is left empty. */
     priceHint: string
     priceInvalid: string
@@ -658,7 +661,9 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         descriptionLabel: 'Short description (optional)',
         descriptionPlaceholder: 'e.g. 30 extra activities to put the book into practice.',
         compareAtLabel: 'Previous price (struck through)',
+        compareAtPlaceholder: 'Optional — e.g. 16.99',
         priceLabel: 'Current price',
+        pricePlaceholder: 'Empty = offer price',
         priceHint: 'Shown on checkout as a deal: previous price struck through next to the current one. Leave "Current price" empty to charge the offer price ({price}).',
         priceInvalid: 'The current price must be greater than 0.',
         compareAtTooLow: 'The previous price must be higher than the current price.',
@@ -1030,7 +1035,9 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         descriptionLabel: 'Descripción breve (opcional)',
         descriptionPlaceholder: 'ej. 30 actividades extra para poner en práctica el libro.',
         compareAtLabel: 'Precio anterior (tachado)',
+        compareAtPlaceholder: 'Opcional — ej. 16.99',
         priceLabel: 'Precio actual',
+        pricePlaceholder: 'Vacío = precio de la oferta',
         priceHint: 'En el checkout se ve como oferta: el precio anterior tachado junto al actual. Deja "Precio actual" vacío para cobrar el precio de la oferta ({price}).',
         priceInvalid: 'El precio actual debe ser mayor que 0.',
         compareAtTooLow: 'El precio anterior debe ser mayor que el precio actual.',

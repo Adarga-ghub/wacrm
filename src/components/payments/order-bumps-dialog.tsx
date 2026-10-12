@@ -315,7 +315,7 @@ export function OrderBumpsDialog({
                 step="0.01"
                 value={compareAt}
                 onChange={(e) => setCompareAt(e.target.value)}
-                placeholder="16.99"
+                placeholder={t("bumps.compareAtPlaceholder")}
               />
             </div>
             <div className="grid gap-2">
@@ -326,7 +326,7 @@ export function OrderBumpsDialog({
                 step="0.01"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder={selectedOffer?.amount != null ? String(selectedOffer.amount) : ""}
+                placeholder={t("bumps.pricePlaceholder")}
               />
             </div>
             <p className="col-span-2 text-xs text-muted-foreground">
