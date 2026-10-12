@@ -197,6 +197,22 @@ function PublicPaymentFormPageInner() {
   // Ticked order bumps (migration 061) — only their ids go to the
   // order route, which re-prices them server-side.
   const [selectedBumpIds, setSelectedBumpIds] = useState<string[]>([])
+  // PayPal fixes the amount when IT creates the order (on the button
+  // click), and its hosted card panel / popup keeps showing that amount
+  // — so ticking or unticking a bump AFTER that left "Pagar $11.98" on
+  // screen while our total said 6.99. `buttonsOrderOpenRef` marks "a
+  // PayPal order exists for the buttons currently rendered"; changing
+  // the purchase then bumps `buttonsResetKey`, which re-runs the
+  // render effect below and re-mounts ONLY the PayPal buttons (closing
+  // the stale panel). The page itself, and everything the buyer typed,
+  // stays as is; the next click creates a fresh order at the new total.
+  const [buttonsResetKey, setButtonsResetKey] = useState(0)
+  const buttonsOrderOpenRef = useRef(false)
+  const refreshButtonsIfOrderOpen = () => {
+    if (!buttonsOrderOpenRef.current) return
+    buttonsOrderOpenRef.current = false
+    setButtonsResetKey((k) => k + 1)
+  }
   const [sdkReady, setSdkReady] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<{ inline_message: string | null } | null>(null)
@@ -374,6 +390,7 @@ function PublicPaymentFormPageInner() {
     if (!paypalContainer) return
     paypalContainer.innerHTML = ""
     if (cardContainer) cardContainer.innerHTML = ""
+    buttonsOrderOpenRef.current = false
 
     const strings = payPageStrings[locale]
 
@@ -498,7 +515,9 @@ function PublicPaymentFormPageInner() {
         try {
           setErrorMessage(null)
           if (!requiredFieldsOk()) throw new Error("handled")
-          return await submitOrder()
+          const orderId = await submitOrder()
+          buttonsOrderOpenRef.current = true
+          return orderId
         } finally {
           // Whether this succeeded or threw, PayPal takes over the
           // visible loading state from here (its popup, or the hosted
@@ -607,7 +626,7 @@ function PublicPaymentFormPageInner() {
         if (cardButtons.isEligible()) cardButtons.render("#card-button-container")
       }
     }
-  }, [sdkReady, form, linkCode, slug, locale, markCheckoutInitiated])
+  }, [sdkReady, form, linkCode, slug, locale, markCheckoutInitiated, buttonsResetKey])
 
   const handleCardSubmit = async () => {
     if (!cardFieldsRef.current) return
@@ -919,7 +938,10 @@ function PublicPaymentFormPageInner() {
                       type="radio"
                       name="product"
                       checked={selectedProductId === product.id}
-                      onChange={() => setSelectedProductId(product.id)}
+                      onChange={() => {
+                        setSelectedProductId(product.id)
+                        refreshButtonsIfOrderOpen()
+                      }}
                       className="shrink-0"
                     />
                     {product.name}
@@ -954,11 +976,12 @@ function PublicPaymentFormPageInner() {
                     <input
                       type="checkbox"
                       checked={checked}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setSelectedBumpIds((prev) =>
                           e.target.checked ? [...prev, bump.id] : prev.filter((id) => id !== bump.id),
                         )
-                      }
+                        refreshButtonsIfOrderOpen()
+                      }}
                       className="mt-0.5 size-4 shrink-0 cursor-pointer accent-emerald-600"
                     />
                     {bump.image_url && (

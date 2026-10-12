@@ -171,7 +171,11 @@ export function OrderBumpsDialog({
           <DialogDescription>{t("bumps.hint")}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        {/* `min-w-0` on both sections: DialogContent is a CSS grid, and a
+            grid item won't shrink below its longest unbreakable text by
+            default — a long offer name pushed the list past the dialog's
+            edge, `truncate` never kicked in. */}
+        <div className="min-w-0 space-y-3">
           {bumps === null ? (
             <div className="flex justify-center py-4">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -225,14 +229,14 @@ export function OrderBumpsDialog({
           )}
         </div>
 
-        <div className="space-y-3 border-t border-border pt-4">
+        <div className="min-w-0 space-y-3 border-t border-border pt-4">
           <p className="text-sm font-medium text-foreground">
             {editingId ? t("bumps.editTitle") : t("bumps.addTitle")}
           </p>
           <div className="grid gap-2">
             <Label className="text-muted-foreground">{t("bumps.offerLabel")}</Label>
             {editingId ? (
-              <p className="text-sm text-foreground">
+              <p className="break-words text-sm text-foreground">
                 {(() => {
                   const offer = offers.find((o) => o.id === offerId)
                   return offer ? offerLabel(offer) : "—"
