@@ -22,7 +22,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { payPageStrings, type PayLocale } from "@/lib/payments/pay-page-i18n"
-import { backgroundStyle, LanguageToggle, TopSectionBlock } from "@/lib/payments/checkout-render"
+import { backgroundStyle, LanguageButtons, TopSectionBlock } from "@/lib/payments/checkout-render"
+import { CheckoutTopBar } from "@/lib/payments/checkout-header"
 
 function parseDesign(raw: string | null): PaymentFormDesign {
   if (!raw) return {}
@@ -71,7 +72,12 @@ function SkinPreviewPageInner() {
     <>
       {Object.keys(bgStyle).length > 0 && <div className="fixed inset-0 -z-10" style={bgStyle} />}
       <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
-        <LanguageToggle locale={locale} onChange={setLocale} />
+        <CheckoutTopBar
+          design={design}
+          locale={locale}
+          timerStorageKey={null}
+          right={<LanguageButtons locale={locale} onChange={setLocale} />}
+        />
         <div className="flex items-center justify-center gap-1.5 border-b border-border/60 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
           <Eye className="size-3.5" />
           {t.previewBadge}
@@ -81,10 +87,6 @@ function SkinPreviewPageInner() {
         <TopSectionBlock topSection={topSection} />
 
         <CardHeader>
-          {design.logo_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={design.logo_url} alt="" className="mb-2 h-10 w-auto object-contain" />
-          )}
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="size-5 text-primary" style={accent ? { color: accent } : undefined} />
             {t.sampleProductName}

@@ -11,6 +11,8 @@ export interface ResolvedOrderBump {
   /** Struck-through "before" price for display — null unless higher than `price`. */
   compareAtPrice: number | null
   imageUrl: string | null
+  /** Preview pop-up images (migration 064), in display order. */
+  galleryImages: string[]
   /** Line name for the PayPal order, receipts and `payment_transactions.line_items`. */
   itemName: string
   automationId: string | null
@@ -35,7 +37,7 @@ interface MainForm {
 export async function loadOrderBumps(db: AnySupabase, form: MainForm): Promise<ResolvedOrderBump[]> {
   const { data: bumps, error } = await db
     .from('payment_order_bumps')
-    .select('id, bump_form_id, title, description, price, compare_at_price')
+    .select('id, bump_form_id, title, description, price, compare_at_price, gallery_images')
     .eq('form_id', form.id)
     .eq('active', true)
     .order('position', { ascending: true })
@@ -99,6 +101,9 @@ export async function loadOrderBumps(db: AnySupabase, form: MainForm): Promise<R
       price,
       compareAtPrice: compareAt != null && compareAt > price ? compareAt : null,
       imageUrl: product?.image_url ?? null,
+      galleryImages: Array.isArray(bump.gallery_images)
+        ? bump.gallery_images.filter((u: unknown): u is string => typeof u === 'string' && !!u)
+        : [],
       itemName,
       automationId: offer.automation_id,
     })

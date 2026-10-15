@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { parseBumpPrice } from '@/lib/payments/order-bumps'
+import { CHECKOUT_TEXT_LIMITS, parseGalleryImages, parseLimitedText } from '@/lib/payments/checkout-limits'
 
 /**
  * GET /api/payments/forms/[id]/bumps
@@ -44,6 +45,8 @@ interface PostBody {
   price?: number | string | null
   /** Struck-through "before" price, display only. */
   compare_at_price?: number | string | null
+  /** Preview pop-up images (migration 064). */
+  gallery_images?: string[] | null
 }
 
 /**
@@ -72,6 +75,20 @@ export async function POST(
   }
   if (body.bump_form_id === id) {
     return NextResponse.json({ error: 'An offer cannot be an order bump of itself' }, { status: 400 })
+  }
+  const title = parseLimitedText(body.title, CHECKOUT_TEXT_LIMITS.bumpTitle)
+  const description = parseLimitedText(body.description, CHECKOUT_TEXT_LIMITS.bumpDescription)
+  if (title === 'too_long' || description === 'too_long') {
+    return NextResponse.json(
+      {
+        error: `Title max ${CHECKOUT_TEXT_LIMITS.bumpTitle} characters, description max ${CHECKOUT_TEXT_LIMITS.bumpDescription}`,
+      },
+      { status: 400 },
+    )
+  }
+  const galleryImages = parseGalleryImages(body.gallery_images)
+  if (galleryImages === 'invalid') {
+    return NextResponse.json({ error: 'Invalid gallery images' }, { status: 400 })
   }
   const price = parseBumpPrice(body.price)
   const compareAtPrice = parseBumpPrice(body.compare_at_price)
@@ -110,8 +127,9 @@ export async function POST(
       account_id: ctx.accountId,
       form_id: id,
       bump_form_id: body.bump_form_id,
-      title: body.title?.trim() || null,
-      description: body.description?.trim() || null,
+      title: title ?? null,
+      description: description ?? null,
+      gallery_images: galleryImages ?? [],
       price: price ?? null,
       compare_at_price: compareAtPrice ?? null,
       position: count ?? 0,

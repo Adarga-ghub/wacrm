@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { parseBumpPrice } from '@/lib/payments/order-bumps'
+import { CHECKOUT_TEXT_LIMITS, parseGalleryImages, parseLimitedText } from '@/lib/payments/checkout-limits'
 
 interface PutBody {
   title?: string | null
@@ -9,6 +10,7 @@ interface PutBody {
   position?: number
   price?: number | string | null
   compare_at_price?: number | string | null
+  gallery_images?: string[] | null
 }
 
 /** PUT /api/payments/forms/[id]/bumps/[bumpId] — edit an order bump's copy, toggle it, or reorder it. */
@@ -26,9 +28,25 @@ export async function PUT(
   const body = (await request.json().catch(() => null)) as PutBody | null
   if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
 
+  const title = parseLimitedText(body.title, CHECKOUT_TEXT_LIMITS.bumpTitle)
+  const description = parseLimitedText(body.description, CHECKOUT_TEXT_LIMITS.bumpDescription)
+  if (title === 'too_long' || description === 'too_long') {
+    return NextResponse.json(
+      {
+        error: `Title max ${CHECKOUT_TEXT_LIMITS.bumpTitle} characters, description max ${CHECKOUT_TEXT_LIMITS.bumpDescription}`,
+      },
+      { status: 400 },
+    )
+  }
+  const galleryImages = parseGalleryImages(body.gallery_images)
+  if (galleryImages === 'invalid') {
+    return NextResponse.json({ error: 'Invalid gallery images' }, { status: 400 })
+  }
+
   const update: Record<string, unknown> = {}
-  if (body.title !== undefined) update.title = body.title?.trim() || null
-  if (body.description !== undefined) update.description = body.description?.trim() || null
+  if (title !== undefined) update.title = title
+  if (description !== undefined) update.description = description
+  if (galleryImages !== undefined) update.gallery_images = galleryImages
   if (body.active !== undefined) update.active = Boolean(body.active)
   if (body.position !== undefined && Number.isInteger(body.position)) update.position = body.position
   const price = parseBumpPrice(body.price)

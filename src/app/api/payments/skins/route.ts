@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import type { PaymentFormDesign } from '@/types'
+import { designTextError } from '@/lib/payments/checkout-limits'
 
 /**
  * GET /api/payments/skins
@@ -61,6 +62,8 @@ export async function POST(request: Request) {
   if (!name) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })
   }
+  const designError = designTextError(body?.design)
+  if (designError) return NextResponse.json({ error: designError }, { status: 400 })
 
   const { data: skin, error } = await ctx.supabase
     .from('payment_skins')

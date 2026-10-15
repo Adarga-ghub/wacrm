@@ -1,12 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { Loader2, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft, ImagePlus, Loader2, Pencil, Trash2, X } from "lucide-react"
 
 import { usePaymentsT } from "@/hooks/use-payments-locale"
 import type { PaymentForm, PaymentOrderBump, PaymentProduct } from "@/types"
 import { formatPaymentAmount } from "@/lib/currency"
+import { BUMP_GALLERY_MAX_IMAGES, CHECKOUT_TEXT_LIMITS } from "@/lib/payments/checkout-limits"
+import { MEDIA_MAX_BYTES_BY_KIND, uploadAccountMedia } from "@/lib/storage/upload-media"
+import { CharCounter } from "@/components/payments/checkout-header-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -34,6 +37,7 @@ export function OrderBumpsDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const t = usePaymentsT("products")
+  const tSkins = usePaymentsT("skins")
   const [bumps, setBumps] = useState<PaymentOrderBump[] | null>(null)
   const [offers, setOffers] = useState<PaymentForm[]>([])
   const [products, setProducts] = useState<PaymentProduct[]>([])
@@ -46,7 +50,16 @@ export function OrderBumpsDialog({
   // offer's own price; `compareAt` empty = no struck-through price.
   const [price, setPrice] = useState("")
   const [compareAt, setCompareAt] = useState("")
+  // Preview pop-up images (migration 064) — first = main/mockup.
+  const [gallery, setGallery] = useState<string[]>([])
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
+  // Section heading above all of this offer's bumps (migration 064) —
+  // saved on the main offer itself, separately from any one bump.
+  const [heading, setHeading] = useState("")
+  const [savedHeading, setSavedHeading] = useState("")
+  const [savingHeading, setSavingHeading] = useState(false)
 
   const formId = mainOffer?.id
 
@@ -66,6 +79,8 @@ export function OrderBumpsDialog({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBumps(null)
     resetEditor()
+    setHeading(mainOffer?.bump_heading ?? "")
+    setSavedHeading(mainOffer?.bump_heading ?? "")
     loadBumps(formId)
     Promise.all([
       fetch("/api/payments/forms").then((r) => r.json()),
@@ -87,6 +102,58 @@ export function OrderBumpsDialog({
     setDescription("")
     setPrice("")
     setCompareAt("")
+    setGallery([])
+  }
+
+  async function saveHeading() {
+    if (!formId) return
+    setSavingHeading(true)
+    const res = await fetch(`/api/payments/forms/${formId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bump_heading: heading }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setSavingHeading(false)
+    if (!res.ok) {
+      toast.error(data.error || t("bumps.headingSaveFailed"))
+      return
+    }
+    setSavedHeading(heading)
+    toast.success(t("bumps.headingSaved"))
+  }
+
+  async function addGalleryImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      toast.error(tSkins("imageInvalidType"))
+      return
+    }
+    if (file.size > MEDIA_MAX_BYTES_BY_KIND.image) {
+      toast.error(tSkins("imageTooLarge"))
+      return
+    }
+    setUploadingImage(true)
+    try {
+      const { publicUrl } = await uploadAccountMedia("payment-media", file)
+      setGallery((g) => (g.length >= BUMP_GALLERY_MAX_IMAGES ? g : [...g, publicUrl]))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : tSkins("imageUploadFailed"))
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  /** Moves an image one place earlier — moving the 2nd one makes it the main image. */
+  function moveImageEarlier(index: number) {
+    setGallery((g) => {
+      if (index <= 0) return g
+      const next = [...g]
+      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+      return next
+    })
   }
 
   const productName = (offer: PaymentForm) =>
@@ -137,12 +204,12 @@ export function OrderBumpsDialog({
       ? await fetch(`/api/payments/forms/${formId}/bumps/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, description, ...prices }),
+          body: JSON.stringify({ title, description, gallery_images: gallery, ...prices }),
         })
       : await fetch(`/api/payments/forms/${formId}/bumps`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bump_form_id: offerId, title, description, ...prices }),
+          body: JSON.stringify({ bump_form_id: offerId, title, description, gallery_images: gallery, ...prices }),
         })
     const data = await res.json().catch(() => ({}))
     setSaving(false)
@@ -187,11 +254,12 @@ export function OrderBumpsDialog({
     setDescription(bump.description ?? "")
     setPrice(bump.price != null ? String(bump.price) : "")
     setCompareAt(bump.compare_at_price != null ? String(bump.compare_at_price) : "")
+    setGallery(bump.gallery_images ?? [])
   }
 
   return (
     <Dialog open={!!mainOffer} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("bumps.title")}</DialogTitle>
           <DialogDescription>{t("bumps.hint")}</DialogDescription>
@@ -201,6 +269,32 @@ export function OrderBumpsDialog({
             grid item won't shrink below its longest unbreakable text by
             default — a long offer name pushed the list past the dialog's
             edge, `truncate` never kicked in. */}
+        <div className="grid min-w-0 gap-2 rounded-lg border border-border p-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-muted-foreground">{t("bumps.headingLabel")}</Label>
+            <CharCounter value={heading} max={CHECKOUT_TEXT_LIMITS.bumpHeading} />
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={heading}
+              maxLength={CHECKOUT_TEXT_LIMITS.bumpHeading}
+              onChange={(e) => setHeading(e.target.value)}
+              placeholder={t("bumps.headingPlaceholder")}
+            />
+            <Button
+              variant="outline"
+              onClick={saveHeading}
+              disabled={savingHeading || heading.trim() === savedHeading.trim()}
+            >
+              {savingHeading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {t("bumps.headingSave")}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpHeading })} · {t("bumps.headingHint")}
+          </p>
+        </div>
+
         <div className="min-w-0 space-y-3">
           {bumps === null ? (
             <div className="flex justify-center py-4">
@@ -298,13 +392,21 @@ export function OrderBumpsDialog({
               <p className="text-xs text-muted-foreground">{t("bumps.noCandidates")}</p>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">{t("bumps.boxHint")}</p>
           <div className="grid gap-2">
-            <Label className="text-muted-foreground">{t("bumps.titleLabel")}</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-muted-foreground">{t("bumps.titleLabel")}</Label>
+              <CharCounter value={title} max={CHECKOUT_TEXT_LIMITS.bumpTitle} />
+            </div>
             <Input
               value={title}
+              maxLength={CHECKOUT_TEXT_LIMITS.bumpTitle}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t("bumps.titlePlaceholder")}
             />
+            <p className="text-xs text-muted-foreground">
+              {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpTitle })}
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
@@ -336,13 +438,81 @@ export function OrderBumpsDialog({
             </p>
           </div>
           <div className="grid gap-2">
-            <Label className="text-muted-foreground">{t("bumps.descriptionLabel")}</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-muted-foreground">{t("bumps.descriptionLabel")}</Label>
+              <CharCounter value={description} max={CHECKOUT_TEXT_LIMITS.bumpDescription} />
+            </div>
             <Textarea
-              rows={2}
+              rows={3}
               value={description}
+              maxLength={CHECKOUT_TEXT_LIMITS.bumpDescription}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t("bumps.descriptionPlaceholder")}
             />
+            <p className="text-xs text-muted-foreground">
+              {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpDescription })}
+            </p>
+          </div>
+          <div className="grid gap-2">
+            <Label className="text-muted-foreground">{t("bumps.galleryLabel")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("bumps.galleryHint", { max: BUMP_GALLERY_MAX_IMAGES })}
+            </p>
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={addGalleryImage}
+            />
+            <div className="flex flex-wrap gap-2">
+              {gallery.map((src, i) => (
+                <div key={src + i} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={src}
+                    alt=""
+                    className={`h-20 w-16 rounded-md border object-cover ${
+                      i === 0 ? "border-amber-400 ring-2 ring-amber-400/60" : "border-border"
+                    }`}
+                  />
+                  {i === 0 && (
+                    <span className="absolute inset-x-0 bottom-0 rounded-b-md bg-amber-400 text-center text-[10px] font-semibold text-black">
+                      {t("bumps.galleryMain")}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setGallery((g) => g.filter((_, j) => j !== i))}
+                    aria-label={t("bumps.galleryRemove")}
+                    className="absolute -right-1.5 -top-1.5 rounded-full bg-background p-0.5 text-muted-foreground shadow ring-1 ring-border hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => moveImageEarlier(i)}
+                      aria-label={t("bumps.galleryMoveEarlier")}
+                      className="absolute -left-1.5 -top-1.5 rounded-full bg-background p-0.5 text-muted-foreground shadow ring-1 ring-border hover:text-foreground"
+                    >
+                      <ArrowLeft className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {gallery.length < BUMP_GALLERY_MAX_IMAGES && (
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="flex h-20 w-16 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border text-[10px] text-muted-foreground hover:bg-muted disabled:opacity-60"
+                >
+                  {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  {t("bumps.galleryAdd")}
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             {editingId && (

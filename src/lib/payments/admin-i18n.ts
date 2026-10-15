@@ -111,6 +111,21 @@ export interface PaymentsSkinsStrings {
   imageInvalidType: string
   imageTooLarge: string
   imageDimensionsExceeded: string
+  logoEnabledLabel: string
+  logoEnabledHint: string
+  urgencyTitle: string
+  urgencyHint: string
+  urgencyTextLabel: string
+  urgencyTextPlaceholder: string
+  urgencyTextHint: string
+  urgencyDurationLabel: string
+  hoursLabel: string
+  minutesLabel: string
+  secondsLabel: string
+  urgencyDurationHint: string
+  urgencyNeedsDuration: string
+  maxChars: string
+  headerTitle: string
   imageUploadFailed: string
   table: {
     name: string
@@ -351,6 +366,21 @@ export interface PaymentsProductsStrings {
     loadFailed: string
     saveFailed: string
     removeFailed: string
+    headingLabel: string
+    headingPlaceholder: string
+    headingHint: string
+    headingSave: string
+    headingSaved: string
+    headingSaveFailed: string
+    galleryLabel: string
+    galleryHint: string
+    galleryAdd: string
+    galleryMain: string
+    galleryRemove: string
+    galleryFull: string
+    galleryMoveEarlier: string
+    maxChars: string
+    boxHint: string
   }
 }
 
@@ -529,6 +559,21 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       namePlaceholder: 'e.g. Black Friday',
       accentColorLabel: 'Accent color',
       logoUrlLabel: 'Logo URL',
+      logoEnabledLabel: "Show the logo",
+      logoEnabledHint: "Upload a logo above for it to show.",
+      urgencyTitle: "Urgency text and countdown",
+      urgencyHint: "A line with a gift icon next to the logo and a countdown under it. Shown or hidden together.",
+      urgencyTextLabel: "Text",
+      urgencyTextPlaceholder: "Claim your gift!",
+      urgencyTextHint: "Empty = “Claim your gift!” in the buyer's language.",
+      urgencyDurationLabel: "Countdown length",
+      hoursLabel: "Hours",
+      minutesLabel: "Minutes",
+      secondsLabel: "Seconds",
+      urgencyDurationHint: "Starts at this length the first time the buyer opens the checkout and keeps running across reloads. It stops at 00:00:00.",
+      urgencyNeedsDuration: "Set a length above 0 for the text and countdown to show.",
+      maxChars: "Max. {max} characters",
+      headerTitle: "Checkout header",
       backgroundTitle: 'Background',
       backgroundColorTab: 'Color',
       backgroundImageTab: 'Image',
@@ -797,6 +842,21 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         loadFailed: 'Could not load the order bumps.',
         saveFailed: 'Could not save the order bump.',
         removeFailed: 'Could not remove the order bump.',
+        headingLabel: "Section heading",
+        headingPlaceholder: "Don't miss these amazing offers!",
+        headingHint: "Shown above every order bump on this checkout. Empty = “Don't miss these amazing offers!”.",
+        headingSave: "Save heading",
+        headingSaved: "Heading saved.",
+        headingSaveFailed: "Could not save the heading.",
+        galleryLabel: "Preview images (the eye icon)",
+        galleryHint: "The first one is the main image (ideally a perspective book mockup on a transparent or white background). The rest show as thumbnails under it. With no images, the product cover is shown as a 3D book. Max. {max}.",
+        galleryAdd: "Add image",
+        galleryMain: "Main",
+        galleryRemove: "Remove image",
+        galleryFull: "Image limit reached.",
+        galleryMoveEarlier: "Move earlier",
+        maxChars: "Max. {max} characters",
+        boxHint: "Every box has the same height: title and description show 2 lines each (in full in the preview).",
       },
     },
     transactions: {
@@ -962,6 +1022,21 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       namePlaceholder: 'ej. Black Friday',
       accentColorLabel: 'Color de acento',
       logoUrlLabel: 'URL del logo',
+      logoEnabledLabel: "Mostrar el logo",
+      logoEnabledHint: "Sube un logo arriba para que se vea.",
+      urgencyTitle: "Texto de urgencia y contador",
+      urgencyHint: "Una línea con el icono de regalo junto al logo y, debajo, un contador regresivo. Se muestran o se ocultan juntos.",
+      urgencyTextLabel: "Texto",
+      urgencyTextPlaceholder: "¡Adquiere tu regalo!",
+      urgencyTextHint: "Vacío = «¡Adquiere tu regalo!» en el idioma del comprador.",
+      urgencyDurationLabel: "Duración del contador",
+      hoursLabel: "Horas",
+      minutesLabel: "Minutos",
+      secondsLabel: "Segundos",
+      urgencyDurationHint: "Empieza en esta duración la primera vez que el comprador abre el checkout y sigue corriendo aunque recargue la página. Al llegar a 0 se queda en 00:00:00.",
+      urgencyNeedsDuration: "Pon una duración mayor que 0 para que el texto y el contador se muestren.",
+      maxChars: "Máx. {max} caracteres",
+      headerTitle: "Encabezado del checkout",
       backgroundTitle: 'Fondo',
       backgroundColorTab: 'Color',
       backgroundImageTab: 'Imagen',
@@ -1230,6 +1305,21 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         loadFailed: 'No se pudieron cargar los order bumps.',
         saveFailed: 'No se pudo guardar el order bump.',
         removeFailed: 'No se pudo quitar el order bump.',
+        headingLabel: "Encabezado de la sección",
+        headingPlaceholder: "¡No te pierdas estas increíbles ofertas!",
+        headingHint: "Se muestra arriba de todos los order bumps de este checkout. Vacío = «¡No te pierdas estas increíbles ofertas!».",
+        headingSave: "Guardar encabezado",
+        headingSaved: "Encabezado guardado.",
+        headingSaveFailed: "No se pudo guardar el encabezado.",
+        galleryLabel: "Imágenes de la vista previa (el ojito)",
+        galleryHint: "La primera es la imagen principal (ideal: mockup del libro en perspectiva, fondo transparente o blanco). Las demás salen como miniaturas debajo. Sin imágenes, se muestra la portada del producto como libro 3D. Máx. {max}.",
+        galleryAdd: "Añadir imagen",
+        galleryMain: "Principal",
+        galleryRemove: "Quitar imagen",
+        galleryFull: "Máximo de imágenes alcanzado.",
+        galleryMoveEarlier: "Mover antes",
+        maxChars: "Máx. {max} caracteres",
+        boxHint: "Todas las cajas tienen la misma altura: el título y la descripción se muestran en 2 líneas cada uno (completos en la vista previa).",
       },
     },
     transactions: {

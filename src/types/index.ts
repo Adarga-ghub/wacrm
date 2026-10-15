@@ -887,8 +887,12 @@ export interface PaymentFormProduct {
 /** Purely cosmetic, read only by the public checkout page — see migration 052. */
 export interface PaymentFormDesign {
   accent_color?: string;
-  /** Logo shown in the card header. */
+  /** Logo shown at the top-left of the checkout. */
   logo_url?: string;
+  /** Logo on/off switch — undefined = on (every design saved before the switch existed keeps its logo). */
+  logo_enabled?: boolean;
+  /** "¡Adquiere tu regalo!" line + countdown timer under it — always shown/hidden together. */
+  urgency?: PaymentPageUrgency;
   /** "Fondo" block — page-wide background, Hotmart-style (see the Payment Skins builder). */
   background?: PaymentPageBackground;
   /** "Parte superior" block — the page's decorative hero banner. */
@@ -918,6 +922,22 @@ export interface PaymentPageTopSection {
   banner_image_url?: string;
 }
 
+/**
+ * Urgency block at the top of the checkout: a short line of text (with
+ * a gift icon) and a countdown under it. Text and timer are one unit —
+ * `enabled` switches both. The countdown starts at hours:minutes:seconds
+ * on the buyer's first visit and keeps running across reloads (the
+ * deadline is kept in that browser).
+ */
+export interface PaymentPageUrgency {
+  enabled?: boolean;
+  /** Empty = the checkout's localized default ("¡Adquiere tu regalo!"). Max `CHECKOUT_TEXT_LIMITS.urgencyText`. */
+  text?: string;
+  hours?: number;
+  minutes?: number;
+  seconds?: number;
+}
+
 export interface PaymentForm {
   id: string;
   account_id: string;
@@ -945,6 +965,8 @@ export interface PaymentForm {
   product_id: string | null;
   /** "Descripción de la Página de Pago" (migration 057) — per-offer text shown to buyers on `/pay/[slug]`, under the price line. Distinct from `PaymentProduct.description`, which never reaches the public checkout. Null = no description set. */
   checkout_description: string | null;
+  /** Headline above this offer's order bumps on its checkout (migration 064). Null = the checkout's localized default. */
+  bump_heading: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1022,6 +1044,8 @@ export interface PublicPaymentForm {
   checkout_description: string | null;
   /** Active, purchasable order bumps for this offer (migration 061), already resolved to a price — empty when none are configured. */
   order_bumps: PublicOrderBump[];
+  /** Headline above the order bumps (migration 064) — null = localized default. */
+  bump_heading: string | null;
 }
 
 /** An Order Bump as configured in the admin (migration 061) — `form_id` is the main offer, `bump_form_id` the offer it adds. */
@@ -1037,6 +1061,8 @@ export interface PaymentOrderBump {
   price: number | null;
   /** "Before" price shown struck through next to the bump price — display only, never charged. */
   compare_at_price: number | null;
+  /** Preview pop-up images (migration 064) — first = main/mockup image, rest = thumbnails. */
+  gallery_images: string[];
   position: number;
   active: boolean;
   created_at: string;
@@ -1052,6 +1078,8 @@ export interface PublicOrderBump {
   /** Struck-through "before" price — only set when higher than `price`. */
   compare_at_price: number | null;
   image_url: string | null;
+  /** Preview pop-up images — empty = the pop-up shows `image_url` as a 3D book. */
+  gallery_images: string[];
 }
 
 /** One purchased line on `payment_transactions.line_items` (migration 061). `upsell`/`downsell` lines (migration 063) live on their own transaction, one per offer the accepted step sold. */

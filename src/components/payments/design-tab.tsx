@@ -6,6 +6,7 @@ import type { PaymentFormDesign } from "@/types"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
+import { CheckoutHeaderSettings } from "@/components/payments/checkout-header-settings"
 
 const DEFAULT_ACCENT = "#16a34a"
 
@@ -62,6 +63,8 @@ export function DesignTab({
             />
           )}
         </div>
+
+        <CheckoutHeaderSettings design={design} onChange={onChange} />
       </CardContent>
     </Card>
   )

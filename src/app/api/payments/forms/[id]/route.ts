@@ -3,7 +3,8 @@ import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { isValidSlug } from '@/lib/payments/slug'
 import { enforceLockedFields } from '@/lib/payments/default-fields'
 import { PAYMENT_CURRENCY_CODES, isPaypalSupportedCurrency } from '@/lib/currency'
-import type { PaymentFormField, PaymentFormProduct } from '@/types'
+import type { PaymentFormDesign, PaymentFormField, PaymentFormProduct } from '@/types'
+import { CHECKOUT_TEXT_LIMITS, designTextError, parseLimitedText } from '@/lib/payments/checkout-limits'
 
 export async function GET(
   _request: Request,
@@ -47,9 +48,11 @@ interface PutBody {
   redirect_url?: string | null
   inline_success_message?: string | null
   submission_limit?: number | null
-  design?: { accent_color?: string; logo_url?: string }
+  design?: PaymentFormDesign
   currency?: string
   checkout_description?: string | null
+  /** Headline above this offer's order bumps (migration 064). */
+  bump_heading?: string | null
 }
 
 /**
@@ -177,10 +180,22 @@ export async function PUT(
     update.inline_success_message = body.inline_success_message || null
   }
   if (body.submission_limit !== undefined) update.submission_limit = body.submission_limit
-  if (body.design !== undefined) update.design = body.design
+  if (body.design !== undefined) {
+    const designError = designTextError(body.design)
+    if (designError) return NextResponse.json({ error: designError }, { status: 400 })
+    update.design = body.design
+  }
   if (body.checkout_description !== undefined) {
     update.checkout_description = body.checkout_description?.trim() || null
   }
+  const bumpHeading = parseLimitedText(body.bump_heading, CHECKOUT_TEXT_LIMITS.bumpHeading)
+  if (bumpHeading === 'too_long') {
+    return NextResponse.json(
+      { error: `Order bump heading max ${CHECKOUT_TEXT_LIMITS.bumpHeading} characters` },
+      { status: 400 },
+    )
+  }
+  if (bumpHeading !== undefined) update.bump_heading = bumpHeading
 
   const { data, error } = await ctx.supabase
     .from('payment_forms')

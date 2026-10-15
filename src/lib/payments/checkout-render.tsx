@@ -5,7 +5,16 @@ import { CHECKOUT_COUNTRIES, payPageStrings, type PayLocale } from "@/lib/paymen
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 
 /** ES/EN toggle used by the skin preview page (`/pay/preview`) — that page has no real buyer to detect a country for, just cosmetics, so it keeps the plain language switch. The real checkout page uses `CountryToggle` instead. */
-export function LanguageToggle({
+export function LanguageToggle(props: { locale: PayLocale; onChange: (l: PayLocale) => void }) {
+  return (
+    <div className="flex items-center justify-end border-b border-border/60 bg-muted/30 px-3 py-1.5">
+      <LanguageButtons {...props} />
+    </div>
+  )
+}
+
+/** The ES/EN buttons alone — for `CheckoutTopBar`'s right slot. */
+export function LanguageButtons({
   locale,
   onChange,
 }: {
@@ -13,7 +22,7 @@ export function LanguageToggle({
   onChange: (l: PayLocale) => void
 }) {
   return (
-    <div className="flex items-center justify-end gap-1 border-b border-border/60 bg-muted/30 px-3 py-1.5">
+    <div className="flex items-center gap-1">
       {(["es", "en"] as const).map((l) => (
         <button
           key={l}
@@ -42,7 +51,20 @@ export function LanguageToggle({
  * `localeForCountry`) — there's no separate ES/EN control anymore,
  * same as Hotmart doesn't have one either.
  */
-export function CountryToggle({
+export function CountryToggle(props: {
+  country: string
+  locale: PayLocale
+  onChange: (countryCode: string) => void
+}) {
+  return (
+    <div className="flex items-center justify-end border-b border-border/60 bg-muted/30 px-3 py-1.5">
+      <CountryPicker {...props} />
+    </div>
+  )
+}
+
+/** The country dropdown alone — for `CheckoutTopBar`'s right slot (see `CountryToggle` for the details). */
+export function CountryPicker({
   country,
   locale,
   onChange,
@@ -53,44 +75,42 @@ export function CountryToggle({
 }) {
   const t = payPageStrings[locale]
   return (
-    <div className="flex items-center justify-end border-b border-border/60 bg-muted/30 px-3 py-1.5">
-      <Select value={country} onValueChange={(v) => v && onChange(v)}>
-        <SelectTrigger
-          size="sm"
-          aria-label={t.changeCountry}
-          className="h-auto gap-1 border-none bg-transparent px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground shadow-none hover:text-foreground"
-        >
-          <span className="text-[10px] font-normal uppercase tracking-wide text-muted-foreground">{country}</span>
-          <span className="font-semibold text-foreground">{t.changeCountry}</span>
-        </SelectTrigger>
-        {/* Base UI portals this popup straight to `document.body`, outside
-            the `.pay-page-surface` wrapper that overrides `--popover`/
-            `--popover-foreground`/`--accent` to light values (see
-            `globals.css`) — those CSS variables don't reach a portal
-            mounted outside the element that sets them, so without an
-            explicit light theme here this list would render with the
-            dashboard's own dark `--popover` instead. Colors are hardcoded
-            (not variable-based) for exactly that reason. `z-[110]` (on
-            both the popup and its positioner) clears the PayPal SDK's own
-            button iframes, which render at `z-index: 100` — the default
-            `z-50` this component ships with otherwise sits behind them. */}
-        <SelectContent
-          align="end"
-          positionerClassName="z-[110]"
-          className="z-[110] border border-slate-200 bg-white text-slate-900 shadow-lg ring-slate-200 [&_[data-slot=select-scroll-down-button]]:bg-white [&_[data-slot=select-scroll-up-button]]:bg-white"
-        >
-          {CHECKOUT_COUNTRIES.map((c) => (
-            <SelectItem
-              key={c.code}
-              value={c.code}
-              className="text-slate-900 focus:bg-slate-100 focus:text-slate-900"
-            >
-              {c[locale]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select value={country} onValueChange={(v) => v && onChange(v)}>
+      <SelectTrigger
+        size="sm"
+        aria-label={t.changeCountry}
+        className="h-auto gap-1 border-none bg-transparent px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground shadow-none hover:text-foreground"
+      >
+        <span className="text-[10px] font-normal uppercase tracking-wide text-muted-foreground">{country}</span>
+        <span className="font-semibold text-foreground">{t.changeCountry}</span>
+      </SelectTrigger>
+      {/* Base UI portals this popup straight to `document.body`, outside
+          the `.pay-page-surface` wrapper that overrides `--popover`/
+          `--popover-foreground`/`--accent` to light values (see
+          `globals.css`) — those CSS variables don't reach a portal
+          mounted outside the element that sets them, so without an
+          explicit light theme here this list would render with the
+          dashboard's own dark `--popover` instead. Colors are hardcoded
+          (not variable-based) for exactly that reason. `z-[110]` (on
+          both the popup and its positioner) clears the PayPal SDK's own
+          button iframes, which render at `z-index: 100` — the default
+          `z-50` this component ships with otherwise sits behind them. */}
+      <SelectContent
+        align="end"
+        positionerClassName="z-[110]"
+        className="z-[110] border border-slate-200 bg-white text-slate-900 shadow-lg ring-slate-200 [&_[data-slot=select-scroll-down-button]]:bg-white [&_[data-slot=select-scroll-up-button]]:bg-white"
+      >
+        {CHECKOUT_COUNTRIES.map((c) => (
+          <SelectItem
+            key={c.code}
+            value={c.code}
+            className="text-slate-900 focus:bg-slate-100 focus:text-slate-900"
+          >
+            {c[locale]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 

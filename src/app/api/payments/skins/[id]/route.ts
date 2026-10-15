@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import type { PaymentFormDesign } from '@/types'
+import { designTextError } from '@/lib/payments/checkout-limits'
 
 export async function GET(
   _request: Request,
@@ -74,7 +75,11 @@ export async function PUT(
     if (!name) return NextResponse.json({ error: 'name cannot be empty' }, { status: 400 })
     update.name = name
   }
-  if (body.design !== undefined) update.design = body.design
+  if (body.design !== undefined) {
+    const designError = designTextError(body.design)
+    if (designError) return NextResponse.json({ error: designError }, { status: 400 })
+    update.design = body.design
+  }
 
   if (Object.keys(update).length) {
     const { error: updateErr } = await ctx.supabase

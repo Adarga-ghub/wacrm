@@ -188,6 +188,21 @@ interface PayPageStrings {
   /** Post-approval overlay, phase 2: capture succeeded and the browser is navigating to the form's Redirect URL. */
   paymentSuccessTitle: string
   redirectingToDownload: string
+  /** Default urgency line next to the logo — used when the design leaves `urgency.text` empty. */
+  urgencyDefaultText: string
+  timerHours: string
+  timerMinutes: string
+  timerSeconds: string
+  /** Default headline above the order bumps — used when the offer has no `bump_heading`. */
+  bumpsHeadingDefault: string
+  /** Order bump checkbox label. */
+  addToPurchase: string
+  /** Eye button under a bump cover + the preview pop-up. */
+  viewBumpDetails: string
+  bumpAdded: string
+  close: string
+  /** Trust line above "Protegido por PayPal". */
+  securePayment: string
 }
 
 export const payPageStrings: Record<PayLocale, PayPageStrings> = {
@@ -228,6 +243,16 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     confirmingPayment: 'Confirmando tu pago...',
     paymentSuccessTitle: '¡Pago exitoso!',
     redirectingToDownload: 'Redirigiéndote a tu página de descarga...',
+    urgencyDefaultText: '¡Adquiere tu regalo!',
+    timerHours: 'Horas',
+    timerMinutes: 'Minutos',
+    timerSeconds: 'Segundos',
+    bumpsHeadingDefault: '¡No te pierdas estas increíbles ofertas!',
+    addToPurchase: 'Añadir a la compra',
+    viewBumpDetails: 'Ver detalles',
+    bumpAdded: 'Añadido a tu compra',
+    close: 'Cerrar',
+    securePayment: 'Pago 100% seguro',
   },
   en: {
     notAvailable: "This payment form isn't available.",
@@ -266,6 +291,16 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     confirmingPayment: 'Confirming your payment...',
     paymentSuccessTitle: 'Payment successful!',
     redirectingToDownload: 'Redirecting you to your download page...',
+    urgencyDefaultText: 'Claim your gift!',
+    timerHours: 'Hours',
+    timerMinutes: 'Minutes',
+    timerSeconds: 'Seconds',
+    bumpsHeadingDefault: "Don't miss these amazing offers!",
+    addToPurchase: 'Add to my order',
+    viewBumpDetails: 'View details',
+    bumpAdded: 'Added to your order',
+    close: 'Close',
+    securePayment: '100% secure payment',
   },
 }
 

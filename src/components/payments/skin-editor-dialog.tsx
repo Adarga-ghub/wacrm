@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ImageUploadField } from "@/components/payments/image-upload-field"
+import { CheckoutHeaderSettings } from "@/components/payments/checkout-header-settings"
 import {
   Dialog,
   DialogContent,
@@ -176,6 +177,8 @@ export function SkinEditorDialog({
             maxHeight={200}
             t={t}
           />
+
+          <CheckoutHeaderSettings design={design} onChange={setDesign} />
 
           <div className="grid gap-2">
             <Label className="text-muted-foreground">{t("backgroundTitle")}</Label>

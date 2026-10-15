@@ -12,7 +12,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react"
 import { useParams, useSearchParams } from "next/navigation"
-import { AlertTriangle, Check, CheckCircle2, CreditCard, Loader2, Lock } from "lucide-react"
+import { AlertTriangle, Check, CheckCircle2, CreditCard, Eye, Loader2, Lock, LockKeyhole } from "lucide-react"
 
 import type { PublicPaymentForm } from "@/types"
 import { formatPaymentAmount } from "@/lib/currency"
@@ -29,7 +29,9 @@ import {
   translateFieldLabel,
 } from "@/lib/payments/pay-page-i18n"
 import { PayPageLoading } from "./pay-page-loading"
-import { backgroundStyle, CountryToggle, TopSectionBlock } from "@/lib/payments/checkout-render"
+import { backgroundStyle, CountryPicker, CountryToggle, TopSectionBlock } from "@/lib/payments/checkout-render"
+import { CheckoutTopBar } from "@/lib/payments/checkout-header"
+import { BumpPreviewDialog } from "./bump-preview-dialog"
 
 declare global {
   interface Window {
@@ -197,6 +199,9 @@ function PublicPaymentFormPageInner() {
   // Ticked order bumps (migration 061) — only their ids go to the
   // order route, which re-prices them server-side.
   const [selectedBumpIds, setSelectedBumpIds] = useState<string[]>([])
+  // Order bump whose preview pop-up (the "eye" under its cover) is open.
+  const [previewBumpId, setPreviewBumpId] = useState<string | null>(null)
+  const closeBumpPreview = useCallback(() => setPreviewBumpId(null), [])
   // PayPal fixes the amount when IT creates the order (on the button
   // click), and its hosted card panel / popup keeps showing that amount
   // — so ticking or unticking a bump AFTER that left "Pagar $11.98" on
@@ -212,6 +217,11 @@ function PublicPaymentFormPageInner() {
     if (!buttonsOrderOpenRef.current) return
     buttonsOrderOpenRef.current = false
     setButtonsResetKey((k) => k + 1)
+  }
+  /** Ticks/unticks an order bump — from its checkbox or from its preview pop-up. */
+  const toggleBump = (bumpId: string, on: boolean) => {
+    setSelectedBumpIds((prev) => (on ? [...prev, bumpId] : prev.filter((id) => id !== bumpId)))
+    refreshButtonsIfOrderOpen()
   }
   const [sdkReady, setSdkReady] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -761,24 +771,37 @@ function PublicPaymentFormPageInner() {
         </div>
       )}
 
+      {(() => {
+        const previewBump = orderBumps.find((b) => b.id === previewBumpId)
+        if (!previewBump) return null
+        const previewChecked = selectedBumpIds.includes(previewBump.id)
+        return (
+          <BumpPreviewDialog
+            bump={previewBump}
+            currency={form.currency}
+            locale={locale}
+            checked={previewChecked}
+            onToggle={() => toggleBump(previewBump.id, !previewChecked)}
+            onClose={closeBumpPreview}
+          />
+        )
+      })()}
+
       <Card
         className="w-full max-w-md overflow-hidden sm:max-w-lg"
         onFocusCapture={handleFieldInteraction}
         onInputCapture={handleFieldInteraction}
       >
-        <CountryToggle country={country} locale={locale} onChange={handleCountryChange} />
+        <CheckoutTopBar
+          design={form.design}
+          locale={locale}
+          timerStorageKey={slug}
+          right={<CountryPicker country={country} locale={locale} onChange={handleCountryChange} />}
+        />
 
         <TopSectionBlock topSection={topSection} />
 
       <CardHeader className="border-b border-border/60 bg-card">
-        {form.design?.logo_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={form.design.logo_url}
-            alt=""
-            className="mb-2 h-10 w-auto object-contain"
-          />
-        )}
         {product ? (
           // Title/image/author "halados" from the linked Producto
           // (migration 054/056) — Hotmart-style — instead of any
@@ -960,75 +983,100 @@ function PublicPaymentFormPageInner() {
             the offer is seen right at the moment of paying. */}
         {orderBumps.length > 0 && (
           <div className="space-y-3">
+            <p className="text-center text-[17px] font-extrabold leading-snug text-red-700">
+              {form.bump_heading || t.bumpsHeadingDefault}
+            </p>
             {orderBumps.map((bump) => {
               const checked = selectedBumpIds.includes(bump.id)
+              const hasPreview = bump.gallery_images.length > 0 || !!bump.image_url
               return (
+                // Every box is the SAME fixed height whatever its copy:
+                // title and description are clamped to 2 lines each in
+                // fixed-height slots (the admin caps their length to
+                // match — see CHECKOUT_TEXT_LIMITS), so a short bump
+                // never renders smaller than a long one.
                 <label
                   key={bump.id}
                   className={cn(
-                    "block cursor-pointer rounded-lg border-2 border-dashed p-3 transition-colors",
+                    "flex h-[134px] cursor-pointer gap-3 rounded-xl border-2 border-dashed p-3 transition-colors",
                     checked
                       ? "border-emerald-500 bg-emerald-50"
-                      : "border-amber-400 bg-amber-50/70 hover:bg-amber-50",
+                      : "border-amber-300 bg-[#fffbea] hover:bg-amber-50",
                   )}
                 >
-                  <div className="flex items-start gap-3">
-                    {/* Drawn by us (`appearance-none` + a Check icon), NOT
-                        the browser's native checkbox: a phone in system
-                        dark mode painted the native one dark/black even
-                        on this light page, so it looked different from
-                        desktop. These fixed colors render the same on
-                        every device and color scheme. */}
-                    <span className="relative mt-0.5 inline-flex size-4 shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => {
-                          setSelectedBumpIds((prev) =>
-                            e.target.checked ? [...prev, bump.id] : prev.filter((id) => id !== bump.id),
-                          )
-                          refreshButtonsIfOrderOpen()
-                        }}
-                        className="peer size-4 cursor-pointer appearance-none rounded-[3px] border border-black bg-white transition-colors checked:border-emerald-600 checked:bg-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
-                      />
-                      <Check
-                        aria-hidden
-                        strokeWidth={3.5}
-                        className="pointer-events-none absolute inset-0 m-auto size-3 text-white opacity-0 peer-checked:opacity-100"
-                      />
-                    </span>
-                    {bump.image_url && (
+                  <div className="flex w-[60px] shrink-0 flex-col items-center gap-1.5">
+                    {bump.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={bump.image_url}
                         alt=""
-                        className="size-12 shrink-0 rounded-md object-cover ring-1 ring-black/10"
+                        className="size-[60px] rounded-md object-cover shadow-sm ring-1 ring-black/10"
                       />
+                    ) : (
+                      <span className="size-[60px] rounded-md bg-amber-100 ring-1 ring-black/5" />
                     )}
-                    <div className="min-w-0 flex-1">
-                      {/* Price sits on the call-to-action row — not on a
-                          line of its own — so it doesn't make the box
-                          taller; the struck-through "before" price
-                          (migration 062) frames it as a deal. */}
-                      <div className="flex items-baseline justify-between gap-2">
-                        <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
-                          {t.bumpCallToAction}
-                        </p>
-                        <p className="shrink-0 whitespace-nowrap">
-                          {bump.compare_at_price != null && (
-                            <span className="mr-1.5 text-xs text-muted-foreground/70 line-through">
-                              {formatPaymentAmount(bump.compare_at_price, form.currency)}
-                            </span>
-                          )}
-                          <span className="text-sm font-bold text-foreground">
-                            {formatPaymentAmount(bump.price, form.currency)}
+                    {hasPreview && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          // Inside the <label>: without preventDefault
+                          // the click would also tick the checkbox.
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setPreviewBumpId(bump.id)
+                        }}
+                        aria-label={`${t.viewBumpDetails}: ${bump.title}`}
+                        title={t.viewBumpDetails}
+                        className="rounded-full p-1 text-slate-800 transition-colors hover:bg-black/5 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-amber-500"
+                      >
+                        <Eye className="size-5" strokeWidth={2.2} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <p className="line-clamp-2 h-[36px] text-[13.5px] font-bold leading-[18px] text-slate-900">
+                      {bump.title}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 h-[32px] text-[11.5px] leading-[16px] text-slate-500">
+                      {bump.description}
+                    </p>
+                    <div className="mt-auto flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
+                        {/* Drawn by us (`appearance-none` + a Check icon), NOT
+                            the browser's native checkbox: a phone in system
+                            dark mode painted the native one dark/black even
+                            on this light page, so it looked different from
+                            desktop. These fixed colors render the same on
+                            every device and color scheme. */}
+                        <span className="relative inline-flex size-[18px] shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => toggleBump(bump.id, e.target.checked)}
+                            className="peer size-[18px] cursor-pointer appearance-none rounded-[3px] border-[1.5px] border-slate-800 bg-white transition-colors checked:border-emerald-600 checked:bg-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                          />
+                          <Check
+                            aria-hidden
+                            strokeWidth={3.5}
+                            className="pointer-events-none absolute inset-0 m-auto size-3 text-white opacity-0 peer-checked:opacity-100"
+                          />
+                        </span>
+                        <span className="truncate text-[14px] font-medium text-slate-800 sm:text-[15px]">
+                          {t.addToPurchase}
+                        </span>
+                      </span>
+                      {/* The struck-through "before" price (migration 062)
+                          frames the bump price as a deal. */}
+                      <span className="shrink-0 whitespace-nowrap">
+                        {bump.compare_at_price != null && (
+                          <span className="mr-1.5 text-[11px] text-slate-400 line-through">
+                            {formatPaymentAmount(bump.compare_at_price, form.currency)}
                           </span>
-                        </p>
-                      </div>
-                      <p className="mt-0.5 text-sm font-semibold text-foreground">{bump.title}</p>
-                      {bump.description && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">{bump.description}</p>
-                      )}
+                        )}
+                        <span className="text-sm font-extrabold text-slate-900">
+                          {formatPaymentAmount(bump.price, form.currency)}
+                        </span>
+                      </span>
                     </div>
                   </div>
                 </label>
@@ -1117,7 +1165,11 @@ function PublicPaymentFormPageInner() {
                 section. Colors match PayPal's own wordmark (dark navy
                 "Pay" + light blue "Pal") — see the comment on
                 PAYPAL_WORDMARK_COLORS below before changing them. */}
-            <div className="flex items-center justify-center gap-1 pt-1 text-center text-xs">
+            <p className="flex items-center justify-center gap-1.5 pt-1 text-[13px] font-semibold tracking-wide text-slate-700">
+              <LockKeyhole aria-hidden className="size-4 text-emerald-600" strokeWidth={2.4} />
+              {t.securePayment}
+            </p>
+            <div className="-mt-2 flex items-center justify-center gap-1 text-center text-xs">
               <span className="italic text-muted-foreground">{t.securedByPrefix}</span>
               <span className="text-sm font-bold italic">
                 <span style={{ color: PAYPAL_WORDMARK_COLORS.pay }}>Pay</span>

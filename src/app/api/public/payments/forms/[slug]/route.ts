@@ -37,7 +37,7 @@ export async function GET(
   const { data, error } = await supabaseAdmin()
     .from('payment_forms')
     .select(
-      'id, account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id, product_id, checkout_description',
+      'id, account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id, product_id, checkout_description, bump_heading',
     )
     .eq('slug', slug)
     .eq('status', 'published')
@@ -108,7 +108,9 @@ export async function GET(
       price: b.price,
       compare_at_price: b.compareAtPrice,
       image_url: b.imageUrl,
+      gallery_images: b.galleryImages,
     })),
+    bump_heading: data.bump_heading?.trim() || null,
   }
   return NextResponse.json({ form })
 }
