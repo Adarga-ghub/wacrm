@@ -982,10 +982,12 @@ function PublicPaymentFormPageInner() {
             detail input above and BEFORE the payment buttons below, so
             the offer is seen right at the moment of paying. */}
         {orderBumps.length > 0 && (
-          // `mt-4` on top of CardContent's own 16px row gap = 32px between
+          // `pt-4` on top of CardContent's own 16px row gap = 32px between
           // the last buyer field and the heading, so the offers read as a
-          // separate section instead of a third input of the form.
-          <div className="mt-4 space-y-3">
+          // separate section instead of a third input of the form. Padding,
+          // not `mt-4`: a top margin collapses into that 16px gap (adjacent
+          // sibling margins don't add up), which left it at 16px.
+          <div className="space-y-3 pt-4">
             <p className="text-center text-[17px] font-extrabold leading-snug text-red-700">
               {form.bump_heading || t.bumpsHeadingDefault}
             </p>
