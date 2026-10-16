@@ -375,6 +375,17 @@ export interface PaymentsProductsStrings {
     galleryLabel: string
     galleryHint: string
     galleryAdd: string
+    /** Footer button: saves a NEW bump (the edit mode uses `save`). */
+    saveNew: string
+    /** Shown under the footer while no offer is picked for a new bump. */
+    chooseOfferFirst: string
+    /** Under the list: how to change an existing bump. */
+    editExistingHint: string
+    preview: string
+    previewTitle: string
+    previewHint: string
+    previewPopup: string
+    previewEmptyTitle: string
     galleryMain: string
     galleryRemove: string
     galleryFull: string
@@ -851,6 +862,14 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryLabel: "Preview images (the eye icon)",
         galleryHint: "The first one is the main image (ideally a perspective book mockup on a transparent or white background). The rest show as thumbnails under it. With no images, the product cover is shown as a 3D book. Max. {max}.",
         galleryAdd: "Add image",
+        saveNew: "Save order bump",
+        chooseOfferFirst: "Choose the offer to add to be able to save.",
+        editExistingHint: "To change an existing order bump (images, prices, texts), click its pencil ✏️ first.",
+        preview: "Preview",
+        previewTitle: "Order bump preview",
+        previewHint: "This is how it will look on the checkout with what you have now, even before saving.",
+        previewPopup: "When the buyer clicks the eye:",
+        previewEmptyTitle: "Your order bump headline",
         galleryMain: "Main",
         galleryRemove: "Remove image",
         galleryFull: "Image limit reached.",
@@ -1314,6 +1333,14 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryLabel: "Imágenes de la vista previa (el ojito)",
         galleryHint: "La primera es la imagen principal (ideal: mockup del libro en perspectiva, fondo transparente o blanco). Las demás salen como miniaturas debajo. Sin imágenes, se muestra la portada del producto como libro 3D. Máx. {max}.",
         galleryAdd: "Añadir imagen",
+        saveNew: "Guardar order bump",
+        chooseOfferFirst: "Elige la oferta a añadir para poder guardar.",
+        editExistingHint: "Para cambiar un order bump ya creado (imágenes, precios, textos), pulsa primero su lápiz ✏️.",
+        preview: "Vista previa",
+        previewTitle: "Vista previa del order bump",
+        previewHint: "Así se verá en el checkout con lo que tienes ahora, incluso antes de guardar.",
+        previewPopup: "Cuando el comprador pulsa el ojito:",
+        previewEmptyTitle: "El titular de tu order bump",
         galleryMain: "Principal",
         galleryRemove: "Quitar imagen",
         galleryFull: "Máximo de imágenes alcanzado.",

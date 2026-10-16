@@ -2,11 +2,15 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { ArrowLeft, ImagePlus, Loader2, Pencil, Trash2, X } from "lucide-react"
+import { ArrowLeft, Eye, ImagePlus, Loader2, Pencil, Trash2, X } from "lucide-react"
 
 import { usePaymentsT } from "@/hooks/use-payments-locale"
-import type { PaymentForm, PaymentOrderBump, PaymentProduct } from "@/types"
+import type { PaymentForm, PaymentOrderBump, PaymentProduct, PublicOrderBump } from "@/types"
 import { formatPaymentAmount } from "@/lib/currency"
+import { cn } from "@/lib/utils"
+import { payPageStrings } from "@/lib/payments/pay-page-i18n"
+import { OrderBumpBox } from "@/components/payments/order-bump-box"
+import { BumpPreviewContent } from "@/components/payments/bump-preview"
 import { BUMP_GALLERY_MAX_IMAGES, CHECKOUT_TEXT_LIMITS } from "@/lib/payments/checkout-limits"
 import { MEDIA_MAX_BYTES_BY_KIND, uploadAccountMedia } from "@/lib/storage/upload-media"
 import { CharCounter } from "@/components/payments/checkout-header-settings"
@@ -60,6 +64,10 @@ export function OrderBumpsDialog({
   const [heading, setHeading] = useState("")
   const [savedHeading, setSavedHeading] = useState("")
   const [savingHeading, setSavingHeading] = useState(false)
+  // "Vista previa" — renders the bump being edited (unsaved values
+  // included) with the checkout's own components.
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewChecked, setPreviewChecked] = useState(false)
 
   const formId = mainOffer?.id
 
@@ -184,6 +192,21 @@ export function OrderBumpsDialog({
   // the "offer" would read as a price increase.
   const selectedOffer = offers.find((o) => o.id === offerId)
   const effectivePrice = Number(price) > 0 ? Number(price) : Number(selectedOffer?.amount ?? 0)
+
+  // What the checkout would render for the form as it is right now —
+  // same fallbacks as `loadOrderBumps` (title → product/offer name,
+  // cover → product image, compare-at only when above the price).
+  const selectedProduct = selectedOffer ? products.find((p) => p.id === selectedOffer.product_id) : undefined
+  const previewBump: PublicOrderBump = {
+    id: editingId ?? "preview",
+    title: title.trim() || selectedProduct?.name || selectedOffer?.name || t("bumps.previewEmptyTitle"),
+    description: description.trim() || null,
+    price: effectivePrice,
+    compare_at_price: Number(compareAt) > effectivePrice ? Number(compareAt) : null,
+    image_url: selectedProduct?.image_url ?? null,
+    gallery_images: gallery,
+  }
+  const previewCurrency = selectedOffer?.currency ?? mainOffer?.currency ?? "USD"
 
   async function handleSubmit() {
     if (!formId) return
@@ -311,7 +334,10 @@ export function OrderBumpsDialog({
                 return (
                   <li
                     key={bump.id}
-                    className="flex items-start gap-3 rounded-lg border border-border px-3 py-2.5"
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg border px-3 py-2.5",
+                      editingId === bump.id ? "border-primary bg-primary/5" : "border-border",
+                    )}
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">
@@ -358,6 +384,9 @@ export function OrderBumpsDialog({
                 )
               })}
             </ul>
+          )}
+          {!!bumps?.length && !editingId && (
+            <p className="text-xs text-muted-foreground">{t("bumps.editExistingHint")}</p>
           )}
         </div>
 
@@ -514,22 +543,90 @@ export function OrderBumpsDialog({
               )}
             </div>
           </div>
-          <div className="flex justify-end gap-2">
-            {editingId && (
-              <Button variant="outline" onClick={resetEditor}>
-                {t("cancel")}
-              </Button>
-            )}
-            <Button
-              onClick={handleSubmit}
-              disabled={saving || (!editingId && !offerId)}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {editingId ? t("bumps.save") : t("bumps.add")}
-            </Button>
-          </div>
         </div>
+
+        {/* Footer pinned to the bottom of the (scrolling) dialog, so
+            "Guardar" and "Vista previa" are always on screen — the form
+            above is long enough (gallery, copy) that a button at its very
+            end was easy to miss. `-mx-4 -mb-4` cancels DialogContent's
+            own p-4 so the bar spans edge to edge. */}
+        <div className="sticky -bottom-4 z-10 -mx-4 -mb-4 space-y-1.5 border-t border-border bg-popover px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPreviewChecked(false)
+                setPreviewOpen(true)
+              }}
+              disabled={!editingId && !offerId}
+            >
+              <Eye className="h-4 w-4" />
+              {t("bumps.preview")}
+            </Button>
+            <div className="flex gap-2">
+              {editingId && (
+                <Button variant="outline" onClick={resetEditor}>
+                  {t("cancel")}
+                </Button>
+              )}
+              <Button
+                onClick={handleSubmit}
+                disabled={saving || uploadingImage || (!editingId && !offerId)}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {editingId ? t("bumps.save") : t("bumps.saveNew")}
+              </Button>
+            </div>
+          </div>
+          {!editingId && !offerId && (
+            <p className="text-right text-xs text-muted-foreground">{t("bumps.chooseOfferFirst")}</p>
+          )}
+        </div>
+
+        {/* Nested inside the parent's content so a click in the preview
+            doesn't count as an "outside click" that closes the parent. */}
+        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>{t("bumps.previewTitle")}</DialogTitle>
+              <DialogDescription>{t("bumps.previewHint")}</DialogDescription>
+            </DialogHeader>
+            {/* `pay-page-surface` forces the checkout's light palette, so
+                the preview looks like the real checkout even when the
+                dashboard is in dark mode. */}
+            <div className="pay-page-surface min-w-0 space-y-4 rounded-xl bg-white p-4 text-slate-900">
+              <div className="space-y-3">
+                <p className="text-center text-[17px] font-extrabold leading-snug text-red-700">
+                  {heading.trim() || payPageStrings.es.bumpsHeadingDefault}
+                </p>
+                <OrderBumpBox
+                  bump={previewBump}
+                  currency={previewCurrency}
+                  checked={previewChecked}
+                  onCheckedChange={setPreviewChecked}
+                  onPreview={() => {}}
+                  t={payPageStrings.es}
+                />
+              </div>
+              {(previewBump.gallery_images.length > 0 || previewBump.image_url) && (
+                <div className="space-y-2 border-t border-slate-200 pt-4">
+                  <p className="text-xs font-semibold text-slate-500">{t("bumps.previewPopup")}</p>
+                  <div className="rounded-2xl p-3 shadow-[0_8px_30px_rgba(15,23,42,0.12)] ring-1 ring-slate-200">
+                    <BumpPreviewContent
+                      key={previewBump.gallery_images.join("|")}
+                      bump={previewBump}
+                      currency={previewCurrency}
+                      locale="es"
+                      checked={previewChecked}
+                      onToggle={() => setPreviewChecked((c) => !c)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   )

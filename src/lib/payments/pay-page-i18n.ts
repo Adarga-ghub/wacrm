@@ -140,7 +140,7 @@ export function localeForCountry(countryCode: string): PayLocale {
   return SPANISH_SPEAKING_COUNTRIES.has(countryCode) ? 'es' : 'en'
 }
 
-interface PayPageStrings {
+export interface PayPageStrings {
   notAvailable: string
   chooseProduct: string
   /** Takes an already-formatted amount (e.g. from `formatPaymentAmount`), not a raw number — keeps this module free of currency-formatting logic of its own. */
