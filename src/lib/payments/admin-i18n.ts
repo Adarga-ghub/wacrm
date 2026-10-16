@@ -377,6 +377,12 @@ export interface PaymentsProductsStrings {
     galleryAdd: string
     /** Footer button: saves a NEW bump (the edit mode uses `save`). */
     saveNew: string
+    /** Under the list while a bump is open: switches the form to a new, empty bump. */
+    addAnother: string
+    galleryMakeMain: string
+    galleryMoveLater: string
+    /** Recommended size/shape for the pop-up images, under the gallery. */
+    gallerySizeHint: string
     /** Shown under the footer while no offer is picked for a new bump. */
     chooseOfferFirst: string
     /** Under the list: how to change an existing bump. */
@@ -863,6 +869,10 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryHint: "The first one is the main image (ideally a perspective book mockup on a transparent or white background). The rest show as thumbnails under it. With no images, the product cover is shown as a 3D book. Max. {max}.",
         galleryAdd: "Add image",
         saveNew: "Save order bump",
+        addAnother: "Add another order bump",
+        galleryMakeMain: "Make main image",
+        galleryMoveLater: "Move later",
+        gallerySizeHint: "Recommended: PNG or JPG around 1000 × 1250 px (portrait 4:5); for the main image, a mockup of the book in perspective on a transparent or white background. Wider or taller images are shown whole, scaled to fit.",
         chooseOfferFirst: "Choose the offer to add to be able to save.",
         editExistingHint: "To change an existing order bump (images, prices, texts), click its pencil ✏️ first.",
         preview: "Preview",
@@ -1334,6 +1344,10 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryHint: "La primera es la imagen principal (ideal: mockup del libro en perspectiva, fondo transparente o blanco). Las demás salen como miniaturas debajo. Sin imágenes, se muestra la portada del producto como libro 3D. Máx. {max}.",
         galleryAdd: "Añadir imagen",
         saveNew: "Guardar order bump",
+        addAnother: "Añadir otro order bump",
+        galleryMakeMain: "Hacer imagen principal",
+        galleryMoveLater: "Mover a la derecha",
+        gallerySizeHint: "Recomendado: PNG o JPG de unos 1000 × 1250 px (vertical 4:5); para la principal, un mockup del libro en perspectiva con fondo transparente o blanco. Las imágenes más anchas o más altas se muestran completas, ajustadas al espacio.",
         chooseOfferFirst: "Elige la oferta a añadir para poder guardar.",
         editExistingHint: "Para cambiar un order bump ya creado (imágenes, precios, textos), pulsa primero su lápiz ✏️.",
         preview: "Vista previa",

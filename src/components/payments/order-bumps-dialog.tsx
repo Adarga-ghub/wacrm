@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { ArrowLeft, Eye, ImagePlus, Loader2, Pencil, Trash2, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, Eye, ImagePlus, Loader2, Pencil, Plus, Star, Trash2, X } from "lucide-react"
 
 import { usePaymentsT } from "@/hooks/use-payments-locale"
 import type { PaymentForm, PaymentOrderBump, PaymentProduct, PublicOrderBump } from "@/types"
@@ -71,7 +71,13 @@ export function OrderBumpsDialog({
 
   const formId = mainOffer?.id
 
-  async function loadBumps(id: string) {
+  /**
+   * `select` opens a bump in the editor once loaded: "first" when the
+   * dialog opens (so an existing bump's images and copy are on screen
+   * right away — the empty "add" form looked like they were missing),
+   * or the id of the bump that was just saved, so it stays open.
+   */
+  async function loadBumps(id: string, select?: "first" | string) {
     const res = await fetch(`/api/payments/forms/${id}/bumps`)
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -79,7 +85,10 @@ export function OrderBumpsDialog({
       setBumps([])
       return
     }
-    setBumps(data.bumps ?? [])
+    const list: PaymentOrderBump[] = data.bumps ?? []
+    setBumps(list)
+    const toOpen = select === "first" ? list[0] : list.find((b) => b.id === select)
+    if (toOpen) startEdit(toOpen)
   }
 
   useEffect(() => {
@@ -89,7 +98,7 @@ export function OrderBumpsDialog({
     resetEditor()
     setHeading(mainOffer?.bump_heading ?? "")
     setSavedHeading(mainOffer?.bump_heading ?? "")
-    loadBumps(formId)
+    loadBumps(formId, "first")
     Promise.all([
       fetch("/api/payments/forms").then((r) => r.json()),
       fetch("/api/payments/products").then((r) => r.json()),
@@ -154,15 +163,25 @@ export function OrderBumpsDialog({
     }
   }
 
-  /** Moves an image one place earlier — moving the 2nd one makes it the main image. */
-  function moveImageEarlier(index: number) {
+  /** Swaps an image with its neighbour (`delta` -1 = earlier, +1 = later) — position 1 is the main image. */
+  function moveImage(index: number, delta: -1 | 1) {
     setGallery((g) => {
-      if (index <= 0) return g
+      const target = index + delta
+      if (target < 0 || target >= g.length) return g
       const next = [...g]
-      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+      ;[next[target], next[index]] = [next[index], next[target]]
       return next
     })
   }
+
+  /** Makes an image the pop-up's main one, keeping the others in order. */
+  function makeMainImage(index: number) {
+    setGallery((g) => (index <= 0 ? g : [g[index], ...g.filter((_, j) => j !== index)]))
+  }
+
+  // Each image's real pixel size, read once it loads — shown under the
+  // thumbnail so the merchant can tell a proper mockup from a tiny one.
+  const [imageSizes, setImageSizes] = useState<Record<string, { w: number; h: number }>>({})
 
   const productName = (offer: PaymentForm) =>
     products.find((p) => p.id === offer.product_id)?.name ?? null
@@ -241,8 +260,11 @@ export function OrderBumpsDialog({
       return
     }
     toast.success(editingId ? t("bumps.updated") : t("bumps.added"))
+    const savedId: string | undefined = data.bump?.id ?? editingId ?? undefined
     resetEditor()
-    loadBumps(formId)
+    // Keep the bump that was just saved open, so its images can keep
+    // being adjusted without hunting for its pencil again.
+    loadBumps(formId, savedId)
   }
 
   async function toggleActive(bump: PaymentOrderBump, active: boolean) {
@@ -388,6 +410,12 @@ export function OrderBumpsDialog({
           {!!bumps?.length && !editingId && (
             <p className="text-xs text-muted-foreground">{t("bumps.editExistingHint")}</p>
           )}
+          {editingId && (
+            <Button variant="outline" size="sm" onClick={resetEditor} className="w-full border-dashed">
+              <Plus className="h-4 w-4" />
+              {t("bumps.addAnother")}
+            </Button>
+          )}
         </div>
 
         <div className="min-w-0 space-y-3 border-t border-border pt-4">
@@ -494,54 +522,105 @@ export function OrderBumpsDialog({
               className="hidden"
               onChange={addGalleryImage}
             />
-            <div className="flex flex-wrap gap-2">
-              {gallery.map((src, i) => (
-                <div key={src + i} className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={src}
-                    alt=""
-                    className={`h-20 w-16 rounded-md border object-cover ${
-                      i === 0 ? "border-amber-400 ring-2 ring-amber-400/60" : "border-border"
-                    }`}
-                  />
-                  {i === 0 && (
-                    <span className="absolute inset-x-0 bottom-0 rounded-b-md bg-amber-400 text-center text-[10px] font-semibold text-black">
-                      {t("bumps.galleryMain")}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setGallery((g) => g.filter((_, j) => j !== i))}
-                    aria-label={t("bumps.galleryRemove")}
-                    className="absolute -right-1.5 -top-1.5 rounded-full bg-background p-0.5 text-muted-foreground shadow ring-1 ring-border hover:text-destructive"
+            {/* Big enough to judge each image: shown whole (object-contain
+                on white, like the pop-up) with its real pixel size, its
+                position number and plain controls under it. */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {gallery.map((src, i) => {
+                const size = imageSizes[src]
+                return (
+                  <div
+                    key={src + i}
+                    className={cn(
+                      "flex min-w-0 flex-col overflow-hidden rounded-lg border",
+                      i === 0 ? "border-amber-400 ring-2 ring-amber-400/50" : "border-border",
+                    )}
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                  {i > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => moveImageEarlier(i)}
-                      aria-label={t("bumps.galleryMoveEarlier")}
-                      className="absolute -left-1.5 -top-1.5 rounded-full bg-background p-0.5 text-muted-foreground shadow ring-1 ring-border hover:text-foreground"
-                    >
-                      <ArrowLeft className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-              ))}
+                    <div className="relative flex aspect-[4/5] items-center justify-center bg-white p-1.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt=""
+                        onLoad={(e) => {
+                          const { naturalWidth: w, naturalHeight: h } = e.currentTarget
+                          setImageSizes((s) => (s[src] ? s : { ...s, [src]: { w, h } }))
+                        }}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                      <span
+                        className={cn(
+                          "absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold",
+                          i === 0 ? "bg-amber-400 text-black" : "bg-black/70 text-white",
+                        )}
+                      >
+                        {i === 0 ? `1 · ${t("bumps.galleryMain")}` : i + 1}
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 border-t border-border p-1.5">
+                      <p className="text-center text-[11px] text-muted-foreground">
+                        {size ? `${size.w} × ${size.h} px` : "…"}
+                      </p>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveImage(i, -1)}
+                          disabled={i === 0}
+                          aria-label={t("bumps.galleryMoveEarlier")}
+                          title={t("bumps.galleryMoveEarlier")}
+                          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+                        >
+                          <ArrowLeft className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => makeMainImage(i)}
+                          disabled={i === 0}
+                          aria-label={t("bumps.galleryMakeMain")}
+                          title={t("bumps.galleryMakeMain")}
+                          className="rounded p-1 text-amber-500 hover:bg-muted disabled:opacity-30"
+                        >
+                          <Star className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveImage(i, 1)}
+                          disabled={i === gallery.length - 1}
+                          aria-label={t("bumps.galleryMoveLater")}
+                          title={t("bumps.galleryMoveLater")}
+                          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+                        >
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGallery((g) => g.filter((_, j) => j !== i))}
+                          aria-label={t("bumps.galleryRemove")}
+                          title={t("bumps.galleryRemove")}
+                          className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
               {gallery.length < BUMP_GALLERY_MAX_IMAGES && (
                 <button
                   type="button"
                   onClick={() => galleryInputRef.current?.click()}
                   disabled={uploadingImage}
-                  className="flex h-20 w-16 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border text-[10px] text-muted-foreground hover:bg-muted disabled:opacity-60"
+                  className="flex aspect-[4/5] flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:bg-muted disabled:opacity-60"
                 >
-                  {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  {uploadingImage ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
                   {t("bumps.galleryAdd")}
+                  <span className="text-[10px]">
+                    {gallery.length}/{BUMP_GALLERY_MAX_IMAGES}
+                  </span>
                 </button>
               )}
             </div>
+            <p className="text-xs text-muted-foreground">{t("bumps.gallerySizeHint")}</p>
           </div>
         </div>
 
