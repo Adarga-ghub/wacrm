@@ -131,6 +131,48 @@ export function BumpPreviewDialog({
 }
 
 /**
+ * "Añadir a la compra" / "Añadido a tu compra" toggle of the pop-up.
+ * Added state: light green pill with a check inside a green circle —
+ * the same mark on phone, tablet and desktop. The label never wraps.
+ */
+function BumpToggleButton({
+  checked,
+  onToggle,
+  label,
+  className,
+}: {
+  checked: boolean
+  onToggle: () => void
+  label: string
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={checked}
+      className={cn(
+        "h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-[15px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600",
+        checked
+          ? "border-2 border-emerald-600 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+          : "bg-emerald-600 text-white hover:bg-emerald-700",
+        className,
+      )}
+    >
+      {checked && (
+        <span
+          aria-hidden
+          className="flex size-6 shrink-0 items-center justify-center rounded-full border-2 border-emerald-600 bg-white"
+        >
+          <Check className="size-3.5 text-emerald-600" strokeWidth={3.5} />
+        </span>
+      )}
+      {label}
+    </button>
+  )
+}
+
+/**
  * The pop-up's body (images, copy, prices, add button, thumbnails) —
  * shared by the checkout's eye pop-up above and the admin's "Vista
  * previa" in the order bumps dialog, so the merchant previews exactly
@@ -205,21 +247,26 @@ export function BumpPreviewContent({
               {formatPaymentAmount(bump.price, currency)}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-pressed={checked}
-            className={cn(
-              "mt-4 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600",
-              checked
-                ? "border border-emerald-600 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                : "bg-emerald-600 text-white hover:bg-emerald-700",
-            )}
-          >
-            {checked && <Check className="size-4" strokeWidth={3} />}
-            {checked ? t.bumpAdded : t.addToPurchase}
-          </button>
+          {/* Tablet/desktop: in the text column, full width. */}
+          <BumpToggleButton
+            checked={checked}
+            onToggle={onToggle}
+            label={checked ? t.bumpAdded : t.addToPurchase}
+            className="mt-4 hidden w-full sm:inline-flex"
+          />
         </div>
+      </div>
+
+      {/* Phone: the text column is too narrow for "Añadido a tu compra" on
+          one line, so the button sits on its own row under both columns,
+          right-aligned and as wide as its label. */}
+      <div className="mt-3 flex justify-end sm:hidden">
+        <BumpToggleButton
+          checked={checked}
+          onToggle={onToggle}
+          label={checked ? t.bumpAdded : t.addToPurchase}
+          className="inline-flex"
+        />
       </div>
 
       {gallery.length > 1 && (
