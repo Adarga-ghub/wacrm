@@ -11,7 +11,12 @@ import { cn } from "@/lib/utils"
 import { payPageStrings } from "@/lib/payments/pay-page-i18n"
 import { OrderBumpBox } from "@/components/payments/order-bump-box"
 import { BumpPreviewContent } from "@/components/payments/bump-preview"
-import { BUMP_GALLERY_MAX_IMAGES, CHECKOUT_TEXT_LIMITS } from "@/lib/payments/checkout-limits"
+import {
+  BUMP_GALLERY_IMAGE,
+  BUMP_GALLERY_MAX_IMAGES,
+  CHECKOUT_TEXT_LIMITS,
+  isValidBumpGalleryImageSize,
+} from "@/lib/payments/checkout-limits"
 import { MEDIA_MAX_BYTES_BY_KIND, uploadAccountMedia } from "@/lib/storage/upload-media"
 import { CharCounter } from "@/components/payments/checkout-header-settings"
 import { Button } from "@/components/ui/button"
@@ -26,6 +31,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+
+/** A picked file's pixel size, read in the browser — null when it can't be decoded. */
+function readImageSize(file: File): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      resolve({ w: img.naturalWidth, h: img.naturalHeight })
+      URL.revokeObjectURL(url)
+    }
+    img.onerror = () => {
+      resolve(null)
+      URL.revokeObjectURL(url)
+    }
+    img.src = url
+  })
+}
 
 /**
  * "Order Bumps" manager for one offer (`mainOffer`, a `payment_forms`
@@ -151,6 +173,11 @@ export function OrderBumpsDialog({
   async function addGalleryImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ""
+    // Set by "Cambiar" on an image card: the upload takes that image's
+    // place instead of being appended, so the order stays the same.
+    // Read (and cleared) up front so a rejected file can't leave it set.
+    const replaceIndex = replaceIndexRef.current
+    replaceIndexRef.current = null
     if (!file) return
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       toast.error(tSkins("imageInvalidType"))
@@ -160,10 +187,20 @@ export function OrderBumpsDialog({
       toast.error(tSkins("imageTooLarge"))
       return
     }
-    // Set by "Cambiar" on an image card: the upload takes that image's
-    // place instead of being appended, so the order stays the same.
-    const replaceIndex = replaceIndexRef.current
-    replaceIndexRef.current = null
+    // Size rule (BUMP_GALLERY_IMAGE): checked from the file itself,
+    // before anything is uploaded — a wrong-size image never reaches
+    // storage or the gallery.
+    const size = await readImageSize(file)
+    if (!size || !isValidBumpGalleryImageSize(size.w, size.h)) {
+      toast.error(
+        t("bumps.gallerySizeRejected", {
+          size: size ? `${size.w} × ${size.h} px` : "?",
+          required: `${BUMP_GALLERY_IMAGE.width} × ${BUMP_GALLERY_IMAGE.height} px`,
+        }),
+        { duration: 8000 },
+      )
+      return
+    }
     setUploadingImage(true)
     try {
       const { publicUrl } = await uploadAccountMedia("payment-media", file)
@@ -199,6 +236,7 @@ export function OrderBumpsDialog({
   // Each image's real pixel size, read once it loads — shown under the
   // thumbnail so the merchant can tell a proper mockup from a tiny one.
   const [imageSizes, setImageSizes] = useState<Record<string, { w: number; h: number }>>({})
+  const recommendedSize = `${BUMP_GALLERY_IMAGE.width} × ${BUMP_GALLERY_IMAGE.height} px`
 
   const productName = (offer: PaymentForm) =>
     products.find((p) => p.id === offer.product_id)?.name ?? null
@@ -585,8 +623,24 @@ export function OrderBumpsDialog({
                       </span>
                     </button>
                     <div className="space-y-1.5 border-t border-border p-1.5">
-                      <p className="text-center text-[11px] text-muted-foreground">
-                        {size ? `${size.w} × ${size.h} px` : "…"}
+                      {/* Images saved before the size rule are kept, just
+                          flagged — only new uploads are blocked. */}
+                      {size && !isValidBumpGalleryImageSize(size.w, size.h) ? (
+                        <div className="space-y-0.5 text-center">
+                          <p className="text-[11px] font-semibold text-red-500">
+                            {size.w} × {size.h} px
+                          </p>
+                          <p className="rounded bg-red-500/10 px-1 py-0.5 text-[10px] font-medium leading-tight text-red-500">
+                            {t("bumps.gallerySizeInvalid", { required: recommendedSize })}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-center text-[11px] text-emerald-500">
+                          {size ? `${size.w} × ${size.h} px ✓` : "…"}
+                        </p>
+                      )}
+                      <p className="text-center text-[10px] text-muted-foreground">
+                        {t("bumps.galleryRecommended", { size: recommendedSize })}
                       </p>
                       <div className="flex items-center justify-center gap-1">
                         <button
@@ -654,6 +708,9 @@ export function OrderBumpsDialog({
                   {t("bumps.galleryAdd")}
                   <span className="text-[10px]">
                     {gallery.length}/{BUMP_GALLERY_MAX_IMAGES}
+                  </span>
+                  <span className="px-2 text-center text-[10px] leading-tight">
+                    {t("bumps.galleryRecommended", { size: recommendedSize })}
                   </span>
                 </button>
               )}

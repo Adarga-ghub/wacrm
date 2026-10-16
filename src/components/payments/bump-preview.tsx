@@ -7,6 +7,7 @@ import type { PublicOrderBump } from "@/types"
 import { formatPaymentAmount } from "@/lib/currency"
 import { cn } from "@/lib/utils"
 import { payPageStrings, type PayLocale } from "@/lib/payments/pay-page-i18n"
+import { BUMP_GALLERY_IMAGE } from "@/lib/payments/checkout-limits"
 
 /**
  * A flat cover drawn as a 3D book (perspective tilt, page edges, spine
@@ -158,7 +159,7 @@ export function BumpPreviewContent({
       <div className="grid grid-cols-1 items-center gap-4 min-[380px]:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
         <div className="flex min-h-[200px] items-center justify-center">
           {mainImage ? (
-            // One fixed frame (the mockup's 385:525 proportions) for every
+            // One fixed frame (BUMP_GALLERY_IMAGE: the mockup shape, 11:15) for every
             // gallery image: each one is scaled to fill it — up or down —
             // so switching thumbnails changes the picture, never its size.
             // A small image (e.g. 130×164) is enlarged and may look soft.
@@ -166,7 +167,10 @@ export function BumpPreviewContent({
             // generated, which left the frame 0px tall (blank pop-up).
             <div
               className="relative w-full"
-              style={{ aspectRatio: "385 / 525", maxWidth: "calc(52vh * 385 / 525)" }}
+              style={{
+                aspectRatio: `${BUMP_GALLERY_IMAGE.width} / ${BUMP_GALLERY_IMAGE.height}`,
+                maxWidth: `calc(52vh * ${BUMP_GALLERY_IMAGE.width} / ${BUMP_GALLERY_IMAGE.height})`,
+              }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

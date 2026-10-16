@@ -23,6 +23,30 @@ export const CHECKOUT_TEXT_LIMITS = {
 /** Preview pop-up: main (mockup) image + up to 5 thumbnails' worth of pages. */
 export const BUMP_GALLERY_MAX_IMAGES = 6
 
+/**
+ * Pop-up image size. The pop-up's main image sits in a fixed frame of
+ * these proportions (11:15 — the shape of the book mockup), so an image
+ * of exactly this shape fills it with no white bands; this size is
+ * ~3× the frame's on-screen size, so it stays sharp.
+ */
+export const BUMP_GALLERY_IMAGE = { width: 1100, height: 1500 } as const
+
+/** How far an upload's proportions may drift from 11:15 and still be accepted (2%). */
+const BUMP_GALLERY_RATIO_TOLERANCE = 0.02
+
+/**
+ * Whether an image may be ADDED to a bump's pop-up gallery: the right
+ * shape (within 2%) and at least `BUMP_GALLERY_IMAGE` in both sides —
+ * bigger is fine, it's just sharper. Images saved before this rule
+ * existed are kept; the admin only flags them.
+ */
+export function isValidBumpGalleryImageSize(width: number, height: number): boolean {
+  if (!(width > 0 && height > 0)) return false
+  const target = BUMP_GALLERY_IMAGE.width / BUMP_GALLERY_IMAGE.height
+  const drift = Math.abs(width / height - target) / target
+  return drift <= BUMP_GALLERY_RATIO_TOLERANCE && width >= BUMP_GALLERY_IMAGE.width && height >= BUMP_GALLERY_IMAGE.height
+}
+
 /** Longest countdown the urgency timer can be set to (it shows 2-digit hours). */
 export const URGENCY_MAX_HOURS = 99
 

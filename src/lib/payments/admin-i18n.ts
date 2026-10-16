@@ -385,6 +385,12 @@ export interface PaymentsProductsStrings {
     galleryReplace: string
     /** Recommended size/shape for the pop-up images, under the gallery. */
     gallerySizeHint: string
+    /** Label under each image and on "Añadir imagen" — `{size}` = the required size. */
+    galleryRecommended: string
+    /** Red flag on an already-saved image that doesn't meet the size rule. */
+    gallerySizeInvalid: string
+    /** Toast when a picked file is rejected — `{size}` = its size, `{required}` = the rule. */
+    gallerySizeRejected: string
     /** Shown under the footer while no offer is picked for a new bump. */
     chooseOfferFirst: string
     /** Under the list: how to change an existing bump. */
@@ -875,7 +881,10 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryMakeMain: "Make main image",
         galleryMoveLater: "Move later",
         galleryReplace: "Change image",
-        gallerySizeHint: "Recommended: PNG or JPG around 1000 × 1250 px (portrait 4:5); for the main image, a mockup of the book in perspective on a transparent or white background. Wider or taller images are shown whole, scaled to fit.",
+        gallerySizeHint: "Images must be 1100 × 1500 px (portrait, the shape of the book mockup) or larger with the same shape — any other size is rejected when uploading. They all show at the same size in the pop-up, never past its frame. For the main image, a mockup of the book in perspective on a transparent or white background works best.",
+        galleryRecommended: "Recommended: {size}",
+        gallerySizeInvalid: "Doesn't meet {required}",
+        gallerySizeRejected: "This image is {size}. It must be {required} (or larger with the same shape). It was not added.",
         chooseOfferFirst: "Choose the offer to add to be able to save.",
         editExistingHint: "To change an existing order bump (images, prices, texts), click its pencil ✏️ first.",
         preview: "Preview",
@@ -1351,7 +1360,10 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryMakeMain: "Hacer imagen principal",
         galleryMoveLater: "Mover a la derecha",
         galleryReplace: "Cambiar imagen",
-        gallerySizeHint: "Recomendado: PNG o JPG de unos 1000 × 1250 px (vertical 4:5); para la principal, un mockup del libro en perspectiva con fondo transparente o blanco. Las imágenes más anchas o más altas se muestran completas, ajustadas al espacio.",
+        gallerySizeHint: "Las imágenes deben medir 1100 × 1500 px (vertical, la forma del mockup del libro) o más grandes con la misma forma; cualquier otra medida se rechaza al subirla. Todas se ven del mismo tamaño en el pop-up, sin salirse de su recuadro. Para la principal, lo ideal es un mockup del libro en perspectiva con fondo transparente o blanco.",
+        galleryRecommended: "Recomendado: {size}",
+        gallerySizeInvalid: "No cumple {required}",
+        gallerySizeRejected: "Esta imagen mide {size}. Debe medir {required} (o más grande con la misma forma). No se añadió.",
         chooseOfferFirst: "Elige la oferta a añadir para poder guardar.",
         editExistingHint: "Para cambiar un order bump ya creado (imágenes, precios, textos), pulsa primero su lápiz ✏️.",
         preview: "Vista previa",
