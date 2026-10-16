@@ -158,13 +158,24 @@ export function BumpPreviewContent({
       <div className="grid grid-cols-1 items-center gap-4 min-[380px]:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
         <div className="flex min-h-[200px] items-center justify-center">
           {mainImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={mainImage}
-              src={mainImage}
-              alt=""
-              className="max-h-[52vh] w-auto max-w-full object-contain drop-shadow-[0_16px_20px_rgba(15,23,42,0.28)] animate-in fade-in duration-300"
-            />
+            // One fixed frame (the mockup's 385:525 proportions) for every
+            // gallery image: each one is scaled to fill it — up or down —
+            // so switching thumbnails changes the picture, never its size.
+            // A small image (e.g. 130×164) is enlarged and may look soft.
+            // Inline style, not Tailwind arbitrary classes: those weren't
+            // generated, which left the frame 0px tall (blank pop-up).
+            <div
+              className="relative w-full"
+              style={{ aspectRatio: "385 / 525", maxWidth: "calc(52vh * 385 / 525)" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                key={mainImage}
+                src={mainImage}
+                alt=""
+                className="absolute inset-0 size-full object-contain drop-shadow-[0_16px_20px_rgba(15,23,42,0.28)] animate-in fade-in duration-300"
+              />
+            </div>
           ) : bump.image_url ? (
             <BookMockup src={bump.image_url} />
           ) : null}

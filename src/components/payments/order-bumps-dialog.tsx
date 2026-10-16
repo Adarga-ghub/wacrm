@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { ArrowLeft, ArrowRight, Eye, ImagePlus, Loader2, Pencil, Plus, Star, Trash2, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, Eye, ImagePlus, Loader2, Pencil, Plus, RefreshCw, Star, Trash2, X } from "lucide-react"
 
 import { usePaymentsT } from "@/hooks/use-payments-locale"
 import type { PaymentForm, PaymentOrderBump, PaymentProduct, PublicOrderBump } from "@/types"
@@ -58,6 +58,14 @@ export function OrderBumpsDialog({
   const [gallery, setGallery] = useState<string[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const galleryInputRef = useRef<HTMLInputElement>(null)
+  // Which image the next file pick replaces — null = append a new one.
+  const replaceIndexRef = useRef<number | null>(null)
+
+  /** Opens the file picker; with `index`, the chosen file replaces that image. */
+  function pickGalleryImage(index: number | null) {
+    replaceIndexRef.current = index
+    galleryInputRef.current?.click()
+  }
   const [saving, setSaving] = useState(false)
   // Section heading above all of this offer's bumps (migration 064) —
   // saved on the main offer itself, separately from any one bump.
@@ -152,10 +160,19 @@ export function OrderBumpsDialog({
       toast.error(tSkins("imageTooLarge"))
       return
     }
+    // Set by "Cambiar" on an image card: the upload takes that image's
+    // place instead of being appended, so the order stays the same.
+    const replaceIndex = replaceIndexRef.current
+    replaceIndexRef.current = null
     setUploadingImage(true)
     try {
       const { publicUrl } = await uploadAccountMedia("payment-media", file)
-      setGallery((g) => (g.length >= BUMP_GALLERY_MAX_IMAGES ? g : [...g, publicUrl]))
+      setGallery((g) => {
+        if (replaceIndex != null && replaceIndex < g.length) {
+          return g.map((src, j) => (j === replaceIndex ? publicUrl : src))
+        }
+        return g.length >= BUMP_GALLERY_MAX_IMAGES ? g : [...g, publicUrl]
+      })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : tSkins("imageUploadFailed"))
     } finally {
@@ -536,7 +553,14 @@ export function OrderBumpsDialog({
                       i === 0 ? "border-amber-400 ring-2 ring-amber-400/50" : "border-border",
                     )}
                   >
-                    <div className="relative flex aspect-[4/5] items-center justify-center bg-white p-1.5">
+                    {/* Clicking the image itself replaces it (same position). */}
+                    <button
+                      type="button"
+                      onClick={() => pickGalleryImage(i)}
+                      disabled={uploadingImage}
+                      title={t("bumps.galleryReplace")}
+                      className="group relative flex aspect-[4/5] items-center justify-center bg-white p-1.5 disabled:cursor-wait"
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={src}
@@ -547,6 +571,10 @@ export function OrderBumpsDialog({
                         }}
                         className="max-h-full max-w-full object-contain"
                       />
+                      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/65 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                        <RefreshCw className="h-3 w-3" />
+                        {t("bumps.galleryReplace")}
+                      </span>
                       <span
                         className={cn(
                           "absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold",
@@ -555,7 +583,7 @@ export function OrderBumpsDialog({
                       >
                         {i === 0 ? `1 · ${t("bumps.galleryMain")}` : i + 1}
                       </span>
-                    </div>
+                    </button>
                     <div className="space-y-1.5 border-t border-border p-1.5">
                       <p className="text-center text-[11px] text-muted-foreground">
                         {size ? `${size.w} × ${size.h} px` : "…"}
@@ -593,6 +621,16 @@ export function OrderBumpsDialog({
                         </button>
                         <button
                           type="button"
+                          onClick={() => pickGalleryImage(i)}
+                          disabled={uploadingImage}
+                          aria-label={t("bumps.galleryReplace")}
+                          title={t("bumps.galleryReplace")}
+                          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setGallery((g) => g.filter((_, j) => j !== i))}
                           aria-label={t("bumps.galleryRemove")}
                           title={t("bumps.galleryRemove")}
@@ -608,7 +646,7 @@ export function OrderBumpsDialog({
               {gallery.length < BUMP_GALLERY_MAX_IMAGES && (
                 <button
                   type="button"
-                  onClick={() => galleryInputRef.current?.click()}
+                  onClick={() => pickGalleryImage(null)}
                   disabled={uploadingImage}
                   className="flex aspect-[4/5] flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:bg-muted disabled:opacity-60"
                 >

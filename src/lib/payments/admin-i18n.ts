@@ -381,6 +381,8 @@ export interface PaymentsProductsStrings {
     addAnother: string
     galleryMakeMain: string
     galleryMoveLater: string
+    /** Click on an image / its button: swap it for a new upload in the same position. */
+    galleryReplace: string
     /** Recommended size/shape for the pop-up images, under the gallery. */
     gallerySizeHint: string
     /** Shown under the footer while no offer is picked for a new bump. */
@@ -872,6 +874,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         addAnother: "Add another order bump",
         galleryMakeMain: "Make main image",
         galleryMoveLater: "Move later",
+        galleryReplace: "Change image",
         gallerySizeHint: "Recommended: PNG or JPG around 1000 × 1250 px (portrait 4:5); for the main image, a mockup of the book in perspective on a transparent or white background. Wider or taller images are shown whole, scaled to fit.",
         chooseOfferFirst: "Choose the offer to add to be able to save.",
         editExistingHint: "To change an existing order bump (images, prices, texts), click its pencil ✏️ first.",
@@ -1347,6 +1350,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         addAnother: "Añadir otro order bump",
         galleryMakeMain: "Hacer imagen principal",
         galleryMoveLater: "Mover a la derecha",
+        galleryReplace: "Cambiar imagen",
         gallerySizeHint: "Recomendado: PNG o JPG de unos 1000 × 1250 px (vertical 4:5); para la principal, un mockup del libro en perspectiva con fondo transparente o blanco. Las imágenes más anchas o más altas se muestran completas, ajustadas al espacio.",
         chooseOfferFirst: "Elige la oferta a añadir para poder guardar.",
         editExistingHint: "Para cambiar un order bump ya creado (imágenes, precios, textos), pulsa primero su lápiz ✏️.",
