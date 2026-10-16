@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { parseBumpPrice } from '@/lib/payments/order-bumps'
-import { CHECKOUT_TEXT_LIMITS, parseGalleryImages, parseLimitedText } from '@/lib/payments/checkout-limits'
+import {
+  CHECKOUT_TEXT_LIMITS,
+  parseBumpBoxFontSizes,
+  parseBumpPopupCopy,
+  parseGalleryImages,
+  parseLimitedText,
+  type BumpBoxFontSizes,
+  type BumpPopupCopy,
+} from '@/lib/payments/checkout-limits'
 
-interface PutBody {
+interface PutBody extends Partial<Record<keyof BumpPopupCopy, string | null>> {
   title?: string | null
   description?: string | null
   active?: boolean
@@ -11,6 +19,7 @@ interface PutBody {
   price?: number | string | null
   compare_at_price?: number | string | null
   gallery_images?: string[] | null
+  box_font_sizes?: BumpBoxFontSizes | null
 }
 
 /** PUT /api/payments/forms/[id]/bumps/[bumpId] — edit an order bump's copy, toggle it, or reorder it. */
@@ -38,15 +47,24 @@ export async function PUT(
       { status: 400 },
     )
   }
+  const popupCopy = parseBumpPopupCopy(body)
+  if ('tooLong' in popupCopy) {
+    return NextResponse.json({ error: `${popupCopy.tooLong} max ${popupCopy.max} characters` }, { status: 400 })
+  }
+  const boxFontSizes = parseBumpBoxFontSizes(body.box_font_sizes)
+  if (boxFontSizes === 'invalid') {
+    return NextResponse.json({ error: 'Invalid font sizes' }, { status: 400 })
+  }
   const galleryImages = parseGalleryImages(body.gallery_images)
   if (galleryImages === 'invalid') {
     return NextResponse.json({ error: 'Invalid gallery images' }, { status: 400 })
   }
 
-  const update: Record<string, unknown> = {}
+  const update: Record<string, unknown> = { ...popupCopy.copy }
   if (title !== undefined) update.title = title
   if (description !== undefined) update.description = description
   if (galleryImages !== undefined) update.gallery_images = galleryImages
+  if (boxFontSizes !== undefined) update.box_font_sizes = boxFontSizes
   if (body.active !== undefined) update.active = Boolean(body.active)
   if (body.position !== undefined && Number.isInteger(body.position)) update.position = body.position
   const price = parseBumpPrice(body.price)

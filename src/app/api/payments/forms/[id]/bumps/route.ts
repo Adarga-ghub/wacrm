@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { parseBumpPrice } from '@/lib/payments/order-bumps'
-import { CHECKOUT_TEXT_LIMITS, parseGalleryImages, parseLimitedText } from '@/lib/payments/checkout-limits'
+import {
+  CHECKOUT_TEXT_LIMITS,
+  parseBumpBoxFontSizes,
+  parseBumpPopupCopy,
+  parseGalleryImages,
+  parseLimitedText,
+  type BumpBoxFontSizes,
+  type BumpPopupCopy,
+} from '@/lib/payments/checkout-limits'
 
 /**
  * GET /api/payments/forms/[id]/bumps
@@ -37,7 +45,7 @@ export async function GET(
   return NextResponse.json({ bumps: data ?? [] })
 }
 
-interface PostBody {
+interface PostBody extends Partial<Record<keyof BumpPopupCopy, string | null>> {
   bump_form_id?: string
   title?: string | null
   description?: string | null
@@ -47,6 +55,8 @@ interface PostBody {
   compare_at_price?: number | string | null
   /** Preview pop-up images (migration 064). */
   gallery_images?: string[] | null
+  /** Checkout box font sizes (migration 065). */
+  box_font_sizes?: BumpBoxFontSizes | null
 }
 
 /**
@@ -85,6 +95,14 @@ export async function POST(
       },
       { status: 400 },
     )
+  }
+  const popupCopy = parseBumpPopupCopy(body)
+  if ('tooLong' in popupCopy) {
+    return NextResponse.json({ error: `${popupCopy.tooLong} max ${popupCopy.max} characters` }, { status: 400 })
+  }
+  const boxFontSizes = parseBumpBoxFontSizes(body.box_font_sizes)
+  if (boxFontSizes === 'invalid') {
+    return NextResponse.json({ error: 'Invalid font sizes' }, { status: 400 })
   }
   const galleryImages = parseGalleryImages(body.gallery_images)
   if (galleryImages === 'invalid') {
@@ -130,6 +148,8 @@ export async function POST(
       title: title ?? null,
       description: description ?? null,
       gallery_images: galleryImages ?? [],
+      ...popupCopy.copy,
+      box_font_sizes: boxFontSizes ?? {},
       price: price ?? null,
       compare_at_price: compareAtPrice ?? null,
       position: count ?? 0,

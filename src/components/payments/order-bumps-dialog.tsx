@@ -2,7 +2,21 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { ArrowLeft, ArrowRight, Eye, ImagePlus, Loader2, Pencil, Plus, RefreshCw, Star, Trash2, X } from "lucide-react"
+import {
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+  ImagePlus,
+  Loader2,
+  Minus,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Star,
+  Trash2,
+  X,
+} from "lucide-react"
 
 import { usePaymentsT } from "@/hooks/use-payments-locale"
 import type { PaymentForm, PaymentOrderBump, PaymentProduct, PublicOrderBump } from "@/types"
@@ -12,10 +26,13 @@ import { payPageStrings } from "@/lib/payments/pay-page-i18n"
 import { OrderBumpBox } from "@/components/payments/order-bump-box"
 import { BumpPreviewContent } from "@/components/payments/bump-preview"
 import {
+  BUMP_BOX_FONT_SIZES,
   BUMP_GALLERY_IMAGE,
   BUMP_GALLERY_MAX_IMAGES,
   CHECKOUT_TEXT_LIMITS,
   isValidBumpGalleryImageSize,
+  type BumpBoxFontSizes,
+  type BumpPopupCopy,
 } from "@/lib/payments/checkout-limits"
 import { MEDIA_MAX_BYTES_BY_KIND, uploadAccountMedia } from "@/lib/storage/upload-media"
 import { CharCounter } from "@/components/payments/checkout-header-settings"
@@ -49,6 +66,77 @@ function readImageSize(file: File): Promise<{ w: number; h: number } | null> {
   })
 }
 
+const EMPTY_POPUP_COPY: Record<keyof BumpPopupCopy, string> = {
+  popup_title: "",
+  popup_description: "",
+  checkbox_label: "",
+  popup_button_label: "",
+  popup_added_label: "",
+}
+
+/**
+ * "A− 13.5 px A+" stepper for one of the checkout box's font sizes
+ * (BUMP_BOX_FONT_SIZES) — 0.5px steps; the reset only shows once the
+ * size differs from the default.
+ */
+function FontSizeControl({
+  field,
+  sizes,
+  onChange,
+  t,
+}: {
+  field: keyof typeof BUMP_BOX_FONT_SIZES
+  sizes: BumpBoxFontSizes
+  onChange: (sizes: BumpBoxFontSizes) => void
+  t: (key: string) => string
+}) {
+  const range = BUMP_BOX_FONT_SIZES[field]
+  const value = sizes[field] ?? range.default
+  const set = (next: number) => {
+    const rest = { ...sizes }
+    delete rest[field]
+    onChange(next === range.default ? rest : { ...rest, [field]: next })
+  }
+  const step = "flex size-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[11px] text-muted-foreground">{t("bumps.fontSize")}</span>
+      <button
+        type="button"
+        onClick={() => set(Math.max(range.min, value - 0.5))}
+        disabled={value <= range.min}
+        aria-label={t("bumps.fontSmaller")}
+        title={t("bumps.fontSmaller")}
+        className={step}
+      >
+        <Minus className="h-3 w-3" />
+      </button>
+      <span className="w-12 text-center text-[11px] font-medium tabular-nums text-foreground">{value} px</span>
+      <button
+        type="button"
+        onClick={() => set(Math.min(range.max, value + 0.5))}
+        disabled={value >= range.max}
+        aria-label={t("bumps.fontBigger")}
+        title={t("bumps.fontBigger")}
+        className={step}
+      >
+        <Plus className="h-3 w-3" />
+      </button>
+      {value !== range.default && (
+        <button
+          type="button"
+          onClick={() => set(range.default)}
+          aria-label={t("bumps.fontReset")}
+          title={t("bumps.fontReset")}
+          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <RotateCcw className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  )
+}
+
 /**
  * "Order Bumps" manager for one offer (`mainOffer`, a `payment_forms`
  * row). Each bump points at ANOTHER offer of the account — its price,
@@ -76,6 +164,13 @@ export function OrderBumpsDialog({
   // offer's own price; `compareAt` empty = no struck-through price.
   const [price, setPrice] = useState("")
   const [compareAt, setCompareAt] = useState("")
+  // Pop-up / button copy (migration 065) — empty = the box's copy or the default label.
+  const [popupCopy, setPopupCopy] = useState(EMPTY_POPUP_COPY)
+  const setCopy = (key: keyof BumpPopupCopy, value: string) => setPopupCopy((c) => ({ ...c, [key]: value }))
+  // Checkout box font sizes — a missing key = the default size.
+  const [fontSizes, setFontSizes] = useState<BumpBoxFontSizes>({})
+  // The live box preview's checkbox (client-only, never saved).
+  const [liveChecked, setLiveChecked] = useState(false)
   // Preview pop-up images (migration 064) — first = main/mockup.
   const [gallery, setGallery] = useState<string[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -150,6 +245,8 @@ export function OrderBumpsDialog({
     setPrice("")
     setCompareAt("")
     setGallery([])
+    setPopupCopy(EMPTY_POPUP_COPY)
+    setFontSizes({})
   }
 
   async function saveHeading() {
@@ -279,6 +376,12 @@ export function OrderBumpsDialog({
     compare_at_price: Number(compareAt) > effectivePrice ? Number(compareAt) : null,
     image_url: selectedProduct?.image_url ?? null,
     gallery_images: gallery,
+    popup_title: popupCopy.popup_title.trim() || null,
+    popup_description: popupCopy.popup_description.trim() || null,
+    checkbox_label: popupCopy.checkbox_label.trim() || null,
+    popup_button_label: popupCopy.popup_button_label.trim() || null,
+    popup_added_label: popupCopy.popup_added_label.trim() || null,
+    box_font_sizes: fontSizes,
   }
   const previewCurrency = selectedOffer?.currency ?? mainOffer?.currency ?? "USD"
 
@@ -296,17 +399,18 @@ export function OrderBumpsDialog({
       price: price.trim() ? Number(price) : null,
       compare_at_price: compareAt.trim() ? Number(compareAt) : null,
     }
+    const fields = { title, description, ...popupCopy, box_font_sizes: fontSizes, gallery_images: gallery, ...prices }
     setSaving(true)
     const res = editingId
       ? await fetch(`/api/payments/forms/${formId}/bumps/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, description, gallery_images: gallery, ...prices }),
+          body: JSON.stringify(fields),
         })
       : await fetch(`/api/payments/forms/${formId}/bumps`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bump_form_id: offerId, title, description, gallery_images: gallery, ...prices }),
+          body: JSON.stringify({ bump_form_id: offerId, ...fields }),
         })
     const data = await res.json().catch(() => ({}))
     setSaving(false)
@@ -355,6 +459,14 @@ export function OrderBumpsDialog({
     setPrice(bump.price != null ? String(bump.price) : "")
     setCompareAt(bump.compare_at_price != null ? String(bump.compare_at_price) : "")
     setGallery(bump.gallery_images ?? [])
+    setPopupCopy({
+      popup_title: bump.popup_title ?? "",
+      popup_description: bump.popup_description ?? "",
+      checkbox_label: bump.checkbox_label ?? "",
+      popup_button_label: bump.popup_button_label ?? "",
+      popup_added_label: bump.popup_added_label ?? "",
+    })
+    setFontSizes(bump.box_font_sizes ?? {})
   }
 
   return (
@@ -504,66 +616,171 @@ export function OrderBumpsDialog({
               <p className="text-xs text-muted-foreground">{t("bumps.noCandidates")}</p>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">{t("bumps.boxHint")}</p>
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-muted-foreground">{t("bumps.titleLabel")}</Label>
-              <CharCounter value={title} max={CHECKOUT_TEXT_LIMITS.bumpTitle} />
+          {/* Checkout box: its copy, font sizes and a live preview that
+              stays pinned at the top of the dialog while this section is
+              being edited (unsaved values included) — the wrapper ends the
+              pinning where the pop-up section starts. */}
+          <div className="space-y-3">
+            {/* Checkout box: its copy, font sizes and a live preview that
+                stays pinned at the top of the dialog while this section is
+                being edited (unsaved values included). */}
+            <p className="pt-1 text-sm font-semibold text-foreground">{t("bumps.boxSection")}</p>
+            <p className="text-xs text-muted-foreground">{t("bumps.boxHint")}</p>
+            <div className="sticky -top-4 z-10 -mx-4 border-b border-border bg-popover px-4 pb-3 pt-2">
+              <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">{t("bumps.livePreview")}</p>
+              {/* `pay-page-surface`: the checkout's light palette, even in dark mode. */}
+              <div className="pay-page-surface rounded-lg bg-white p-2 text-slate-900">
+                <OrderBumpBox
+                  bump={previewBump}
+                  currency={previewCurrency}
+                  checked={liveChecked}
+                  onCheckedChange={setLiveChecked}
+                  onPreview={() => {
+                    setPreviewChecked(liveChecked)
+                    setPreviewOpen(true)
+                  }}
+                  t={payPageStrings.es}
+                />
+              </div>
             </div>
-            <Input
-              value={title}
-              maxLength={CHECKOUT_TEXT_LIMITS.bumpTitle}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={t("bumps.titlePlaceholder")}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpTitle })}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label className="text-muted-foreground">{t("bumps.compareAtLabel")}</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-muted-foreground">{t("bumps.titleLabel")}</Label>
+                <CharCounter value={title} max={CHECKOUT_TEXT_LIMITS.bumpTitle} />
+              </div>
               <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={compareAt}
-                onChange={(e) => setCompareAt(e.target.value)}
-                placeholder={t("bumps.compareAtPlaceholder")}
+                value={title}
+                maxLength={CHECKOUT_TEXT_LIMITS.bumpTitle}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={t("bumps.titlePlaceholder")}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpTitle })}
+                </p>
+                <FontSizeControl field="title" sizes={fontSizes} onChange={setFontSizes} t={t} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("bumps.compareAtLabel")}</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={compareAt}
+                  onChange={(e) => setCompareAt(e.target.value)}
+                  placeholder={t("bumps.compareAtPlaceholder")}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("bumps.priceLabel")}</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder={t("bumps.pricePlaceholder")}
+                />
+              </div>
+              <p className="col-span-2 text-xs text-muted-foreground">
+                {t("bumps.priceHint", {
+                  price: selectedOffer ? formatPaymentAmount(selectedOffer.amount ?? 0, selectedOffer.currency) : "—",
+                })}
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-muted-foreground">{t("bumps.descriptionLabel")}</Label>
+                <CharCounter value={description} max={CHECKOUT_TEXT_LIMITS.bumpDescription} />
+              </div>
+              <Textarea
+                rows={3}
+                value={description}
+                maxLength={CHECKOUT_TEXT_LIMITS.bumpDescription}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={t("bumps.descriptionPlaceholder")}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpDescription })}
+                </p>
+                <FontSizeControl field="description" sizes={fontSizes} onChange={setFontSizes} t={t} />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-muted-foreground">{t("bumps.checkboxLabel")}</Label>
+                <CharCounter value={popupCopy.checkbox_label} max={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel} />
+              </div>
+              <Input
+                value={popupCopy.checkbox_label}
+                maxLength={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel}
+                onChange={(e) => setCopy("checkbox_label", e.target.value)}
+                placeholder={t("bumps.checkboxPlaceholder")}
+              />
+              <div className="flex justify-end">
+                <FontSizeControl field="checkbox" sizes={fontSizes} onChange={setFontSizes} t={t} />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-3 border-t border-border pt-4">
+            <div>
+              <p className="text-sm font-semibold text-foreground">{t("bumps.popupSection")}</p>
+              <p className="text-xs text-muted-foreground">{t("bumps.popupHint")}</p>
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-muted-foreground">{t("bumps.popupTitleLabel")}</Label>
+                <CharCounter value={popupCopy.popup_title} max={CHECKOUT_TEXT_LIMITS.bumpPopupTitle} />
+              </div>
+              <Input
+                value={popupCopy.popup_title}
+                maxLength={CHECKOUT_TEXT_LIMITS.bumpPopupTitle}
+                onChange={(e) => setCopy("popup_title", e.target.value)}
+                placeholder={title.trim() || t("bumps.popupSameAsBox")}
               />
             </div>
             <div className="grid gap-2">
-              <Label className="text-muted-foreground">{t("bumps.priceLabel")}</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder={t("bumps.pricePlaceholder")}
+              <div className="flex items-center justify-between">
+                <Label className="text-muted-foreground">{t("bumps.popupDescriptionLabel")}</Label>
+                <CharCounter value={popupCopy.popup_description} max={CHECKOUT_TEXT_LIMITS.bumpPopupDescription} />
+              </div>
+              <Textarea
+                rows={5}
+                value={popupCopy.popup_description}
+                maxLength={CHECKOUT_TEXT_LIMITS.bumpPopupDescription}
+                onChange={(e) => setCopy("popup_description", e.target.value)}
+                placeholder={description.trim() || t("bumps.popupSameAsBox")}
               />
             </div>
-            <p className="col-span-2 text-xs text-muted-foreground">
-              {t("bumps.priceHint", {
-                price: selectedOffer ? formatPaymentAmount(selectedOffer.amount ?? 0, selectedOffer.currency) : "—",
-              })}
-            </p>
-          </div>
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-muted-foreground">{t("bumps.descriptionLabel")}</Label>
-              <CharCounter value={description} max={CHECKOUT_TEXT_LIMITS.bumpDescription} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-muted-foreground">{t("bumps.popupButtonLabel")}</Label>
+                  <CharCounter value={popupCopy.popup_button_label} max={CHECKOUT_TEXT_LIMITS.bumpButtonLabel} />
+                </div>
+                <Input
+                  value={popupCopy.popup_button_label}
+                  maxLength={CHECKOUT_TEXT_LIMITS.bumpButtonLabel}
+                  onChange={(e) => setCopy("popup_button_label", e.target.value)}
+                  placeholder={t("bumps.popupButtonPlaceholder")}
+                />
+              </div>
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-muted-foreground">{t("bumps.popupAddedLabel")}</Label>
+                  <CharCounter value={popupCopy.popup_added_label} max={CHECKOUT_TEXT_LIMITS.bumpButtonLabel} />
+                </div>
+                <Input
+                  value={popupCopy.popup_added_label}
+                  maxLength={CHECKOUT_TEXT_LIMITS.bumpButtonLabel}
+                  onChange={(e) => setCopy("popup_added_label", e.target.value)}
+                  placeholder={t("bumps.popupAddedPlaceholder")}
+                />
+              </div>
             </div>
-            <Textarea
-              rows={3}
-              value={description}
-              maxLength={CHECKOUT_TEXT_LIMITS.bumpDescription}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("bumps.descriptionPlaceholder")}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpDescription })}
-            </p>
           </div>
           <div className="grid gap-2">
             <Label className="text-muted-foreground">{t("bumps.galleryLabel")}</Label>

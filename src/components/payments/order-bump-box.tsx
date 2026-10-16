@@ -6,6 +6,27 @@ import type { PublicOrderBump } from "@/types"
 import { formatPaymentAmount } from "@/lib/currency"
 import { cn } from "@/lib/utils"
 import type { PayPageStrings } from "@/lib/payments/pay-page-i18n"
+import { BUMP_BOX_FONT_SIZES } from "@/lib/payments/checkout-limits"
+
+/** Box height at the default font sizes. */
+const BOX_HEIGHT = 134
+
+/**
+ * Font sizes + line heights of the box's text, and the box height that
+ * fits them: the defaults reproduce the original 134px box, and every
+ * px a bigger font adds to the 2-line title/description slots (or the
+ * checkbox row) is added to the box, so nothing is ever cut off.
+ */
+function boxLayout(sizes: PublicOrderBump["box_font_sizes"] | undefined) {
+  const title = sizes?.title ?? BUMP_BOX_FONT_SIZES.title.default
+  const description = sizes?.description ?? BUMP_BOX_FONT_SIZES.description.default
+  const checkbox = sizes?.checkbox ?? null
+  const titleLine = Math.round((title * 4) / 3)
+  const descriptionLine = Math.round(description * 1.39)
+  const extra =
+    2 * (titleLine - 18) + 2 * (descriptionLine - 16) + (checkbox ? Math.max(0, Math.round(checkbox * 1.5 - 22.5)) : 0)
+  return { title, titleLine, description, descriptionLine, checkbox, height: BOX_HEIGHT + Math.max(0, extra) }
+}
 
 /**
  * One order bump box as the buyer sees it on the checkout — cover + eye
@@ -17,7 +38,8 @@ import type { PayPageStrings } from "@/lib/payments/pay-page-i18n"
  * Every box is the SAME fixed height whatever its copy: title and
  * description are clamped to 2 lines each in fixed-height slots (the
  * admin caps their length to match — see CHECKOUT_TEXT_LIMITS), so a
- * short bump never renders smaller than a long one.
+ * short bump never renders smaller than a long one. Only the font
+ * sizes the merchant picks (`box_font_sizes`) change that height.
  */
 export function OrderBumpBox({
   bump,
@@ -36,12 +58,14 @@ export function OrderBumpBox({
   t: Pick<PayPageStrings, "addToPurchase" | "viewBumpDetails">
 }) {
   const hasPreview = bump.gallery_images.length > 0 || !!bump.image_url
+  const layout = boxLayout(bump.box_font_sizes)
   return (
     <label
       className={cn(
-        "flex h-[134px] cursor-pointer gap-3 rounded-xl border-2 border-dashed p-3 transition-colors",
+        "flex cursor-pointer gap-3 rounded-xl border-2 border-dashed p-3 transition-colors",
         checked ? "border-emerald-500 bg-emerald-50" : "border-amber-300 bg-[#fffbea] hover:bg-amber-50",
       )}
+      style={{ height: layout.height }}
     >
       <div className="flex w-[60px] shrink-0 flex-col items-center gap-1.5">
         {bump.image_url ? (
@@ -73,8 +97,22 @@ export function OrderBumpBox({
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="line-clamp-2 h-[36px] text-[13.5px] leading-[18px] font-bold text-slate-900">{bump.title}</p>
-        <p className="mt-0.5 line-clamp-2 h-[32px] text-[11.5px] leading-[16px] text-slate-500">{bump.description}</p>
+        <p
+          className="line-clamp-2 shrink-0 font-bold text-slate-900"
+          style={{ fontSize: layout.title, lineHeight: `${layout.titleLine}px`, height: 2 * layout.titleLine }}
+        >
+          {bump.title}
+        </p>
+        <p
+          className="mt-0.5 line-clamp-2 shrink-0 text-slate-500"
+          style={{
+            fontSize: layout.description,
+            lineHeight: `${layout.descriptionLine}px`,
+            height: 2 * layout.descriptionLine,
+          }}
+        >
+          {bump.description}
+        </p>
         <div className="mt-auto flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-2">
             {/* Drawn by us (`appearance-none` + a Check icon), NOT the
@@ -95,7 +133,16 @@ export function OrderBumpBox({
                 className="pointer-events-none absolute inset-0 m-auto size-3 text-white opacity-0 peer-checked:opacity-100"
               />
             </span>
-            <span className="truncate text-[14px] font-medium text-slate-800 sm:text-[15px]">{t.addToPurchase}</span>
+            {/* Default: 14px on phones, 15px from sm up; a picked size applies everywhere. */}
+            <span
+              className={cn(
+                "truncate font-medium text-slate-800",
+                layout.checkbox == null && "text-[14px] sm:text-[15px]",
+              )}
+              style={layout.checkbox != null ? { fontSize: layout.checkbox } : undefined}
+            >
+              {bump.checkbox_label || t.addToPurchase}
+            </span>
           </span>
           {/* The struck-through "before" price (migration 062) frames the
               bump price as a deal. */}

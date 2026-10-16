@@ -18,7 +18,86 @@ export const CHECKOUT_TEXT_LIMITS = {
   bumpDescription: 150,
   /** "¡Adquiere tu regalo!" — one line next to the logo. */
   urgencyText: 40,
+  /** Pop-up heading (migration 065) — the pop-up has room for ~3 lines. */
+  bumpPopupTitle: 100,
+  /** Pop-up text — shown in full, the pop-up scrolls. */
+  bumpPopupDescription: 600,
+  /** Label next to the checkbox in the checkout box — one line beside the price. */
+  bumpCheckboxLabel: 30,
+  /** Pop-up button, before/after it's pressed — one line on phones. */
+  bumpButtonLabel: 30,
 } as const
+
+/** The pop-up/button copy of an order bump (migration 065) — null = the default. */
+export interface BumpPopupCopy {
+  popup_title: string | null
+  popup_description: string | null
+  checkbox_label: string | null
+  popup_button_label: string | null
+  popup_added_label: string | null
+}
+
+const BUMP_POPUP_COPY_LIMITS: Record<keyof BumpPopupCopy, number> = {
+  popup_title: CHECKOUT_TEXT_LIMITS.bumpPopupTitle,
+  popup_description: CHECKOUT_TEXT_LIMITS.bumpPopupDescription,
+  checkbox_label: CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel,
+  popup_button_label: CHECKOUT_TEXT_LIMITS.bumpButtonLabel,
+  popup_added_label: CHECKOUT_TEXT_LIMITS.bumpButtonLabel,
+}
+
+/**
+ * Validates the pop-up/button copy fields of an admin request body.
+ * Returns only the fields that were sent (to merge into an insert or
+ * update), or the name of the first field that's over its limit.
+ */
+export function parseBumpPopupCopy(
+  body: Partial<Record<keyof BumpPopupCopy, unknown>>,
+): { copy: Partial<BumpPopupCopy> } | { tooLong: keyof BumpPopupCopy; max: number } {
+  const copy: Partial<BumpPopupCopy> = {}
+  for (const key of Object.keys(BUMP_POPUP_COPY_LIMITS) as (keyof BumpPopupCopy)[]) {
+    const max = BUMP_POPUP_COPY_LIMITS[key]
+    const value = parseLimitedText(body[key], max)
+    if (value === 'too_long') return { tooLong: key, max }
+    if (value !== undefined) copy[key] = value
+  }
+  return { copy }
+}
+
+/**
+ * Font sizes (px) the merchant can pick for the checkout box's text
+ * (migration 065, `box_font_sizes`). `default` is the box's built-in
+ * size; the box grows with bigger fonts so 2 lines always fit.
+ */
+export const BUMP_BOX_FONT_SIZES = {
+  title: { default: 13.5, min: 11, max: 20 },
+  description: { default: 11.5, min: 10, max: 16 },
+  checkbox: { default: 14, min: 12, max: 20 },
+} as const
+
+export type BumpBoxFontSizes = Partial<Record<keyof typeof BUMP_BOX_FONT_SIZES, number>>
+
+/**
+ * Validates `box_font_sizes` from an admin request body: an object
+ * whose keys are in `BUMP_BOX_FONT_SIZES`, each a number in its range,
+ * in 0.5px steps. `undefined` = not sent, `null` = all defaults,
+ * `'invalid'` = reject with a 400.
+ */
+export function parseBumpBoxFontSizes(value: unknown): BumpBoxFontSizes | undefined | 'invalid' {
+  if (value === undefined) return undefined
+  if (value === null) return {}
+  if (typeof value !== 'object' || Array.isArray(value)) return 'invalid'
+  const sizes: BumpBoxFontSizes = {}
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const range = BUMP_BOX_FONT_SIZES[key as keyof typeof BUMP_BOX_FONT_SIZES]
+    if (!range) return 'invalid'
+    if (raw === null || raw === undefined) continue
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n < range.min || n > range.max || Math.round(n * 2) !== n * 2) return 'invalid'
+    // The default isn't stored, so "back to default" leaves no trace.
+    if (n !== range.default) sizes[key as keyof typeof BUMP_BOX_FONT_SIZES] = n
+  }
+  return sizes
+}
 
 /** Preview pop-up: main (mockup) image + up to 5 thumbnails' worth of pages. */
 export const BUMP_GALLERY_MAX_IMAGES = 6

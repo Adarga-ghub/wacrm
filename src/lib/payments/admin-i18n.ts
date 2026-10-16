@@ -406,6 +406,23 @@ export interface PaymentsProductsStrings {
     galleryMoveEarlier: string
     maxChars: string
     boxHint: string
+    boxSection: string
+    livePreview: string
+    checkboxLabel: string
+    checkboxPlaceholder: string
+    fontSize: string
+    fontSmaller: string
+    fontBigger: string
+    fontReset: string
+    popupSection: string
+    popupHint: string
+    popupTitleLabel: string
+    popupDescriptionLabel: string
+    popupSameAsBox: string
+    popupButtonLabel: string
+    popupButtonPlaceholder: string
+    popupAddedLabel: string
+    popupAddedPlaceholder: string
   }
 }
 
@@ -898,6 +915,23 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryMoveEarlier: "Move earlier",
         maxChars: "Max. {max} characters",
         boxHint: "Every box has the same height: title and description show 2 lines each (in full in the preview).",
+        boxSection: "Checkout box",
+        livePreview: "Live preview — how the box looks on the checkout",
+        checkboxLabel: "Checkbox text",
+        checkboxPlaceholder: "Add to my order",
+        fontSize: "Font size",
+        fontSmaller: "Smaller",
+        fontBigger: "Bigger",
+        fontReset: "Default size",
+        popupSection: "Pop-up (the eye)",
+        popupHint: "What the buyer sees after tapping the eye. Leave a field empty to use the box's text or the default label.",
+        popupTitleLabel: "Pop-up title",
+        popupDescriptionLabel: "Pop-up description",
+        popupSameAsBox: "Empty = same as the box",
+        popupButtonLabel: "Button (before adding)",
+        popupButtonPlaceholder: "Add to my order",
+        popupAddedLabel: "Button (once added)",
+        popupAddedPlaceholder: "Added to your order",
       },
     },
     transactions: {
@@ -1377,6 +1411,23 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryMoveEarlier: "Mover antes",
         maxChars: "Máx. {max} caracteres",
         boxHint: "Todas las cajas tienen la misma altura: el título y la descripción se muestran en 2 líneas cada uno (completos en la vista previa).",
+        boxSection: "Caja del checkout",
+        livePreview: "Vista previa en vivo — así se verá la caja en el checkout",
+        checkboxLabel: "Texto de la casilla",
+        checkboxPlaceholder: "Añadir a la compra",
+        fontSize: "Tamaño de letra",
+        fontSmaller: "Más pequeña",
+        fontBigger: "Más grande",
+        fontReset: "Tamaño predeterminado",
+        popupSection: "Pop-up (el ojito)",
+        popupHint: "Lo que ve el cliente al pulsar el ojito. Si dejas un campo vacío, se usa el texto de la caja o el texto por defecto.",
+        popupTitleLabel: "Título del pop-up",
+        popupDescriptionLabel: "Descripción del pop-up",
+        popupSameAsBox: "Vacío = igual que en la caja",
+        popupButtonLabel: "Botón (antes de añadir)",
+        popupButtonPlaceholder: "Añadir a la compra",
+        popupAddedLabel: "Botón (ya añadido)",
+        popupAddedPlaceholder: "Añadido a tu compra",
       },
     },
     transactions: {

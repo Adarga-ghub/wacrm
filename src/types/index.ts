@@ -1063,6 +1063,14 @@ export interface PaymentOrderBump {
   compare_at_price: number | null;
   /** Preview pop-up images (migration 064) — first = main/mockup image, rest = thumbnails. */
   gallery_images: string[];
+  /** Pop-up / button copy (migration 065) — null = the default. */
+  popup_title: string | null;
+  popup_description: string | null;
+  checkbox_label: string | null;
+  popup_button_label: string | null;
+  popup_added_label: string | null;
+  /** Checkout box font sizes in px (migration 065) — missing key = default. */
+  box_font_sizes: { title?: number; description?: number; checkbox?: number };
   position: number;
   active: boolean;
   created_at: string;
@@ -1080,6 +1088,16 @@ export interface PublicOrderBump {
   image_url: string | null;
   /** Preview pop-up images — empty = the pop-up shows `image_url` as a 3D book. */
   gallery_images: string[];
+  /** Pop-up heading/text (migration 065) — null = the pop-up shows `title`/`description`. */
+  popup_title: string | null;
+  popup_description: string | null;
+  /** Checkbox label in the checkout box — null = "Añadir a la compra". */
+  checkbox_label: string | null;
+  /** Pop-up button before/after it's pressed — null = the checkout's default labels. */
+  popup_button_label: string | null;
+  popup_added_label: string | null;
+  /** Checkout box font sizes in px — missing key = default. */
+  box_font_sizes: { title?: number; description?: number; checkbox?: number };
 }
 
 /** One purchased line on `payment_transactions.line_items` (migration 061). `upsell`/`downsell` lines (migration 063) live on their own transaction, one per offer the accepted step sold. */

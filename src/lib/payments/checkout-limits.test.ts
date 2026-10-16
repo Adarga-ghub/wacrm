@@ -1,5 +1,42 @@
 import { describe, expect, it } from 'vitest'
-import { isValidBumpGalleryImageSize } from './checkout-limits'
+import {
+  CHECKOUT_TEXT_LIMITS,
+  isValidBumpGalleryImageSize,
+  parseBumpBoxFontSizes,
+  parseBumpPopupCopy,
+} from './checkout-limits'
+
+describe('parseBumpBoxFontSizes', () => {
+  it('keeps in-range sizes and drops defaults', () => {
+    expect(parseBumpBoxFontSizes({ title: 16, description: 11.5, checkbox: 18.5 })).toEqual({ title: 16, checkbox: 18.5 })
+    expect(parseBumpBoxFontSizes(null)).toEqual({})
+    expect(parseBumpBoxFontSizes(undefined)).toBeUndefined()
+  })
+
+  it('rejects unknown keys, out-of-range sizes and odd steps', () => {
+    expect(parseBumpBoxFontSizes({ price: 14 })).toBe('invalid')
+    expect(parseBumpBoxFontSizes({ title: 40 })).toBe('invalid')
+    expect(parseBumpBoxFontSizes({ description: 12.3 })).toBe('invalid')
+    expect(parseBumpBoxFontSizes([14])).toBe('invalid')
+  })
+})
+
+describe('parseBumpPopupCopy', () => {
+  it('returns only the fields that were sent, trimmed, with empty = null', () => {
+    expect(parseBumpPopupCopy({ popup_title: '  Hola  ', checkbox_label: '' })).toEqual({
+      copy: { popup_title: 'Hola', checkbox_label: null },
+    })
+    expect(parseBumpPopupCopy({})).toEqual({ copy: {} })
+  })
+
+  it('rejects a field over its limit', () => {
+    const long = 'x'.repeat(CHECKOUT_TEXT_LIMITS.bumpButtonLabel + 1)
+    expect(parseBumpPopupCopy({ popup_added_label: long })).toEqual({
+      tooLong: 'popup_added_label',
+      max: CHECKOUT_TEXT_LIMITS.bumpButtonLabel,
+    })
+  })
+})
 
 describe('isValidBumpGalleryImageSize', () => {
   it('accepts exactly 1100×1500 and larger images of the same shape', () => {

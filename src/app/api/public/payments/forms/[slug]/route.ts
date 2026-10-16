@@ -109,6 +109,8 @@ export async function GET(
       compare_at_price: b.compareAtPrice,
       image_url: b.imageUrl,
       gallery_images: b.galleryImages,
+      ...b.popupCopy,
+      box_font_sizes: b.boxFontSizes,
     })),
     bump_heading: data.bump_heading?.trim() || null,
   }

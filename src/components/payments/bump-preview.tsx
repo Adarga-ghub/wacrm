@@ -195,6 +195,10 @@ export function BumpPreviewContent({
   const gallery = bump.gallery_images ?? []
   const [selected, setSelected] = useState(0)
   const mainImage = gallery[selected] ?? gallery[0] ?? null
+  // The pop-up's own copy (migration 065), else the checkout box's.
+  const title = bump.popup_title || bump.title
+  const description = bump.popup_description || bump.description
+  const buttonLabel = checked ? bump.popup_added_label || t.bumpAdded : bump.popup_button_label || t.addToPurchase
 
   return (
     <>
@@ -232,10 +236,10 @@ export function BumpPreviewContent({
             id="bump-preview-title"
             className="pr-6 text-[19px] font-extrabold leading-tight text-slate-900 sm:text-[22px]"
           >
-            {bump.title}
+            {title}
           </h2>
-          {bump.description && (
-            <p className="mt-3 text-[13.5px] leading-relaxed text-slate-600 sm:text-[15px]">{bump.description}</p>
+          {description && (
+            <p className="mt-3 whitespace-pre-line text-[13.5px] leading-relaxed text-slate-600 sm:text-[15px]">{description}</p>
           )}
           <div className="mt-4">
             {bump.compare_at_price != null && (
@@ -251,7 +255,7 @@ export function BumpPreviewContent({
           <BumpToggleButton
             checked={checked}
             onToggle={onToggle}
-            label={checked ? t.bumpAdded : t.addToPurchase}
+            label={buttonLabel}
             className="mt-4 hidden w-full sm:inline-flex"
           />
         </div>
@@ -264,7 +268,7 @@ export function BumpPreviewContent({
         <BumpToggleButton
           checked={checked}
           onToggle={onToggle}
-          label={checked ? t.bumpAdded : t.addToPurchase}
+          label={buttonLabel}
           className="inline-flex"
         />
       </div>

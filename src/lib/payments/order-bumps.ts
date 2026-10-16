@@ -1,3 +1,5 @@
+import { parseBumpBoxFontSizes, type BumpBoxFontSizes, type BumpPopupCopy } from './checkout-limits'
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any
 
@@ -13,6 +15,10 @@ export interface ResolvedOrderBump {
   imageUrl: string | null
   /** Preview pop-up images (migration 064), in display order. */
   galleryImages: string[]
+  /** Pop-up / button copy (migration 065) — null = reuse the box's copy or the checkout's default labels. */
+  popupCopy: BumpPopupCopy
+  /** Checkout box font sizes (migration 065) — missing key = default. */
+  boxFontSizes: BumpBoxFontSizes
   /** Line name for the PayPal order, receipts and `payment_transactions.line_items`. */
   itemName: string
   automationId: string | null
@@ -37,7 +43,9 @@ interface MainForm {
 export async function loadOrderBumps(db: AnySupabase, form: MainForm): Promise<ResolvedOrderBump[]> {
   const { data: bumps, error } = await db
     .from('payment_order_bumps')
-    .select('id, bump_form_id, title, description, price, compare_at_price, gallery_images')
+    .select(
+      'id, bump_form_id, title, description, price, compare_at_price, gallery_images, popup_title, popup_description, checkbox_label, popup_button_label, popup_added_label, box_font_sizes',
+    )
     .eq('form_id', form.id)
     .eq('active', true)
     .order('position', { ascending: true })
@@ -104,6 +112,18 @@ export async function loadOrderBumps(db: AnySupabase, form: MainForm): Promise<R
       galleryImages: Array.isArray(bump.gallery_images)
         ? bump.gallery_images.filter((u: unknown): u is string => typeof u === 'string' && !!u)
         : [],
+      popupCopy: {
+        popup_title: bump.popup_title?.trim() || null,
+        popup_description: bump.popup_description?.trim() || null,
+        checkbox_label: bump.checkbox_label?.trim() || null,
+        popup_button_label: bump.popup_button_label?.trim() || null,
+        popup_added_label: bump.popup_added_label?.trim() || null,
+      },
+      // Re-validated: a hand-edited row can't break the box's layout.
+      boxFontSizes: (() => {
+        const sizes = parseBumpBoxFontSizes(bump.box_font_sizes ?? {})
+        return sizes && sizes !== 'invalid' ? sizes : {}
+      })(),
       itemName,
       automationId: offer.automation_id,
     })
