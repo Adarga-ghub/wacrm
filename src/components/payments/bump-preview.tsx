@@ -268,7 +268,11 @@ function ThumbnailCarousel({
         drag.current = null
         return
       }
-      e.currentTarget.setPointerCapture(e.pointerId)
+      // Keeps the moves coming when the finger leaves the strip. Throws
+      // if the pointer is already gone — the swipe still works without it.
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+      } catch {}
     }
     setDx(ddx)
   }
@@ -292,7 +296,7 @@ function ThumbnailCarousel({
   return (
     <div
       ref={viewportRef}
-      className="mt-5 cursor-grab select-none overflow-hidden active:cursor-grabbing"
+      className="relative mt-5 cursor-grab select-none overflow-hidden active:cursor-grabbing"
       style={{ touchAction: "pan-y" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -334,22 +338,24 @@ function ThumbnailCarousel({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" draggable={false} className="pointer-events-none size-full object-cover" />
-              {/* The frame is drawn over the image (an outer ring would be
-                  clipped by the strip's overflow-hidden): amber on the
-                  first slot, the one shown big. */}
+              {/* Thin border drawn over the image (an outer ring would be
+                  clipped by the strip's overflow-hidden). */}
               <span
                 aria-hidden
-                className={cn(
-                  "pointer-events-none absolute inset-0 rounded-md",
-                  k === 0 && !sliding && dx === 0
-                    ? "shadow-[inset_0_0_0_3px_#fbbf24]"
-                    : "shadow-[inset_0_0_0_1px_#e2e8f0]",
-                )}
+                className="pointer-events-none absolute inset-0 rounded-md shadow-[inset_0_0_0_1px_#e2e8f0]"
               />
             </button>
           )
         })}
       </div>
+      {/* The amber frame belongs to the first SLOT, not to a thumbnail:
+          it stays put while the thumbnails slide under it, so the
+          selected one is always framed, even mid-swipe. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 rounded-md shadow-[inset_0_0_0_3px_#fbbf24]"
+        style={{ width: itemWidth || `calc((100% - ${THUMB_GAP * (n - 1)}px) / ${n})` }}
+      />
     </div>
   )
 }
