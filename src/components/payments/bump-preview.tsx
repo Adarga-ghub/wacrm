@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Check, X } from "lucide-react"
 
 import type { PublicOrderBump } from "@/types"
@@ -172,6 +172,188 @@ function BumpToggleButton({
   )
 }
 
+const THUMB_GAP = 8
+const mod = (a: number, n: number) => ((a % n) + n) % n
+
+/**
+ * The pop-up's thumbnail strip, as an endless carousel: swiping it
+ * (finger or mouse drag) slides the thumbnails one or more places, and
+ * whichever lands in the FIRST slot is the one shown big above. It
+ * loops — past the last image comes the first again — so the strip is
+ * never left with an empty slot. Tapping a thumbnail slides it to the
+ * first slot.
+ *
+ * The track renders the images three times (previous / visible / next
+ * copy) and sits shifted left by one copy, so whatever direction it's
+ * dragged there is always an image coming in. When a slide ends, `start`
+ * moves and the track snaps back to the middle copy without animation —
+ * the same picture, so the jump is invisible.
+ */
+function ThumbnailCarousel({
+  images,
+  start,
+  onStartChange,
+}: {
+  images: string[]
+  start: number
+  onStartChange: (start: number) => void
+}) {
+  const n = images.length
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(0)
+  // Drag offset in px while the finger is down, then the animated slide.
+  const [dx, setDxState] = useState(0)
+  // Mirrors `dx` for the pointer handlers: a quick flick can lift the
+  // finger before React re-renders with the last move, and the release
+  // must see that move or the swipe is lost.
+  const dxRef = useRef(0)
+  const setDx = (value: number) => {
+    dxRef.current = value
+    setDxState(value)
+  }
+  const [sliding, setSliding] = useState(false)
+  const pendingSteps = useRef(0)
+  const drag = useRef<{ x: number; y: number; horizontal: boolean | null } | null>(null)
+  // A drag ends with a click on the thumbnail under the finger — ignore it.
+  const swallowClick = useRef(false)
+
+  useLayoutEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+    const measure = () => setWidth(el.clientWidth)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const itemWidth = width > 0 ? (width - THUMB_GAP * (n - 1)) / n : 0
+  const step = itemWidth + THUMB_GAP
+
+  function slideBy(steps: number) {
+    const target = -steps * step
+    pendingSteps.current = steps
+    setSliding(true)
+    // Already there (e.g. a tap on the first thumbnail): no transition
+    // would run, so finish right away.
+    if (target === dxRef.current) finishSlide()
+    else setDx(target)
+  }
+
+  function finishSlide() {
+    const steps = pendingSteps.current
+    pendingSteps.current = 0
+    setSliding(false)
+    setDx(0)
+    if (steps) onStartChange(mod(start + steps, n))
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    // A swipe whose release produced no click must not eat this tap.
+    swallowClick.current = false
+    if (sliding || !step) return
+    drag.current = { x: e.clientX, y: e.clientY, horizontal: null }
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    const d = drag.current
+    if (!d) return
+    const ddx = e.clientX - d.x
+    const ddy = e.clientY - d.y
+    if (d.horizontal === null) {
+      if (Math.abs(ddx) < 6 && Math.abs(ddy) < 6) return
+      // Mostly vertical = the buyer is scrolling the pop-up: let it.
+      d.horizontal = Math.abs(ddx) > Math.abs(ddy)
+      if (!d.horizontal) {
+        drag.current = null
+        return
+      }
+      e.currentTarget.setPointerCapture(e.pointerId)
+    }
+    setDx(ddx)
+  }
+
+  function onPointerUp() {
+    const d = drag.current
+    drag.current = null
+    if (!d?.horizontal) return
+    swallowClick.current = true
+    const dx = dxRef.current
+    // Whole thumbnails dragged past, rounded; a short flick still moves one.
+    let steps = Math.round(-dx / step)
+    if (steps === 0 && Math.abs(dx) > step * 0.2) steps = dx < 0 ? 1 : -1
+    slideBy(steps)
+  }
+
+  // Previous copy, visible copy, next copy — each rotated so the visible
+  // copy starts at `start`.
+  const track = Array.from({ length: 3 * n }, (_, k) => ({ k: k - n, src: images[mod(start + k - n, n)] }))
+
+  return (
+    <div
+      ref={viewportRef}
+      className="mt-5 cursor-grab select-none overflow-hidden active:cursor-grabbing"
+      style={{ touchAction: "pan-y" }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onClickCapture={(e) => {
+        if (swallowClick.current) {
+          swallowClick.current = false
+          e.stopPropagation()
+          e.preventDefault()
+        }
+      }}
+    >
+      <div
+        className={cn("flex", sliding && "transition-transform duration-300 ease-out")}
+        style={{ gap: THUMB_GAP, transform: `translateX(${-n * step + dx}px)` }}
+        onTransitionEnd={(e) => {
+          if (e.target === e.currentTarget && sliding) finishSlide()
+        }}
+      >
+        {track.map(({ k, src }) => {
+          const index = mod(start + k, n)
+          return (
+            <button
+              key={k}
+              type="button"
+              // Only the visible copy is reachable by keyboard / screen readers.
+              tabIndex={k >= 0 && k < n ? 0 : -1}
+              aria-hidden={k < 0 || k >= n}
+              onClick={() => {
+                if (!sliding && k > 0 && k < n) slideBy(k)
+              }}
+              aria-label={`${index + 1} / ${n}`}
+              aria-current={k === 0}
+              className={cn(
+                "relative aspect-[4/5] shrink-0 overflow-hidden rounded-md bg-slate-50 shadow-sm focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-amber-400",
+              )}
+              style={{ width: itemWidth || `calc((100% - ${THUMB_GAP * (n - 1)}px) / ${n})` }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt="" draggable={false} className="pointer-events-none size-full object-cover" />
+              {/* The frame is drawn over the image (an outer ring would be
+                  clipped by the strip's overflow-hidden): amber on the
+                  first slot, the one shown big. */}
+              <span
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute inset-0 rounded-md",
+                  k === 0 && !sliding && dx === 0
+                    ? "shadow-[inset_0_0_0_3px_#fbbf24]"
+                    : "shadow-[inset_0_0_0_1px_#e2e8f0]",
+                )}
+              />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /**
  * The pop-up's body (images, copy, prices, add button, thumbnails) —
  * shared by the checkout's eye pop-up above and the admin's "Vista
@@ -193,8 +375,9 @@ export function BumpPreviewContent({
 }) {
   const t = payPageStrings[locale]
   const gallery = bump.gallery_images ?? []
-  const [selected, setSelected] = useState(0)
-  const mainImage = gallery[selected] ?? gallery[0] ?? null
+  // The image in the thumbnail strip's first slot — shown big.
+  const [start, setStart] = useState(0)
+  const mainImage = gallery[start] ?? gallery[0] ?? null
   // The pop-up's own copy (migration 065), else the checkout box's.
   const title = bump.popup_title || bump.title
   const description = bump.popup_description || bump.description
@@ -273,29 +456,7 @@ export function BumpPreviewContent({
         />
       </div>
 
-      {gallery.length > 1 && (
-        <div
-          className="mt-5 grid gap-2"
-          style={{ gridTemplateColumns: `repeat(${gallery.length}, minmax(0, 1fr))` }}
-        >
-          {gallery.map((src, i) => (
-            <button
-              key={src + i}
-              type="button"
-              onClick={() => setSelected(i)}
-              aria-label={`${i + 1} / ${gallery.length}`}
-              aria-current={i === selected}
-              className={cn(
-                "aspect-[4/5] overflow-hidden rounded-md bg-slate-50 shadow-sm transition-all focus-visible:outline-2 focus-visible:outline-amber-400",
-                i === selected ? "ring-[3px] ring-amber-400" : "ring-1 ring-slate-200 hover:ring-slate-300",
-              )}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="size-full object-cover" />
-            </button>
-          ))}
-        </div>
-      )}
+      {gallery.length > 1 && <ThumbnailCarousel images={gallery} start={start} onStartChange={setStart} />}
     </>
   )
 }
