@@ -10,7 +10,20 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
+// Public pages (checkout, upsell/downsell offers) carry the store's
+// brand in the browser tab instead of the CRM's own "wacrm" title and
+// chat-bubble icon set in the root layout — the dashboard keeps those.
 export const metadata: Metadata = {
+  title: {
+    // `absolute`, not `default` — otherwise the root layout's
+    // "%s — wacrm" template wraps it.
+    absolute: 'Librería Adarga',
+    template: '%s — Librería Adarga',
+  },
+  icons: {
+    icon: [{ url: '/brand/adarga-icon.png', type: 'image/png' }],
+    apple: [{ url: '/brand/adarga-icon.png' }],
+  },
   robots: { index: false, follow: false },
 }
 
