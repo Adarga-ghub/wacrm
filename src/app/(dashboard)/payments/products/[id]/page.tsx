@@ -30,7 +30,10 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -50,6 +53,22 @@ const STATUS_BADGE: Record<PaymentProduct["status"], string> = {
   draft: "border-slate-500/30 bg-slate-500/10 text-muted-foreground",
   published: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
   archived: "border-slate-500/30 bg-slate-500/10 text-muted-foreground",
+}
+
+/** One row of an offer's "⋮" menu: the icon in its own tile, the label on one line. */
+function OfferActionItem({
+  icon: Icon,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuItem> & { icon: React.ComponentType<{ className?: string }> }) {
+  return (
+    <DropdownMenuItem className="gap-3 rounded-md px-2 py-1.5 whitespace-nowrap" {...props}>
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/60 text-muted-foreground transition-colors group-focus/dropdown-menu-item:border-primary/40 group-focus/dropdown-menu-item:bg-primary/10 group-focus/dropdown-menu-item:text-primary">
+        <Icon className="size-4" />
+      </span>
+      <span className="font-medium">{children}</span>
+    </DropdownMenuItem>
+  )
 }
 
 export default function ProductDetailPage() {
@@ -417,33 +436,37 @@ export default function ProductDetailPage() {
                             >
                               <MoreVertical className="h-4 w-4" />
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEditPrice(price)}>
-                                <Pencil className="h-4 w-4" />
-                                {t("detail.actions.edit")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setBumpsOffer(price)}>
-                                <Layers className="h-4 w-4" />
-                                {t("detail.actions.bumps")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setFunnelOffer(price)}>
-                                <TrendingUp className="h-4 w-4" />
-                                {t("detail.actions.funnel")}
-                              </DropdownMenuItem>
+                            {/* Sized to its labels (the default menu is as wide as its
+                                trigger, which wrapped every label onto 2–3 lines). */}
+                            <DropdownMenuContent align="end" sideOffset={6} className="w-auto min-w-64 p-1.5">
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel className="max-w-72 truncate px-2 pt-1 pb-1.5">
+                                  {price.name}
+                                </DropdownMenuLabel>
+                                <OfferActionItem icon={Pencil} onClick={() => openEditPrice(price)}>
+                                  {t("detail.actions.edit")}
+                                </OfferActionItem>
+                                <OfferActionItem icon={Layers} onClick={() => setBumpsOffer(price)}>
+                                  {t("detail.actions.bumps")}
+                                </OfferActionItem>
+                                <OfferActionItem icon={TrendingUp} onClick={() => setFunnelOffer(price)}>
+                                  {t("detail.actions.funnel")}
+                                </OfferActionItem>
+                              </DropdownMenuGroup>
                               {price.status === "published" && (
                                 <>
-                                  <DropdownMenuItem onClick={() => copyPriceLink(price.slug)}>
-                                    <Copy className="h-4 w-4" />
-                                    {t("detail.actions.copyLink")}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    render={
-                                      <a href={`/pay/${price.slug}`} target="_blank" rel="noreferrer" />
-                                    }
-                                  >
-                                    <ExternalLink className="h-4 w-4" />
-                                    {t("detail.actions.viewLink")}
-                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="my-1.5" />
+                                  <DropdownMenuGroup>
+                                    <OfferActionItem icon={Copy} onClick={() => copyPriceLink(price.slug)}>
+                                      {t("detail.actions.copyLink")}
+                                    </OfferActionItem>
+                                    <OfferActionItem
+                                      icon={ExternalLink}
+                                      render={<a href={`/pay/${price.slug}`} target="_blank" rel="noreferrer" />}
+                                    >
+                                      {t("detail.actions.viewLink")}
+                                    </OfferActionItem>
+                                  </DropdownMenuGroup>
                                 </>
                               )}
                             </DropdownMenuContent>
