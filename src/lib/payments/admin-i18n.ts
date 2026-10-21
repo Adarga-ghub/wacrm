@@ -379,6 +379,8 @@ export interface PaymentsProductsStrings {
     saveNew: string
     /** Under the list while a bump is open: switches the form to a new, empty bump. */
     addAnother: string
+    removeConfirm: string
+    removeYes: string
     galleryMakeMain: string
     galleryMoveLater: string
     /** Click on an image / its button: swap it for a new upload in the same position. */
@@ -394,7 +396,6 @@ export interface PaymentsProductsStrings {
     /** Shown under the footer while no offer is picked for a new bump. */
     chooseOfferFirst: string
     /** Under the list: how to change an existing bump. */
-    editExistingHint: string
     preview: string
     previewTitle: string
     previewHint: string
@@ -894,7 +895,9 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryHint: "The first one is the main image (ideally a perspective book mockup on a transparent or white background). The rest show as thumbnails under it. With no images, the product cover is shown as a 3D book. Max. {max}.",
         galleryAdd: "Add image",
         saveNew: "Save order bump",
-        addAnother: "Add another order bump",
+        addAnother: "Create a new order bump",
+        removeConfirm: "Delete this order bump? This can't be undone.",
+        removeYes: "Yes, delete",
         galleryMakeMain: "Make main image",
         galleryMoveLater: "Move later",
         galleryReplace: "Change image",
@@ -903,7 +906,6 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         gallerySizeInvalid: "Doesn't meet {required}",
         gallerySizeRejected: "This image is {size}. It must be {required} (or larger with the same shape). It was not added.",
         chooseOfferFirst: "Choose the offer to add to be able to save.",
-        editExistingHint: "To change an existing order bump (images, prices, texts), click its pencil ✏️ first.",
         preview: "Preview",
         previewTitle: "Order bump preview",
         previewHint: "This is how it will look on the checkout with what you have now, even before saving.",
@@ -1390,7 +1392,9 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryHint: "La primera es la imagen principal (ideal: mockup del libro en perspectiva, fondo transparente o blanco). Las demás salen como miniaturas debajo. Sin imágenes, se muestra la portada del producto como libro 3D. Máx. {max}.",
         galleryAdd: "Añadir imagen",
         saveNew: "Guardar order bump",
-        addAnother: "Añadir otro order bump",
+        addAnother: "Crear nuevo order bump",
+        removeConfirm: "¿Eliminar este order bump? No se puede deshacer.",
+        removeYes: "Sí, eliminar",
         galleryMakeMain: "Hacer imagen principal",
         galleryMoveLater: "Mover a la derecha",
         galleryReplace: "Cambiar imagen",
@@ -1399,7 +1403,6 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         gallerySizeInvalid: "No cumple {required}",
         gallerySizeRejected: "Esta imagen mide {size}. Debe medir {required} (o más grande con la misma forma). No se añadió.",
         chooseOfferFirst: "Elige la oferta a añadir para poder guardar.",
-        editExistingHint: "Para cambiar un order bump ya creado (imágenes, precios, textos), pulsa primero su lápiz ✏️.",
         preview: "Vista previa",
         previewTitle: "Vista previa del order bump",
         previewHint: "Así se verá en el checkout con lo que tienes ahora, incluso antes de guardar.",

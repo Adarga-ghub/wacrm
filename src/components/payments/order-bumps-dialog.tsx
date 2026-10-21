@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Eye,
   ImagePlus,
+  Layers,
   Loader2,
   Minus,
   Pencil,
@@ -192,17 +193,16 @@ export function OrderBumpsDialog({
   // "Vista previa" — renders the bump being edited (unsaved values
   // included) with the checkout's own components.
   const [previewOpen, setPreviewOpen] = useState(false)
+  // The editor is its own pop-up over the list: one bump at a time, so
+  // the list stays short and clean however many bumps there are.
+  const [editorOpen, setEditorOpen] = useState(false)
+  // The bump whose trash icon was clicked — asks before deleting.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [previewChecked, setPreviewChecked] = useState(false)
 
   const formId = mainOffer?.id
 
-  /**
-   * `select` opens a bump in the editor once loaded: "first" when the
-   * dialog opens (so an existing bump's images and copy are on screen
-   * right away — the empty "add" form looked like they were missing),
-   * or the id of the bump that was just saved, so it stays open.
-   */
-  async function loadBumps(id: string, select?: "first" | string) {
+  async function loadBumps(id: string) {
     const res = await fetch(`/api/payments/forms/${id}/bumps`)
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -212,8 +212,6 @@ export function OrderBumpsDialog({
     }
     const list: PaymentOrderBump[] = data.bumps ?? []
     setBumps(list)
-    const toOpen = select === "first" ? list[0] : list.find((b) => b.id === select)
-    if (toOpen) startEdit(toOpen)
   }
 
   useEffect(() => {
@@ -223,7 +221,8 @@ export function OrderBumpsDialog({
     resetEditor()
     setHeading(mainOffer?.bump_heading ?? "")
     setSavedHeading(mainOffer?.bump_heading ?? "")
-    loadBumps(formId, "first")
+    setEditorOpen(false)
+    loadBumps(formId)
     Promise.all([
       fetch("/api/payments/forms").then((r) => r.json()),
       fetch("/api/payments/products").then((r) => r.json()),
@@ -419,11 +418,9 @@ export function OrderBumpsDialog({
       return
     }
     toast.success(editingId ? t("bumps.updated") : t("bumps.added"))
-    const savedId: string | undefined = data.bump?.id ?? editingId ?? undefined
-    resetEditor()
-    // Keep the bump that was just saved open, so its images can keep
-    // being adjusted without hunting for its pencil again.
-    loadBumps(formId, savedId)
+    // Back to the list, which shows the saved bump.
+    setEditorOpen(false)
+    loadBumps(formId)
   }
 
   async function toggleActive(bump: PaymentOrderBump, active: boolean) {
@@ -447,7 +444,7 @@ export function OrderBumpsDialog({
       toast.error(t("bumps.removeFailed"))
       return
     }
-    if (editingId === bump.id) resetEditor()
+    setConfirmDeleteId(null)
     setBumps((prev) => prev?.filter((b) => b.id !== bump.id) ?? prev)
   }
 
@@ -467,6 +464,15 @@ export function OrderBumpsDialog({
       popup_added_label: bump.popup_added_label ?? "",
     })
     setFontSizes(bump.box_font_sizes ?? {})
+    setLiveChecked(false)
+    setEditorOpen(true)
+  }
+
+  /** "Crear nuevo order bump": the editor pop-up, empty. */
+  function startCreate() {
+    resetEditor()
+    setLiveChecked(false)
+    setEditorOpen(true)
   }
 
   return (
@@ -520,502 +526,525 @@ export function OrderBumpsDialog({
             <ul className="space-y-2">
               {bumps.map((bump) => {
                 const offer = offers.find((o) => o.id === bump.bump_form_id)
+                const thumb =
+                  bump.gallery_images?.[0] ??
+                  (offer ? products.find((p) => p.id === offer.product_id)?.image_url : null) ??
+                  null
                 return (
-                  <li
-                    key={bump.id}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg border px-3 py-2.5",
-                      editingId === bump.id ? "border-primary bg-primary/5" : "border-border",
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {bump.title || (offer ? productName(offer) ?? offer.name : "—")}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {offer ? offerLabel(offer) : t("bumps.offerUnavailable")}
-                      </p>
-                      {offer && (
-                        <p className="text-xs text-foreground">
-                          {bump.compare_at_price != null && (
-                            <span className="mr-1.5 text-muted-foreground line-through">
-                              {formatPaymentAmount(bump.compare_at_price, offer.currency)}
-                            </span>
-                          )}
-                          <span className="font-semibold">
-                            {formatPaymentAmount(bump.price ?? offer.amount ?? 0, offer.currency)}
-                          </span>
-                        </p>
+                  <li key={bump.id} className="rounded-lg border border-border bg-card px-3 py-2.5">
+                    <div className="flex items-center gap-3">
+                      {thumb ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={thumb}
+                          alt=""
+                          className="size-11 shrink-0 rounded-md object-cover ring-1 ring-border"
+                        />
+                      ) : (
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                          <Layers className="h-4 w-4" />
+                        </span>
                       )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {bump.title || (offer ? productName(offer) ?? offer.name : "—")}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {offer ? offerLabel(offer) : t("bumps.offerUnavailable")}
+                        </p>
+                        {offer && (
+                          <p className="text-xs text-foreground">
+                            {bump.compare_at_price != null && (
+                              <span className="mr-1.5 text-muted-foreground line-through">
+                                {formatPaymentAmount(bump.compare_at_price, offer.currency)}
+                              </span>
+                            )}
+                            <span className="font-semibold">
+                              {formatPaymentAmount(bump.price ?? offer.amount ?? 0, offer.currency)}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                      <Switch
+                        checked={bump.active}
+                        onCheckedChange={(v) => toggleActive(bump, !!v)}
+                        aria-label={t("bumps.active")}
+                      />
+                      <Button variant="outline" size="sm" onClick={() => startEdit(bump)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                        {t("bumps.edit")}
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(bump.id)}
+                        aria-label={t("bumps.remove")}
+                        title={t("bumps.remove")}
+                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                    <Switch
-                      checked={bump.active}
-                      onCheckedChange={(v) => toggleActive(bump, !!v)}
-                      aria-label={t("bumps.active")}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => startEdit(bump)}
-                      aria-label={t("bumps.edit")}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeBump(bump)}
-                      aria-label={t("bumps.remove")}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {confirmDeleteId === bump.id && (
+                      <div className="mt-2.5 space-y-2 border-t border-border pt-2.5">
+                        <p className="text-xs text-foreground">{t("bumps.removeConfirm")}</p>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setConfirmDeleteId(null)}>
+                            {t("cancel")}
+                          </Button>
+                          <Button variant="destructive" size="sm" onClick={() => removeBump(bump)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {t("bumps.removeYes")}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </li>
                 )
               })}
             </ul>
           )}
-          {!!bumps?.length && !editingId && (
-            <p className="text-xs text-muted-foreground">{t("bumps.editExistingHint")}</p>
-          )}
-          {editingId && (
-            <Button variant="outline" size="sm" onClick={resetEditor} className="w-full border-dashed">
-              <Plus className="h-4 w-4" />
-              {t("bumps.addAnother")}
-            </Button>
-          )}
+          <Button onClick={startCreate} disabled={bumps === null} className="w-full">
+            <Plus className="h-4 w-4" />
+            {t("bumps.addAnother")}
+          </Button>
         </div>
 
-        <div className="min-w-0 space-y-3 border-t border-border pt-4">
-          <p className="text-sm font-medium text-foreground">
-            {editingId ? t("bumps.editTitle") : t("bumps.addTitle")}
-          </p>
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground">{t("bumps.offerLabel")}</Label>
-            {editingId ? (
-              <p className="break-words text-sm text-foreground">
-                {(() => {
-                  const offer = offers.find((o) => o.id === offerId)
-                  return offer ? offerLabel(offer) : "—"
-                })()}
-              </p>
-            ) : (
-              <select
-                value={offerId}
-                onChange={(e) => setOfferId(e.target.value)}
-                className="h-9 w-full rounded-lg border border-border bg-muted px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-              >
-                <option value="">{t("bumps.offerPlaceholder")}</option>
-                {candidateOffers.map((offer) => (
-                  <option key={offer.id} value={offer.id}>
-                    {offerLabel(offer)}
-                  </option>
-                ))}
-              </select>
-            )}
-            {!editingId && candidateOffers.length === 0 && offers.length > 0 && (
-              <p className="text-xs text-muted-foreground">{t("bumps.noCandidates")}</p>
-            )}
-          </div>
-          {/* Checkout box: its copy, font sizes and a live preview that
-              stays pinned at the top of the dialog while this section is
-              being edited (unsaved values included) — the wrapper ends the
-              pinning where the pop-up section starts. */}
-          <div className="space-y-3">
-            {/* Checkout box: its copy, font sizes and a live preview that
-                stays pinned at the top of the dialog while this section is
-                being edited (unsaved values included). */}
-            <p className="pt-1 text-sm font-semibold text-foreground">{t("bumps.boxSection")}</p>
-            <p className="text-xs text-muted-foreground">{t("bumps.boxHint")}</p>
-            <div className="sticky -top-4 z-10 -mx-4 border-b border-border bg-popover px-4 pb-3 pt-2">
-              <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">{t("bumps.livePreview")}</p>
-              {/* `pay-page-surface`: the checkout's light palette, even in dark mode. */}
-              <div className="pay-page-surface rounded-lg bg-white p-2 text-slate-900">
-                <OrderBumpBox
-                  bump={previewBump}
-                  currency={previewCurrency}
-                  checked={liveChecked}
-                  onCheckedChange={setLiveChecked}
-                  onPreview={() => {
-                    setPreviewChecked(liveChecked)
-                    setPreviewOpen(true)
-                  }}
-                  t={payPageStrings.es}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-muted-foreground">{t("bumps.titleLabel")}</Label>
-                <CharCounter value={title} max={CHECKOUT_TEXT_LIMITS.bumpTitle} />
-              </div>
-              <Input
-                value={title}
-                maxLength={CHECKOUT_TEXT_LIMITS.bumpTitle}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={t("bumps.titlePlaceholder")}
-              />
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-muted-foreground">
-                  {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpTitle })}
-                </p>
-                <FontSizeControl field="title" sizes={fontSizes} onChange={setFontSizes} t={t} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+        {/* Editor pop-up for one bump (new or existing), nested in the
+            list's content so a click inside it doesn't count as an
+            "outside click" that would close the list. */}
+        <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{editingId ? t("bumps.editTitle") : t("bumps.addTitle")}</DialogTitle>
+            </DialogHeader>
+            <div className="min-w-0 space-y-3">
               <div className="grid gap-2">
-                <Label className="text-muted-foreground">{t("bumps.compareAtLabel")}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={compareAt}
-                  onChange={(e) => setCompareAt(e.target.value)}
-                  placeholder={t("bumps.compareAtPlaceholder")}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label className="text-muted-foreground">{t("bumps.priceLabel")}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder={t("bumps.pricePlaceholder")}
-                />
-              </div>
-              <p className="col-span-2 text-xs text-muted-foreground">
-                {t("bumps.priceHint", {
-                  price: selectedOffer ? formatPaymentAmount(selectedOffer.amount ?? 0, selectedOffer.currency) : "—",
-                })}
-              </p>
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-muted-foreground">{t("bumps.descriptionLabel")}</Label>
-                <CharCounter value={description} max={CHECKOUT_TEXT_LIMITS.bumpDescription} />
-              </div>
-              <Textarea
-                rows={3}
-                value={description}
-                maxLength={CHECKOUT_TEXT_LIMITS.bumpDescription}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("bumps.descriptionPlaceholder")}
-              />
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-muted-foreground">
-                  {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpDescription })}
-                </p>
-                <FontSizeControl field="description" sizes={fontSizes} onChange={setFontSizes} t={t} />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-muted-foreground">{t("bumps.checkboxLabel")}</Label>
-                <CharCounter value={popupCopy.checkbox_label} max={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel} />
-              </div>
-              <Input
-                value={popupCopy.checkbox_label}
-                maxLength={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel}
-                onChange={(e) => setCopy("checkbox_label", e.target.value)}
-                placeholder={t("bumps.checkboxPlaceholder")}
-              />
-              <div className="flex justify-end">
-                <FontSizeControl field="checkbox" sizes={fontSizes} onChange={setFontSizes} t={t} />
-              </div>
-            </div>
-          </div>
-          <div className="space-y-3 border-t border-border pt-4">
-            <div>
-              <p className="text-sm font-semibold text-foreground">{t("bumps.popupSection")}</p>
-              <p className="text-xs text-muted-foreground">{t("bumps.popupHint")}</p>
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-muted-foreground">{t("bumps.popupTitleLabel")}</Label>
-                <CharCounter value={popupCopy.popup_title} max={CHECKOUT_TEXT_LIMITS.bumpPopupTitle} />
-              </div>
-              <Input
-                value={popupCopy.popup_title}
-                maxLength={CHECKOUT_TEXT_LIMITS.bumpPopupTitle}
-                onChange={(e) => setCopy("popup_title", e.target.value)}
-                placeholder={title.trim() || t("bumps.popupSameAsBox")}
-              />
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-muted-foreground">{t("bumps.popupDescriptionLabel")}</Label>
-                <CharCounter value={popupCopy.popup_description} max={CHECKOUT_TEXT_LIMITS.bumpPopupDescription} />
-              </div>
-              <Textarea
-                rows={5}
-                value={popupCopy.popup_description}
-                maxLength={CHECKOUT_TEXT_LIMITS.bumpPopupDescription}
-                onChange={(e) => setCopy("popup_description", e.target.value)}
-                placeholder={description.trim() || t("bumps.popupSameAsBox")}
-              />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label className="text-muted-foreground">{t("bumps.popupButtonLabel")}</Label>
-                  <CharCounter value={popupCopy.popup_button_label} max={CHECKOUT_TEXT_LIMITS.bumpButtonLabel} />
-                </div>
-                <Input
-                  value={popupCopy.popup_button_label}
-                  maxLength={CHECKOUT_TEXT_LIMITS.bumpButtonLabel}
-                  onChange={(e) => setCopy("popup_button_label", e.target.value)}
-                  placeholder={t("bumps.popupButtonPlaceholder")}
-                />
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label className="text-muted-foreground">{t("bumps.popupAddedLabel")}</Label>
-                  <CharCounter value={popupCopy.popup_added_label} max={CHECKOUT_TEXT_LIMITS.bumpButtonLabel} />
-                </div>
-                <Input
-                  value={popupCopy.popup_added_label}
-                  maxLength={CHECKOUT_TEXT_LIMITS.bumpButtonLabel}
-                  onChange={(e) => setCopy("popup_added_label", e.target.value)}
-                  placeholder={t("bumps.popupAddedPlaceholder")}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground">{t("bumps.galleryLabel")}</Label>
-            <p className="text-xs text-muted-foreground">
-              {t("bumps.galleryHint", { max: BUMP_GALLERY_MAX_IMAGES })}
-            </p>
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={addGalleryImage}
-            />
-            {/* Big enough to judge each image: shown whole (object-contain
-                on white, like the pop-up) with its real pixel size, its
-                position number and plain controls under it. */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {gallery.map((src, i) => {
-                const size = imageSizes[src]
-                return (
-                  <div
-                    key={src + i}
-                    className={cn(
-                      "flex min-w-0 flex-col overflow-hidden rounded-lg border",
-                      i === 0 ? "border-amber-400 ring-2 ring-amber-400/50" : "border-border",
-                    )}
+                <Label className="text-muted-foreground">{t("bumps.offerLabel")}</Label>
+                {editingId ? (
+                  <p className="break-words text-sm text-foreground">
+                    {(() => {
+                      const offer = offers.find((o) => o.id === offerId)
+                      return offer ? offerLabel(offer) : "—"
+                    })()}
+                  </p>
+                ) : (
+                  <select
+                    value={offerId}
+                    onChange={(e) => setOfferId(e.target.value)}
+                    className="h-9 w-full rounded-lg border border-border bg-muted px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   >
-                    {/* Clicking the image itself replaces it (same position). */}
-                    <button
-                      type="button"
-                      onClick={() => pickGalleryImage(i)}
-                      disabled={uploadingImage}
-                      title={t("bumps.galleryReplace")}
-                      className="group relative flex aspect-[4/5] items-center justify-center bg-white p-1.5 disabled:cursor-wait"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={src}
-                        alt=""
-                        onLoad={(e) => {
-                          const { naturalWidth: w, naturalHeight: h } = e.currentTarget
-                          setImageSizes((s) => (s[src] ? s : { ...s, [src]: { w, h } }))
-                        }}
-                        className="max-h-full max-w-full object-contain"
-                      />
-                      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/65 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                        <RefreshCw className="h-3 w-3" />
-                        {t("bumps.galleryReplace")}
-                      </span>
-                      <span
+                    <option value="">{t("bumps.offerPlaceholder")}</option>
+                    {candidateOffers.map((offer) => (
+                      <option key={offer.id} value={offer.id}>
+                        {offerLabel(offer)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {!editingId && candidateOffers.length === 0 && offers.length > 0 && (
+                  <p className="text-xs text-muted-foreground">{t("bumps.noCandidates")}</p>
+                )}
+              </div>
+              {/* Checkout box: its copy, font sizes and a live preview that
+                  stays pinned at the top of the dialog while this section is
+                  being edited (unsaved values included) — the wrapper ends the
+                  pinning where the pop-up section starts. */}
+              <div className="space-y-3">
+                {/* Checkout box: its copy, font sizes and a live preview that
+                    stays pinned at the top of the dialog while this section is
+                    being edited (unsaved values included). */}
+                <p className="pt-1 text-sm font-semibold text-foreground">{t("bumps.boxSection")}</p>
+                <p className="text-xs text-muted-foreground">{t("bumps.boxHint")}</p>
+                <div className="sticky -top-4 z-10 -mx-4 border-b border-border bg-popover px-4 pb-3 pt-2">
+                  <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">{t("bumps.livePreview")}</p>
+                  {/* `pay-page-surface`: the checkout's light palette, even in dark mode. */}
+                  <div className="pay-page-surface rounded-lg bg-white p-2 text-slate-900">
+                    <OrderBumpBox
+                      bump={previewBump}
+                      currency={previewCurrency}
+                      checked={liveChecked}
+                      onCheckedChange={setLiveChecked}
+                      onPreview={() => {
+                        setPreviewChecked(liveChecked)
+                        setPreviewOpen(true)
+                      }}
+                      t={payPageStrings.es}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">{t("bumps.titleLabel")}</Label>
+                    <CharCounter value={title} max={CHECKOUT_TEXT_LIMITS.bumpTitle} />
+                  </div>
+                  <Input
+                    value={title}
+                    maxLength={CHECKOUT_TEXT_LIMITS.bumpTitle}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder={t("bumps.titlePlaceholder")}
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpTitle })}
+                    </p>
+                    <FontSizeControl field="title" sizes={fontSizes} onChange={setFontSizes} t={t} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label className="text-muted-foreground">{t("bumps.compareAtLabel")}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={compareAt}
+                      onChange={(e) => setCompareAt(e.target.value)}
+                      placeholder={t("bumps.compareAtPlaceholder")}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-muted-foreground">{t("bumps.priceLabel")}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      placeholder={t("bumps.pricePlaceholder")}
+                    />
+                  </div>
+                  <p className="col-span-2 text-xs text-muted-foreground">
+                    {t("bumps.priceHint", {
+                      price: selectedOffer ? formatPaymentAmount(selectedOffer.amount ?? 0, selectedOffer.currency) : "—",
+                    })}
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">{t("bumps.descriptionLabel")}</Label>
+                    <CharCounter value={description} max={CHECKOUT_TEXT_LIMITS.bumpDescription} />
+                  </div>
+                  <Textarea
+                    rows={3}
+                    value={description}
+                    maxLength={CHECKOUT_TEXT_LIMITS.bumpDescription}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder={t("bumps.descriptionPlaceholder")}
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      {t("bumps.maxChars", { max: CHECKOUT_TEXT_LIMITS.bumpDescription })}
+                    </p>
+                    <FontSizeControl field="description" sizes={fontSizes} onChange={setFontSizes} t={t} />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">{t("bumps.checkboxLabel")}</Label>
+                    <CharCounter value={popupCopy.checkbox_label} max={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel} />
+                  </div>
+                  <Input
+                    value={popupCopy.checkbox_label}
+                    maxLength={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel}
+                    onChange={(e) => setCopy("checkbox_label", e.target.value)}
+                    placeholder={t("bumps.checkboxPlaceholder")}
+                  />
+                  <div className="flex justify-end">
+                    <FontSizeControl field="checkbox" sizes={fontSizes} onChange={setFontSizes} t={t} />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3 border-t border-border pt-4">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{t("bumps.popupSection")}</p>
+                  <p className="text-xs text-muted-foreground">{t("bumps.popupHint")}</p>
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">{t("bumps.popupTitleLabel")}</Label>
+                    <CharCounter value={popupCopy.popup_title} max={CHECKOUT_TEXT_LIMITS.bumpPopupTitle} />
+                  </div>
+                  <Input
+                    value={popupCopy.popup_title}
+                    maxLength={CHECKOUT_TEXT_LIMITS.bumpPopupTitle}
+                    onChange={(e) => setCopy("popup_title", e.target.value)}
+                    placeholder={title.trim() || t("bumps.popupSameAsBox")}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">{t("bumps.popupDescriptionLabel")}</Label>
+                    <CharCounter value={popupCopy.popup_description} max={CHECKOUT_TEXT_LIMITS.bumpPopupDescription} />
+                  </div>
+                  <Textarea
+                    rows={5}
+                    value={popupCopy.popup_description}
+                    maxLength={CHECKOUT_TEXT_LIMITS.bumpPopupDescription}
+                    onChange={(e) => setCopy("popup_description", e.target.value)}
+                    placeholder={description.trim() || t("bumps.popupSameAsBox")}
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-muted-foreground">{t("bumps.popupButtonLabel")}</Label>
+                      <CharCounter value={popupCopy.popup_button_label} max={CHECKOUT_TEXT_LIMITS.bumpButtonLabel} />
+                    </div>
+                    <Input
+                      value={popupCopy.popup_button_label}
+                      maxLength={CHECKOUT_TEXT_LIMITS.bumpButtonLabel}
+                      onChange={(e) => setCopy("popup_button_label", e.target.value)}
+                      placeholder={t("bumps.popupButtonPlaceholder")}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-muted-foreground">{t("bumps.popupAddedLabel")}</Label>
+                      <CharCounter value={popupCopy.popup_added_label} max={CHECKOUT_TEXT_LIMITS.bumpButtonLabel} />
+                    </div>
+                    <Input
+                      value={popupCopy.popup_added_label}
+                      maxLength={CHECKOUT_TEXT_LIMITS.bumpButtonLabel}
+                      onChange={(e) => setCopy("popup_added_label", e.target.value)}
+                      placeholder={t("bumps.popupAddedPlaceholder")}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-muted-foreground">{t("bumps.galleryLabel")}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t("bumps.galleryHint", { max: BUMP_GALLERY_MAX_IMAGES })}
+                </p>
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={addGalleryImage}
+                />
+                {/* Big enough to judge each image: shown whole (object-contain
+                    on white, like the pop-up) with its real pixel size, its
+                    position number and plain controls under it. */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {gallery.map((src, i) => {
+                    const size = imageSizes[src]
+                    return (
+                      <div
+                        key={src + i}
                         className={cn(
-                          "absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold",
-                          i === 0 ? "bg-amber-400 text-black" : "bg-black/70 text-white",
+                          "flex min-w-0 flex-col overflow-hidden rounded-lg border",
+                          i === 0 ? "border-amber-400 ring-2 ring-amber-400/50" : "border-border",
                         )}
                       >
-                        {i === 0 ? `1 · ${t("bumps.galleryMain")}` : i + 1}
-                      </span>
-                    </button>
-                    <div className="space-y-1.5 border-t border-border p-1.5">
-                      {/* Images saved before the size rule are kept, just
-                          flagged — only new uploads are blocked. */}
-                      {size && !isValidBumpGalleryImageSize(size.w, size.h) ? (
-                        <div className="space-y-0.5 text-center">
-                          <p className="text-[11px] font-semibold text-red-500">
-                            {size.w} × {size.h} px
-                          </p>
-                          <p className="rounded bg-red-500/10 px-1 py-0.5 text-[10px] font-medium leading-tight text-red-500">
-                            {t("bumps.gallerySizeInvalid", { required: recommendedSize })}
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-center text-[11px] text-emerald-500">
-                          {size ? `${size.w} × ${size.h} px ✓` : "…"}
-                        </p>
-                      )}
-                      <p className="text-center text-[10px] text-muted-foreground">
-                        {t("bumps.galleryRecommended", { size: recommendedSize })}
-                      </p>
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => moveImage(i, -1)}
-                          disabled={i === 0}
-                          aria-label={t("bumps.galleryMoveEarlier")}
-                          title={t("bumps.galleryMoveEarlier")}
-                          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
-                        >
-                          <ArrowLeft className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => makeMainImage(i)}
-                          disabled={i === 0}
-                          aria-label={t("bumps.galleryMakeMain")}
-                          title={t("bumps.galleryMakeMain")}
-                          className="rounded p-1 text-amber-500 hover:bg-muted disabled:opacity-30"
-                        >
-                          <Star className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveImage(i, 1)}
-                          disabled={i === gallery.length - 1}
-                          aria-label={t("bumps.galleryMoveLater")}
-                          title={t("bumps.galleryMoveLater")}
-                          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
-                        >
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </button>
+                        {/* Clicking the image itself replaces it (same position). */}
                         <button
                           type="button"
                           onClick={() => pickGalleryImage(i)}
                           disabled={uploadingImage}
-                          aria-label={t("bumps.galleryReplace")}
                           title={t("bumps.galleryReplace")}
-                          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          className="group relative flex aspect-[4/5] items-center justify-center bg-white p-1.5 disabled:cursor-wait"
                         >
-                          <RefreshCw className="h-3.5 w-3.5" />
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={src}
+                            alt=""
+                            onLoad={(e) => {
+                              const { naturalWidth: w, naturalHeight: h } = e.currentTarget
+                              setImageSizes((s) => (s[src] ? s : { ...s, [src]: { w, h } }))
+                            }}
+                            className="max-h-full max-w-full object-contain"
+                          />
+                          <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/65 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                            <RefreshCw className="h-3 w-3" />
+                            {t("bumps.galleryReplace")}
+                          </span>
+                          <span
+                            className={cn(
+                              "absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold",
+                              i === 0 ? "bg-amber-400 text-black" : "bg-black/70 text-white",
+                            )}
+                          >
+                            {i === 0 ? `1 · ${t("bumps.galleryMain")}` : i + 1}
+                          </span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setGallery((g) => g.filter((_, j) => j !== i))}
-                          aria-label={t("bumps.galleryRemove")}
-                          title={t("bumps.galleryRemove")}
-                          className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="space-y-1.5 border-t border-border p-1.5">
+                          {/* Images saved before the size rule are kept, just
+                              flagged — only new uploads are blocked. */}
+                          {size && !isValidBumpGalleryImageSize(size.w, size.h) ? (
+                            <div className="space-y-0.5 text-center">
+                              <p className="text-[11px] font-semibold text-red-500">
+                                {size.w} × {size.h} px
+                              </p>
+                              <p className="rounded bg-red-500/10 px-1 py-0.5 text-[10px] font-medium leading-tight text-red-500">
+                                {t("bumps.gallerySizeInvalid", { required: recommendedSize })}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-center text-[11px] text-emerald-500">
+                              {size ? `${size.w} × ${size.h} px ✓` : "…"}
+                            </p>
+                          )}
+                          <p className="text-center text-[10px] text-muted-foreground">
+                            {t("bumps.galleryRecommended", { size: recommendedSize })}
+                          </p>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => moveImage(i, -1)}
+                              disabled={i === 0}
+                              aria-label={t("bumps.galleryMoveEarlier")}
+                              title={t("bumps.galleryMoveEarlier")}
+                              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+                            >
+                              <ArrowLeft className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => makeMainImage(i)}
+                              disabled={i === 0}
+                              aria-label={t("bumps.galleryMakeMain")}
+                              title={t("bumps.galleryMakeMain")}
+                              className="rounded p-1 text-amber-500 hover:bg-muted disabled:opacity-30"
+                            >
+                              <Star className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveImage(i, 1)}
+                              disabled={i === gallery.length - 1}
+                              aria-label={t("bumps.galleryMoveLater")}
+                              title={t("bumps.galleryMoveLater")}
+                              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+                            >
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => pickGalleryImage(i)}
+                              disabled={uploadingImage}
+                              aria-label={t("bumps.galleryReplace")}
+                              title={t("bumps.galleryReplace")}
+                              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGallery((g) => g.filter((_, j) => j !== i))}
+                              aria-label={t("bumps.galleryRemove")}
+                              title={t("bumps.galleryRemove")}
+                              className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                )
-              })}
-              {gallery.length < BUMP_GALLERY_MAX_IMAGES && (
-                <button
-                  type="button"
-                  onClick={() => pickGalleryImage(null)}
-                  disabled={uploadingImage}
-                  className="flex aspect-[4/5] flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:bg-muted disabled:opacity-60"
-                >
-                  {uploadingImage ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                  {t("bumps.galleryAdd")}
-                  <span className="text-[10px]">
-                    {gallery.length}/{BUMP_GALLERY_MAX_IMAGES}
-                  </span>
-                  <span className="px-2 text-center text-[10px] leading-tight">
-                    {t("bumps.galleryRecommended", { size: recommendedSize })}
-                  </span>
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">{t("bumps.gallerySizeHint")}</p>
-          </div>
-        </div>
-
-        {/* Footer pinned to the bottom of the (scrolling) dialog, so
-            "Guardar" and "Vista previa" are always on screen — the form
-            above is long enough (gallery, copy) that a button at its very
-            end was easy to miss. `-mx-4 -mb-4` cancels DialogContent's
-            own p-4 so the bar spans edge to edge. */}
-        <div className="sticky -bottom-4 z-10 -mx-4 -mb-4 space-y-1.5 border-t border-border bg-popover px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setPreviewChecked(false)
-                setPreviewOpen(true)
-              }}
-              disabled={!editingId && !offerId}
-            >
-              <Eye className="h-4 w-4" />
-              {t("bumps.preview")}
-            </Button>
-            <div className="flex gap-2">
-              {editingId && (
-                <Button variant="outline" onClick={resetEditor}>
-                  {t("cancel")}
-                </Button>
-              )}
-              <Button
-                onClick={handleSubmit}
-                disabled={saving || uploadingImage || (!editingId && !offerId)}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {editingId ? t("bumps.save") : t("bumps.saveNew")}
-              </Button>
-            </div>
-          </div>
-          {!editingId && !offerId && (
-            <p className="text-right text-xs text-muted-foreground">{t("bumps.chooseOfferFirst")}</p>
-          )}
-        </div>
-
-        {/* Nested inside the parent's content so a click in the preview
-            doesn't count as an "outside click" that closes the parent. */}
-        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
-            <DialogHeader>
-              <DialogTitle>{t("bumps.previewTitle")}</DialogTitle>
-              <DialogDescription>{t("bumps.previewHint")}</DialogDescription>
-            </DialogHeader>
-            {/* `pay-page-surface` forces the checkout's light palette, so
-                the preview looks like the real checkout even when the
-                dashboard is in dark mode. */}
-            <div className="pay-page-surface min-w-0 space-y-4 rounded-xl bg-white p-4 text-slate-900">
-              <div className="space-y-3">
-                <p className="text-center text-[17px] font-extrabold leading-snug text-red-700">
-                  {heading.trim() || payPageStrings.es.bumpsHeadingDefault}
-                </p>
-                <OrderBumpBox
-                  bump={previewBump}
-                  currency={previewCurrency}
-                  checked={previewChecked}
-                  onCheckedChange={setPreviewChecked}
-                  onPreview={() => {}}
-                  t={payPageStrings.es}
-                />
+                    )
+                  })}
+                  {gallery.length < BUMP_GALLERY_MAX_IMAGES && (
+                    <button
+                      type="button"
+                      onClick={() => pickGalleryImage(null)}
+                      disabled={uploadingImage}
+                      className="flex aspect-[4/5] flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:bg-muted disabled:opacity-60"
+                    >
+                      {uploadingImage ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                      {t("bumps.galleryAdd")}
+                      <span className="text-[10px]">
+                        {gallery.length}/{BUMP_GALLERY_MAX_IMAGES}
+                      </span>
+                      <span className="px-2 text-center text-[10px] leading-tight">
+                        {t("bumps.galleryRecommended", { size: recommendedSize })}
+                      </span>
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">{t("bumps.gallerySizeHint")}</p>
               </div>
-              {(previewBump.gallery_images.length > 0 || previewBump.image_url) && (
-                <div className="space-y-2 border-t border-slate-200 pt-4">
-                  <p className="text-xs font-semibold text-slate-500">{t("bumps.previewPopup")}</p>
-                  <div className="rounded-2xl p-3 shadow-[0_8px_30px_rgba(15,23,42,0.12)] ring-1 ring-slate-200">
-                    <BumpPreviewContent
-                      key={previewBump.gallery_images.join("|")}
+            </div>
+
+            {/* Footer pinned to the bottom of the (scrolling) dialog, so
+                "Guardar" and "Vista previa" are always on screen — the form
+                above is long enough (gallery, copy) that a button at its very
+                end was easy to miss. `-mx-4 -mb-4` cancels DialogContent's
+                own p-4 so the bar spans edge to edge. */}
+            <div className="sticky -bottom-4 z-10 -mx-4 -mb-4 space-y-1.5 border-t border-border bg-popover px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setPreviewChecked(false)
+                    setPreviewOpen(true)
+                  }}
+                  disabled={!editingId && !offerId}
+                >
+                  <Eye className="h-4 w-4" />
+                  {t("bumps.preview")}
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setEditorOpen(false)}>
+                    {t("cancel")}
+                  </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={saving || uploadingImage || (!editingId && !offerId)}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {editingId ? t("bumps.save") : t("bumps.saveNew")}
+                  </Button>
+                </div>
+              </div>
+              {!editingId && !offerId && (
+                <p className="text-right text-xs text-muted-foreground">{t("bumps.chooseOfferFirst")}</p>
+              )}
+            </div>
+
+            {/* Nested inside the parent's content so a click in the preview
+                doesn't count as an "outside click" that closes the parent. */}
+            <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>{t("bumps.previewTitle")}</DialogTitle>
+                  <DialogDescription>{t("bumps.previewHint")}</DialogDescription>
+                </DialogHeader>
+                {/* `pay-page-surface` forces the checkout's light palette, so
+                    the preview looks like the real checkout even when the
+                    dashboard is in dark mode. */}
+                <div className="pay-page-surface min-w-0 space-y-4 rounded-xl bg-white p-4 text-slate-900">
+                  <div className="space-y-3">
+                    <p className="text-center text-[17px] font-extrabold leading-snug text-red-700">
+                      {heading.trim() || payPageStrings.es.bumpsHeadingDefault}
+                    </p>
+                    <OrderBumpBox
                       bump={previewBump}
                       currency={previewCurrency}
-                      locale="es"
                       checked={previewChecked}
-                      onToggle={() => setPreviewChecked((c) => !c)}
+                      onCheckedChange={setPreviewChecked}
+                      onPreview={() => {}}
+                      t={payPageStrings.es}
                     />
                   </div>
+                  {(previewBump.gallery_images.length > 0 || previewBump.image_url) && (
+                    <div className="space-y-2 border-t border-slate-200 pt-4">
+                      <p className="text-xs font-semibold text-slate-500">{t("bumps.previewPopup")}</p>
+                      <div className="rounded-2xl p-3 shadow-[0_8px_30px_rgba(15,23,42,0.12)] ring-1 ring-slate-200">
+                        <BumpPreviewContent
+                          key={previewBump.gallery_images.join("|")}
+                          bump={previewBump}
+                          currency={previewCurrency}
+                          locale="es"
+                          checked={previewChecked}
+                          onToggle={() => setPreviewChecked((c) => !c)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </DialogContent>
+            </Dialog>
           </DialogContent>
         </Dialog>
       </DialogContent>
