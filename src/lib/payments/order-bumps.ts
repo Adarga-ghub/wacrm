@@ -48,6 +48,8 @@ export async function loadOrderBumps(db: AnySupabase, form: MainForm): Promise<R
     )
     .eq('form_id', form.id)
     .eq('active', true)
+    // Drafts (migration 066) are never shown nor charged.
+    .eq('is_draft', false)
     .order('position', { ascending: true })
     .order('created_at', { ascending: true })
   if (error) {
@@ -129,6 +131,44 @@ export async function loadOrderBumps(db: AnySupabase, form: MainForm): Promise<R
     })
   }
   return resolved
+}
+
+/**
+ * Checks the offer an order bump points at, for the admin routes. Always:
+ * not the main offer itself, and both offers exist in this account and
+ * aren't archived. With `publish` (a bump that will show on the
+ * checkout, i.e. not a draft — migration 066), also that it could be
+ * charged in the same PayPal order: a fixed price, in the main offer's
+ * currency. Returns the error to send, or null when it's fine.
+ */
+export async function checkBumpOffer(
+  db: AnySupabase,
+  accountId: string,
+  mainFormId: string,
+  bumpFormId: string,
+  publish: boolean,
+): Promise<{ error: string; status: number } | null> {
+  if (bumpFormId === mainFormId) {
+    return { error: 'An offer cannot be an order bump of itself', status: 400 }
+  }
+  const { data: offers } = await db
+    .from('payment_forms')
+    .select('id, currency, amount_type, amount, status')
+    .eq('account_id', accountId)
+    .in('id', [mainFormId, bumpFormId])
+  const main = offers?.find((o: { id: string }) => o.id === mainFormId)
+  const bumpOffer = offers?.find((o: { id: string }) => o.id === bumpFormId)
+  if (!main || !bumpOffer || bumpOffer.status === 'archived') {
+    return { error: 'Not found', status: 404 }
+  }
+  if (!publish) return null
+  if (bumpOffer.amount_type !== 'fixed' || !(Number(bumpOffer.amount) > 0)) {
+    return { error: 'The order bump offer must have a fixed price', status: 400 }
+  }
+  if (bumpOffer.currency !== main.currency) {
+    return { error: `The order bump must be priced in ${main.currency}, the same currency as this offer`, status: 400 }
+  }
+  return null
 }
 
 /**

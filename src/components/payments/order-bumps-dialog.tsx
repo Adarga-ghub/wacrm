@@ -75,6 +75,43 @@ const EMPTY_POPUP_COPY: Record<keyof BumpPopupCopy, string> = {
   popup_added_label: "",
 }
 
+/** The editor's saveable values — compared to tell unsaved changes. */
+interface EditorValues {
+  offerId: string
+  title: string
+  description: string
+  price: string
+  compareAt: string
+  gallery: string[]
+  popupCopy: Record<keyof BumpPopupCopy, string>
+  fontSizes: BumpBoxFontSizes
+}
+
+const EMPTY_EDITOR_VALUES: EditorValues = {
+  offerId: "",
+  title: "",
+  description: "",
+  price: "",
+  compareAt: "",
+  gallery: [],
+  popupCopy: EMPTY_POPUP_COPY,
+  fontSizes: {},
+}
+
+function editorSnapshot(v: EditorValues): string {
+  return JSON.stringify([
+    v.offerId,
+    v.title,
+    v.description,
+    v.price,
+    v.compareAt,
+    v.gallery,
+    v.popupCopy,
+    // Key order varies with the clicks that set the sizes.
+    Object.entries(v.fontSizes).sort(),
+  ])
+}
+
 /**
  * "A− 13.5 px A+" stepper for one of the checkout box's font sizes
  * (BUMP_BOX_FONT_SIZES) — 0.5px steps; the reset only shows once the
@@ -158,6 +195,9 @@ export function OrderBumpsDialog({
   const [products, setProducts] = useState<PaymentProduct[]>([])
 
   const [editingId, setEditingId] = useState<string | null>(null)
+  // The bump being edited is a draft (migration 066) — a new bump counts
+  // as one too until it's published: both get "Guardar borrador".
+  const [editingIsDraft, setEditingIsDraft] = useState(false)
   const [offerId, setOfferId] = useState("")
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -198,6 +238,15 @@ export function OrderBumpsDialog({
   const [editorOpen, setEditorOpen] = useState(false)
   // The bump whose trash icon was clicked — asks before deleting.
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  // "¿Guardar los cambios antes de salir?" — shown when the editor is
+  // being left (X, Cancelar, Escape, a click outside, the browser's
+  // back button) with unsaved changes.
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
+  // The editor's values as last opened/saved, to tell unsaved changes.
+  const [savedSnapshot, setSavedSnapshot] = useState("")
+  // The editor pushes a browser-history entry while open, so "back"
+  // closes it (asking first) instead of leaving the page.
+  const historyEntryRef = useRef(false)
   const [previewChecked, setPreviewChecked] = useState(false)
 
   const formId = mainOffer?.id
@@ -238,6 +287,7 @@ export function OrderBumpsDialog({
 
   function resetEditor() {
     setEditingId(null)
+    setEditingIsDraft(false)
     setOfferId("")
     setTitle("")
     setDescription("")
@@ -353,7 +403,7 @@ export function OrderBumpsDialog({
           o.currency === mainOffer.currency &&
           o.amount_type === "fixed" &&
           Number(o.amount) > 0 &&
-          !usedOfferIds.has(o.id),
+          (o.id === offerId || !usedOfferIds.has(o.id)),
       )
     : []
 
@@ -384,32 +434,47 @@ export function OrderBumpsDialog({
   }
   const previewCurrency = selectedOffer?.currency ?? mainOffer?.currency ?? "USD"
 
-  async function handleSubmit() {
+  /**
+   * Saves the bump. `asDraft` ("Guardar borrador", new bumps and
+   * drafts only) saves whatever is there — no offer needed, prices only
+   * kept when they're valid numbers — and never shows it on the
+   * checkout. Otherwise the bump is saved (or, for a new bump or a
+   * draft, published) with the usual checks.
+   */
+  async function handleSubmit({ asDraft = false }: { asDraft?: boolean } = {}) {
     if (!formId) return
-    if (price.trim() && !(Number(price) > 0)) {
-      toast.error(t("bumps.priceInvalid"))
-      return
-    }
-    if (compareAt.trim() && !(Number(compareAt) > effectivePrice)) {
-      toast.error(t("bumps.compareAtTooLow"))
-      return
+    if (!asDraft) {
+      if (!offerId) {
+        toast.error(t("bumps.chooseOfferFirst"))
+        return
+      }
+      if (price.trim() && !(Number(price) > 0)) {
+        toast.error(t("bumps.priceInvalid"))
+        return
+      }
+      if (compareAt.trim() && !(Number(compareAt) > effectivePrice)) {
+        toast.error(t("bumps.compareAtTooLow"))
+        return
+      }
     }
     const prices = {
-      price: price.trim() ? Number(price) : null,
-      compare_at_price: compareAt.trim() ? Number(compareAt) : null,
+      price: Number(price) > 0 ? Number(price) : null,
+      compare_at_price: Number(compareAt) > 0 ? Number(compareAt) : null,
     }
     const fields = { title, description, ...popupCopy, box_font_sizes: fontSizes, gallery_images: gallery, ...prices }
+    // New bumps and drafts also carry the offer and the draft flag.
+    const draftFields = editingIsDraft ? { bump_form_id: offerId || null, draft: asDraft } : {}
     setSaving(true)
     const res = editingId
       ? await fetch(`/api/payments/forms/${formId}/bumps/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(fields),
+          body: JSON.stringify({ ...fields, ...draftFields }),
         })
       : await fetch(`/api/payments/forms/${formId}/bumps`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bump_form_id: offerId, ...fields }),
+          body: JSON.stringify({ ...fields, ...draftFields }),
         })
     const data = await res.json().catch(() => ({}))
     setSaving(false)
@@ -417,9 +482,17 @@ export function OrderBumpsDialog({
       toast.error(data.error || t("bumps.saveFailed"))
       return
     }
-    toast.success(editingId ? t("bumps.updated") : t("bumps.added"))
+    toast.success(
+      asDraft
+        ? t("bumps.draftSaved")
+        : editingIsDraft && editingId
+          ? t("bumps.publishedToast")
+          : editingId
+            ? t("bumps.updated")
+            : t("bumps.added"),
+    )
     // Back to the list, which shows the saved bump.
-    setEditorOpen(false)
+    closeEditorNow()
     loadBumps(formId)
   }
 
@@ -449,31 +522,106 @@ export function OrderBumpsDialog({
   }
 
   function startEdit(bump: PaymentOrderBump) {
+    const values: EditorValues = {
+      offerId: bump.bump_form_id ?? "",
+      title: bump.title ?? "",
+      description: bump.description ?? "",
+      price: bump.price != null ? String(bump.price) : "",
+      compareAt: bump.compare_at_price != null ? String(bump.compare_at_price) : "",
+      gallery: bump.gallery_images ?? [],
+      popupCopy: {
+        popup_title: bump.popup_title ?? "",
+        popup_description: bump.popup_description ?? "",
+        checkbox_label: bump.checkbox_label ?? "",
+        popup_button_label: bump.popup_button_label ?? "",
+        popup_added_label: bump.popup_added_label ?? "",
+      },
+      fontSizes: bump.box_font_sizes ?? {},
+    }
     setEditingId(bump.id)
-    setOfferId(bump.bump_form_id)
-    setTitle(bump.title ?? "")
-    setDescription(bump.description ?? "")
-    setPrice(bump.price != null ? String(bump.price) : "")
-    setCompareAt(bump.compare_at_price != null ? String(bump.compare_at_price) : "")
-    setGallery(bump.gallery_images ?? [])
-    setPopupCopy({
-      popup_title: bump.popup_title ?? "",
-      popup_description: bump.popup_description ?? "",
-      checkbox_label: bump.checkbox_label ?? "",
-      popup_button_label: bump.popup_button_label ?? "",
-      popup_added_label: bump.popup_added_label ?? "",
-    })
-    setFontSizes(bump.box_font_sizes ?? {})
-    setLiveChecked(false)
-    setEditorOpen(true)
+    setEditingIsDraft(bump.is_draft)
+    setOfferId(values.offerId)
+    setTitle(values.title)
+    setDescription(values.description)
+    setPrice(values.price)
+    setCompareAt(values.compareAt)
+    setGallery(values.gallery)
+    setPopupCopy(values.popupCopy)
+    setFontSizes(values.fontSizes)
+    openEditor(values)
   }
 
-  /** "Crear nuevo order bump": the editor pop-up, empty. */
+  /** "Crear nuevo order bump": the editor pop-up, empty — a draft until published. */
   function startCreate() {
     resetEditor()
-    setLiveChecked(false)
-    setEditorOpen(true)
+    setEditingIsDraft(true)
+    openEditor(EMPTY_EDITOR_VALUES)
   }
+
+  function openEditor(values: EditorValues) {
+    setSavedSnapshot(editorSnapshot(values))
+    setLiveChecked(false)
+    setLeaveConfirmOpen(false)
+    setEditorOpen(true)
+    if (!historyEntryRef.current) {
+      // Same URL: only gives the browser's "back" something to undo.
+      window.history.pushState(null, "", window.location.href)
+      historyEntryRef.current = true
+    }
+  }
+
+  /** Closes the editor without asking (after a save, or "Descartar cambios"). */
+  function closeEditorNow() {
+    setLeaveConfirmOpen(false)
+    setEditorOpen(false)
+    if (historyEntryRef.current) {
+      historyEntryRef.current = false
+      window.history.back()
+    }
+  }
+
+  // Unsaved changes = the editor's values differ from when it was opened.
+  const dirty =
+    editorOpen &&
+    editorSnapshot({ offerId, title, description, price, compareAt, gallery, popupCopy, fontSizes }) !== savedSnapshot
+
+  /** Any way out of the editor: asks first when there are unsaved changes. */
+  function requestCloseEditor() {
+    if (dirty) setLeaveConfirmOpen(true)
+    else closeEditorNow()
+  }
+
+  // The browser's "back" while the editor is open: undo our history
+  // entry by closing the editor — or, with unsaved changes, stay (push
+  // the entry back) and ask. Reload / closing the tab get the browser's
+  // own "leave site?" warning.
+  const dirtyRef = useRef(false)
+  useEffect(() => {
+    dirtyRef.current = dirty
+  })
+  useEffect(() => {
+    const onPopState = () => {
+      if (!historyEntryRef.current) return
+      if (dirtyRef.current) {
+        window.history.pushState(null, "", window.location.href)
+        setLeaveConfirmOpen(true)
+      } else {
+        historyEntryRef.current = false
+        setEditorOpen(false)
+      }
+    }
+    window.addEventListener("popstate", onPopState)
+    return () => window.removeEventListener("popstate", onPopState)
+  }, [])
+  useEffect(() => {
+    if (!dirty) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", onBeforeUnload)
+    return () => window.removeEventListener("beforeunload", onBeforeUnload)
+  }, [dirty])
 
   return (
     <Dialog open={!!mainOffer} onOpenChange={onOpenChange}>
@@ -546,11 +694,22 @@ export function OrderBumpsDialog({
                         </span>
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">
-                          {bump.title || (offer ? productName(offer) ?? offer.name : "—")}
+                        <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-foreground">
+                          {bump.is_draft && (
+                            <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-500">
+                              {t("bumps.draftBadge")}
+                            </span>
+                          )}
+                          <span className="truncate">
+                            {bump.title || (offer ? productName(offer) ?? offer.name : "—")}
+                          </span>
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {offer ? offerLabel(offer) : t("bumps.offerUnavailable")}
+                          {offer
+                            ? offerLabel(offer)
+                            : bump.bump_form_id
+                              ? t("bumps.offerUnavailable")
+                              : t("bumps.draftNoOffer")}
                         </p>
                         {offer && (
                           <p className="text-xs text-foreground">
@@ -565,11 +724,14 @@ export function OrderBumpsDialog({
                           </p>
                         )}
                       </div>
-                      <Switch
-                        checked={bump.active}
-                        onCheckedChange={(v) => toggleActive(bump, !!v)}
-                        aria-label={t("bumps.active")}
-                      />
+                      {/* A draft is never on the checkout: nothing to switch on/off yet. */}
+                      {!bump.is_draft && (
+                        <Switch
+                          checked={bump.active}
+                          onCheckedChange={(v) => toggleActive(bump, !!v)}
+                          aria-label={t("bumps.active")}
+                        />
+                      )}
                       <Button variant="outline" size="sm" onClick={() => startEdit(bump)}>
                         <Pencil className="h-3.5 w-3.5" />
                         {t("bumps.edit")}
@@ -612,15 +774,23 @@ export function OrderBumpsDialog({
         {/* Editor pop-up for one bump (new or existing), nested in the
             list's content so a click inside it doesn't count as an
             "outside click" that would close the list. */}
-        <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+        <Dialog
+          open={editorOpen}
+          onOpenChange={(open) => {
+            if (!open) requestCloseEditor()
+          }}
+        >
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>{editingId ? t("bumps.editTitle") : t("bumps.addTitle")}</DialogTitle>
+              {editingIsDraft && editingId && (
+                <DialogDescription className="text-amber-500">{t("bumps.draftHint")}</DialogDescription>
+              )}
             </DialogHeader>
             <div className="min-w-0 space-y-3">
               <div className="grid gap-2">
                 <Label className="text-muted-foreground">{t("bumps.offerLabel")}</Label>
-                {editingId ? (
+                {!editingIsDraft ? (
                   <p className="break-words text-sm text-foreground">
                     {(() => {
                       const offer = offers.find((o) => o.id === offerId)
@@ -641,7 +811,7 @@ export function OrderBumpsDialog({
                     ))}
                   </select>
                 )}
-                {!editingId && candidateOffers.length === 0 && offers.length > 0 && (
+                {editingIsDraft && candidateOffers.length === 0 && offers.length > 0 && (
                   <p className="text-xs text-muted-foreground">{t("bumps.noCandidates")}</p>
                 )}
               </div>
@@ -650,9 +820,6 @@ export function OrderBumpsDialog({
                   being edited (unsaved values included) — the wrapper ends the
                   pinning where the pop-up section starts. */}
               <div className="space-y-3">
-                {/* Checkout box: its copy, font sizes and a live preview that
-                    stays pinned at the top of the dialog while this section is
-                    being edited (unsaved values included). */}
                 <p className="pt-1 text-sm font-semibold text-foreground">{t("bumps.boxSection")}</p>
                 <p className="text-xs text-muted-foreground">{t("bumps.boxHint")}</p>
                 <div className="sticky -top-4 z-10 -mx-4 border-b border-border bg-popover px-4 pb-3 pt-2">
@@ -978,29 +1145,66 @@ export function OrderBumpsDialog({
                     setPreviewChecked(false)
                     setPreviewOpen(true)
                   }}
-                  disabled={!editingId && !offerId}
                 >
                   <Eye className="h-4 w-4" />
                   {t("bumps.preview")}
                 </Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setEditorOpen(false)}>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" onClick={requestCloseEditor}>
                     {t("cancel")}
                   </Button>
+                  {editingIsDraft && (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleSubmit({ asDraft: true })}
+                      disabled={saving || uploadingImage}
+                    >
+                      {t("bumps.saveDraft")}
+                    </Button>
+                  )}
                   <Button
-                    onClick={handleSubmit}
-                    disabled={saving || uploadingImage || (!editingId && !offerId)}
+                    onClick={() => handleSubmit()}
+                    disabled={saving || uploadingImage || !offerId}
                     className="bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    {editingId ? t("bumps.save") : t("bumps.saveNew")}
+                    {editingIsDraft ? t("bumps.publish") : t("bumps.save")}
                   </Button>
                 </div>
               </div>
-              {!editingId && !offerId && (
-                <p className="text-right text-xs text-muted-foreground">{t("bumps.chooseOfferFirst")}</p>
+              {editingIsDraft && !offerId && (
+                <p className="text-right text-xs text-muted-foreground">{t("bumps.publishNeedsOffer")}</p>
               )}
             </div>
+
+            {/* Leaving with unsaved changes. Nested in the editor so a click
+                in it isn't an "outside click" that would close the editor. */}
+            <Dialog open={leaveConfirmOpen} onOpenChange={setLeaveConfirmOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{t("bumps.leaveTitle")}</DialogTitle>
+                  <DialogDescription>{t("bumps.leaveText")}</DialogDescription>
+                </DialogHeader>
+                {/* Stacked, the safe choice first: three labels side by side
+                    didn't fit the dialog's width. */}
+                <div className="grid gap-2">
+                  <Button
+                    onClick={() => handleSubmit({ asDraft: editingIsDraft })}
+                    disabled={saving || uploadingImage}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {editingIsDraft ? t("bumps.saveDraft") : t("bumps.save")}
+                  </Button>
+                  <Button variant="destructive" onClick={closeEditorNow}>
+                    {t("bumps.discardChanges")}
+                  </Button>
+                  <Button variant="outline" onClick={() => setLeaveConfirmOpen(false)}>
+                    {t("bumps.keepEditing")}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {/* Nested inside the parent's content so a click in the preview
                 doesn't count as an "outside click" that closes the parent. */}

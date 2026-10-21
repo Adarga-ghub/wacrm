@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
-import { parseBumpPrice } from '@/lib/payments/order-bumps'
+import { checkBumpOffer, parseBumpPrice } from '@/lib/payments/order-bumps'
 import {
   CHECKOUT_TEXT_LIMITS,
   parseBumpBoxFontSizes,
@@ -20,9 +20,18 @@ interface PutBody extends Partial<Record<keyof BumpPopupCopy, string | null>> {
   compare_at_price?: number | string | null
   gallery_images?: string[] | null
   box_font_sizes?: BumpBoxFontSizes | null
+  /** Drafts only (migration 066): pick or change the offer. */
+  bump_form_id?: string | null
+  /** `false` publishes a draft; `true` keeps it a draft. A published bump can't go back to draft. */
+  draft?: boolean
 }
 
-/** PUT /api/payments/forms/[id]/bumps/[bumpId] — edit an order bump's copy, toggle it, or reorder it. */
+/**
+ * PUT /api/payments/forms/[id]/bumps/[bumpId] — edit an order bump's
+ * copy, toggle it, or reorder it. For a draft (migration 066) it can
+ * also set the offer, and `draft: false` publishes it — only then are
+ * the offer's price/currency checked, as when a bump is created.
+ */
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string; bumpId: string }> },
@@ -75,6 +84,36 @@ export async function PUT(
   if (price !== undefined) update.price = price
   if (compareAtPrice !== undefined) update.compare_at_price = compareAtPrice
 
+  if (body.bump_form_id !== undefined || body.draft !== undefined) {
+    const { data: existing } = await ctx.supabase
+      .from('payment_order_bumps')
+      .select('is_draft, bump_form_id')
+      .eq('id', bumpId)
+      .eq('form_id', id)
+      .eq('account_id', ctx.accountId)
+      .maybeSingle()
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (body.draft === true && !existing.is_draft) {
+      return NextResponse.json({ error: 'A published order bump cannot go back to draft' }, { status: 400 })
+    }
+    const nextOffer = body.bump_form_id !== undefined ? body.bump_form_id || null : existing.bump_form_id
+    if (nextOffer !== existing.bump_form_id) {
+      if (!existing.is_draft) {
+        return NextResponse.json({ error: 'The offer of a published order bump cannot be changed' }, { status: 400 })
+      }
+      update.bump_form_id = nextOffer
+    }
+    const publishing = body.draft === false && existing.is_draft
+    if (publishing && !nextOffer) {
+      return NextResponse.json({ error: 'Choose the offer to add before publishing' }, { status: 400 })
+    }
+    if (nextOffer && (publishing || nextOffer !== existing.bump_form_id)) {
+      const offerError = await checkBumpOffer(ctx.supabase, ctx.accountId, id, nextOffer, publishing)
+      if (offerError) return NextResponse.json({ error: offerError.error }, { status: offerError.status })
+    }
+    if (publishing) update.is_draft = false
+  }
+
   const { data, error } = await ctx.supabase
     .from('payment_order_bumps')
     .update(update)
@@ -85,6 +124,9 @@ export async function PUT(
     .maybeSingle()
 
   if (error) {
+    if (error.code === '23505') {
+      return NextResponse.json({ error: 'That offer is already an order bump here' }, { status: 409 })
+    }
     console.error('[payments/forms/[id]/bumps/[bumpId] PUT] failed:', error)
     return NextResponse.json({ error: 'Failed to save order bump' }, { status: 500 })
   }

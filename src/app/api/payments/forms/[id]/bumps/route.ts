@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
-import { parseBumpPrice } from '@/lib/payments/order-bumps'
+import { checkBumpOffer, parseBumpPrice } from '@/lib/payments/order-bumps'
 import {
   CHECKOUT_TEXT_LIMITS,
   parseBumpBoxFontSizes,
@@ -46,7 +46,9 @@ export async function GET(
 }
 
 interface PostBody extends Partial<Record<keyof BumpPopupCopy, string | null>> {
-  bump_form_id?: string
+  bump_form_id?: string | null
+  /** Save as a draft (migration 066): no offer needed, never on the checkout. */
+  draft?: boolean
   title?: string | null
   description?: string | null
   /** Bump-specific price (migration 062) — omitted/null = the bump offer's own amount. */
@@ -67,6 +69,10 @@ interface PostBody extends Partial<Record<keyof BumpPopupCopy, string | null>> {
  * currency (one PayPal order = one currency) or a non-fixed price —
  * up front, instead of letting it silently vanish from the checkout
  * (`loadOrderBumps` filters those out at render time too).
+ *
+ * With `draft: true` (migration 066) the bump is saved half-done: the
+ * offer is optional and only checked to belong to this account — the
+ * price/currency checks run when the draft is published (PUT).
  */
 export async function POST(
   request: Request,
@@ -80,11 +86,11 @@ export async function POST(
   }
   const { id } = await params
   const body = (await request.json().catch(() => null)) as PostBody | null
-  if (!body?.bump_form_id) {
+  if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
+  const draft = body.draft === true
+  const bumpFormId = body.bump_form_id || null
+  if (!draft && !bumpFormId) {
     return NextResponse.json({ error: 'bump_form_id is required' }, { status: 400 })
-  }
-  if (body.bump_form_id === id) {
-    return NextResponse.json({ error: 'An offer cannot be an order bump of itself' }, { status: 400 })
   }
   const title = parseLimitedText(body.title, CHECKOUT_TEXT_LIMITS.bumpTitle)
   const description = parseLimitedText(body.description, CHECKOUT_TEXT_LIMITS.bumpDescription)
@@ -114,24 +120,18 @@ export async function POST(
     return NextResponse.json({ error: 'Prices must be numbers greater than 0' }, { status: 400 })
   }
 
-  const { data: offers } = await ctx.supabase
-    .from('payment_forms')
-    .select('id, currency, amount_type, amount, status')
-    .eq('account_id', ctx.accountId)
-    .in('id', [id, body.bump_form_id])
-  const main = offers?.find((o: { id: string }) => o.id === id)
-  const bumpOffer = offers?.find((o: { id: string }) => o.id === body.bump_form_id)
-  if (!main || !bumpOffer || bumpOffer.status === 'archived') {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
-  if (bumpOffer.amount_type !== 'fixed' || !(Number(bumpOffer.amount) > 0)) {
-    return NextResponse.json({ error: 'The order bump offer must have a fixed price' }, { status: 400 })
-  }
-  if (bumpOffer.currency !== main.currency) {
-    return NextResponse.json(
-      { error: `The order bump must be priced in ${main.currency}, the same currency as this offer` },
-      { status: 400 },
-    )
+  if (bumpFormId) {
+    const offerError = await checkBumpOffer(ctx.supabase, ctx.accountId, id, bumpFormId, !draft)
+    if (offerError) return NextResponse.json({ error: offerError.error }, { status: offerError.status })
+  } else {
+    // A draft with no offer yet: still make sure the main offer is ours.
+    const { data: main } = await ctx.supabase
+      .from('payment_forms')
+      .select('id')
+      .eq('id', id)
+      .eq('account_id', ctx.accountId)
+      .maybeSingle()
+    if (!main) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
   const { count } = await ctx.supabase
@@ -144,7 +144,8 @@ export async function POST(
     .insert({
       account_id: ctx.accountId,
       form_id: id,
-      bump_form_id: body.bump_form_id,
+      bump_form_id: bumpFormId,
+      is_draft: draft,
       title: title ?? null,
       description: description ?? null,
       gallery_images: galleryImages ?? [],

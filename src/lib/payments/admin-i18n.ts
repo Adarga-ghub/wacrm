@@ -376,11 +376,22 @@ export interface PaymentsProductsStrings {
     galleryHint: string
     galleryAdd: string
     /** Footer button: saves a NEW bump (the edit mode uses `save`). */
-    saveNew: string
     /** Under the list while a bump is open: switches the form to a new, empty bump. */
     addAnother: string
     removeConfirm: string
     removeYes: string
+    saveDraft: string
+    publish: string
+    publishNeedsOffer: string
+    draftSaved: string
+    publishedToast: string
+    draftBadge: string
+    draftNoOffer: string
+    draftHint: string
+    leaveTitle: string
+    leaveText: string
+    keepEditing: string
+    discardChanges: string
     galleryMakeMain: string
     galleryMoveLater: string
     /** Click on an image / its button: swap it for a new upload in the same position. */
@@ -894,10 +905,21 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryLabel: "Preview images (the eye icon)",
         galleryHint: "The first one is the main image (ideally a perspective book mockup on a transparent or white background). The rest show as thumbnails under it. With no images, the product cover is shown as a 3D book. Max. {max}.",
         galleryAdd: "Add image",
-        saveNew: "Save order bump",
         addAnother: "Create a new order bump",
         removeConfirm: "Delete this order bump? This can't be undone.",
         removeYes: "Yes, delete",
+        saveDraft: "Save draft",
+        publish: "Publish",
+        publishNeedsOffer: "Choose the offer to add to publish it. You can save it as a draft meanwhile.",
+        draftSaved: "Draft saved",
+        publishedToast: "Order bump published",
+        draftBadge: "Draft",
+        draftNoOffer: "No offer chosen yet",
+        draftHint: "Draft: it isn't shown on the checkout until you publish it.",
+        leaveTitle: "Save your changes before leaving?",
+        leaveText: "This order bump has changes that haven't been saved.",
+        keepEditing: "Keep editing",
+        discardChanges: "Discard changes",
         galleryMakeMain: "Make main image",
         galleryMoveLater: "Move later",
         galleryReplace: "Change image",
@@ -1391,10 +1413,21 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         galleryLabel: "Imágenes de la vista previa (el ojito)",
         galleryHint: "La primera es la imagen principal (ideal: mockup del libro en perspectiva, fondo transparente o blanco). Las demás salen como miniaturas debajo. Sin imágenes, se muestra la portada del producto como libro 3D. Máx. {max}.",
         galleryAdd: "Añadir imagen",
-        saveNew: "Guardar order bump",
         addAnother: "Crear nuevo order bump",
         removeConfirm: "¿Eliminar este order bump? No se puede deshacer.",
         removeYes: "Sí, eliminar",
+        saveDraft: "Guardar borrador",
+        publish: "Publicar",
+        publishNeedsOffer: "Elige la oferta a añadir para publicarlo. Mientras, puedes guardarlo como borrador.",
+        draftSaved: "Borrador guardado",
+        publishedToast: "Order bump publicado",
+        draftBadge: "Borrador",
+        draftNoOffer: "Sin oferta elegida todavía",
+        draftHint: "Borrador: no se muestra en el checkout hasta que lo publiques.",
+        leaveTitle: "¿Guardar los cambios antes de salir?",
+        leaveText: "Este order bump tiene cambios que aún no se han guardado.",
+        keepEditing: "Seguir editando",
+        discardChanges: "Descartar cambios",
         galleryMakeMain: "Hacer imagen principal",
         galleryMoveLater: "Mover a la derecha",
         galleryReplace: "Cambiar imagen",

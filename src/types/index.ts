@@ -1053,7 +1053,10 @@ export interface PaymentOrderBump {
   id: string;
   account_id: string;
   form_id: string;
-  bump_form_id: string;
+  /** The offer being bumped — null only on a draft that has none yet (migration 066). */
+  bump_form_id: string | null;
+  /** Saved half-done from the admin: never shown on the checkout nor charged (migration 066). */
+  is_draft: boolean;
   /** Bump box headline — falls back to the bump offer's product/offer name when null. */
   title: string | null;
   description: string | null;
