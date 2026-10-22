@@ -7,7 +7,7 @@
 // funnel them through the login redirect.
 // ============================================================
 
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 
 // Public pages (checkout, upsell/downsell offers) carry the store's
@@ -26,6 +26,31 @@ export const metadata: Metadata = {
   },
   robots: { index: false, follow: false },
 }
+
+// The root layout declares a dark `theme-color` and `color-scheme:
+// dark light` for the dashboard. On a phone in dark mode that made the
+// browser paint a BLACK canvas (and dark toolbar) for every /pay link
+// until the stylesheets finished downloading — several seconds on a
+// slow connection inside WhatsApp's in-app browser. Checkout is always
+// light, so say so up front.
+export const viewport: Viewport = {
+  themeColor: '#ffffff',
+  colorScheme: 'light',
+}
+
+// Critical CSS, inlined in the HTML itself so it applies on the very
+// first paint — before the external stylesheets arrive. Paints the
+// page white and styles the loading screen (`PayPageLoading`, the
+// `.pay-boot*` classes): a centered spinner + black "Cargando
+// página..." over a full-screen white layer, which the real checkout
+// simply replaces once it renders.
+const CRITICAL_CSS = `
+html,body{background:#fff;color-scheme:light}
+.pay-boot{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#fff}
+.pay-boot-spinner{width:40px;height:40px;border-radius:9999px;border:4px solid #e5e7eb;border-top-color:#111;animation:pay-boot-spin .8s linear infinite}
+.pay-boot-label{margin:0;color:#000;font:500 16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+@keyframes pay-boot-spin{to{transform:rotate(360deg)}}
+`
 
 export default function PayLayout({ children }: { children: ReactNode }) {
   return (
@@ -75,6 +100,7 @@ export default function PayLayout({ children }: { children: ReactNode }) {
     // white/light background. Edit the values in that CSS class to
     // change the checkout pages' palette.
     <div className="pay-page-surface flex min-h-dvh flex-col items-center justify-center px-4 py-6 sm:py-10">
+      <style dangerouslySetInnerHTML={{ __html: CRITICAL_CSS }} />
       {children}
     </div>
   )
