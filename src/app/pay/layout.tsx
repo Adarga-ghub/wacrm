@@ -39,9 +39,18 @@ export const viewport: Viewport = {
 }
 
 // Critical CSS, inlined in the HTML itself so it applies on the very
-// first paint — before the external stylesheets arrive — so the page
-// is white from its first byte instead of the phone's dark canvas.
-const CRITICAL_CSS = `html,body{background:#fff;color-scheme:light}`
+// first paint — before the external stylesheets arrive. Paints the
+// page white and styles the loading screen (`PayPageLoading`, the
+// `.pay-boot*` classes): a centered spinner + black "Cargando
+// página..." over a full-screen white layer, which the real checkout
+// replaces once it renders.
+const CRITICAL_CSS = `
+html,body{background:#fff;color-scheme:light}
+.pay-boot{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#fff}
+.pay-boot-spinner{width:40px;height:40px;border-radius:9999px;border:4px solid #e5e7eb;border-top-color:#111;animation:pay-boot-spin .8s linear infinite}
+.pay-boot-label{margin:0;color:#000;font:500 16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+@keyframes pay-boot-spin{to{transform:rotate(360deg)}}
+`
 
 export default function PayLayout({ children }: { children: ReactNode }) {
   return (

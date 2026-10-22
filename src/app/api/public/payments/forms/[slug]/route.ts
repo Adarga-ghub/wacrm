@@ -1,32 +1,14 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { resolveGateway } from '@/lib/payments/gateway'
-import { loadOrderBumps } from '@/lib/payments/order-bumps'
-import type { PublicPaymentForm } from '@/types'
-
-// Lazy-initialised service-role client — this route has no session
-// (it's the public checkout page's data source), so RLS can't scope
-// it; we filter to `status = 'published'` explicitly instead. Same
-// pattern as `src/app/api/whatsapp/webhook/route.ts`.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _adminClient: any = null
-function supabaseAdmin() {
-  if (!_adminClient) {
-    _adminClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-  }
-  return _adminClient
-}
+import { loadPublicPaymentForm } from '@/lib/payments/public-form'
 
 /**
  * GET /api/public/payments/forms/[slug]
  *
- * Backs the public checkout page (`/pay/[slug]`). Returns only the
- * fields a payer's browser needs to render the form — never
- * `account_id`, `automation_id`, `created_by`, or anything else that
- * would leak internal state.
+ * The public checkout's form data as JSON — see
+ * `loadPublicPaymentForm` for what it returns. `/pay/[slug]` itself
+ * now gets this server-side in its first HTML response; this route
+ * stays for the page's fallback (a server-side load that failed) and
+ * any other caller.
  */
 export async function GET(
   _request: Request,
@@ -34,85 +16,15 @@ export async function GET(
 ) {
   const { slug } = await params
 
-  const { data, error } = await supabaseAdmin()
-    .from('payment_forms')
-    .select(
-      'id, account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id, product_id, checkout_description, bump_heading',
-    )
-    .eq('slug', slug)
-    .eq('status', 'published')
-    .maybeSingle()
-
-  if (error) {
+  let form
+  try {
+    form = await loadPublicPaymentForm(slug)
+  } catch (error) {
     console.error('[public/payments/forms/[slug] GET] failed:', error)
     return NextResponse.json({ error: 'Failed to load form' }, { status: 500 })
   }
-  if (!data) {
+  if (!form) {
     return NextResponse.json({ error: 'This payment form is not available' }, { status: 404 })
-  }
-
-  const gateway = await resolveGateway(supabaseAdmin(), data.account_id)
-
-  // A form linked to a skin (migration 053) defers ALL of its
-  // cosmetics to the skin — every form pointed at the same skin
-  // renders identically and picks up edits together. A form with no
-  // `skin_id` keeps using its own `design` column exactly as before.
-  let design = data.design ?? {}
-  if (data.skin_id) {
-    const { data: skin } = await supabaseAdmin()
-      .from('payment_skins')
-      .select('design')
-      .eq('id', data.skin_id)
-      .maybeSingle()
-    if (skin) design = skin.design ?? {}
-  }
-
-  // A price linked to a Producto (migration 054) pulls its title,
-  // cover image and author from THERE — Hotmart-style — instead of
-  // any per-form/per-skin copy. Deliberately NOT `description`: that
-  // stays product-page-only, never fetched onto the public checkout.
-  // A standalone form (`product_id` null) has no product and the
-  // checkout page falls back to `form.name`, exactly as before this
-  // existed.
-  let product: PublicPaymentForm['product'] = null
-  if (data.product_id) {
-    const { data: productRow } = await supabaseAdmin()
-      .from('payment_products')
-      .select('name, image_url, author')
-      .eq('id', data.product_id)
-      .maybeSingle()
-    if (productRow) product = productRow
-  }
-
-  // Same resolver `POST /api/public/payments/orders` charges from — so
-  // the price shown in each bump box is exactly what gets billed.
-  const bumps = await loadOrderBumps(supabaseAdmin(), data)
-
-  const form: PublicPaymentForm = {
-    name: data.name,
-    status: data.status,
-    fields: data.fields,
-    amount_type: data.amount_type,
-    amount: data.amount,
-    min_amount: data.min_amount,
-    products: data.products,
-    currency: data.currency,
-    design,
-    paypal_client_id: gateway?.clientId ?? null,
-    product,
-    checkout_description: data.checkout_description ?? null,
-    order_bumps: bumps.map((b) => ({
-      id: b.id,
-      title: b.title,
-      description: b.description,
-      price: b.price,
-      compare_at_price: b.compareAtPrice,
-      image_url: b.imageUrl,
-      gallery_images: b.galleryImages,
-      ...b.popupCopy,
-      box_font_sizes: b.boxFontSizes,
-    })),
-    bump_heading: data.bump_heading?.trim() || null,
   }
   return NextResponse.json({ form })
 }
