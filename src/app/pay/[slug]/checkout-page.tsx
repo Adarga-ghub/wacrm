@@ -325,6 +325,9 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
   }, [topName, cardNameTouched])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cardFieldsRef = useRef<any>(null)
+  // The "Protegido por PayPal" line — the scroll target when the card
+  // form opens (see the ResizeObserver effect below).
+  const secureBadgeRef = useRef<HTMLDivElement>(null)
 
   // Buttons/CardFields callbacks are set up once per SDK/form/locale
   // (see the effect below) and stay mounted across keystrokes — tearing
@@ -650,6 +653,41 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
       }
     }
   }, [sdkReady, form, linkCode, slug, locale, markCheckoutInitiated, buttonsResetKey])
+
+  // When the FUNDING.CARD button expands PayPal's inline card form, the
+  // form opens downward and on a phone most of it (and the pay button)
+  // ends up below the screen. Once the expansion settles, scroll so the
+  // whole form shows down to the "Protegido por PayPal" badge — but
+  // never past the top of the card button itself. The form lives in a
+  // cross-origin iframe, so its growth is detected from the
+  // container's size: a jump of more than ~120px is the form opening
+  // (the button alone is ~50px; closing it shrinks, which is ignored).
+  useEffect(() => {
+    if (!form || cardEligible) return
+    const container = document.getElementById("card-button-container")
+    if (!container || typeof ResizeObserver === "undefined") return
+    let settledHeight = container.offsetHeight
+    let timer: number | undefined
+    const observer = new ResizeObserver(() => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        const height = container.offsetHeight
+        const opened = height - settledHeight > 120
+        settledHeight = height
+        const badge = secureBadgeRef.current
+        if (!opened || !badge) return
+        const containerTop = container.getBoundingClientRect().top
+        const badgeBottom = badge.getBoundingClientRect().bottom
+        const delta = Math.min(badgeBottom + 16 - window.innerHeight, containerTop - 8)
+        if (delta > 0) window.scrollBy({ top: delta, behavior: "smooth" })
+      }, 350)
+    })
+    observer.observe(container)
+    return () => {
+      observer.disconnect()
+      window.clearTimeout(timer)
+    }
+  }, [form, cardEligible])
 
   const handleCardSubmit = async () => {
     if (!cardFieldsRef.current) return
@@ -1102,7 +1140,7 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
               <LockKeyhole aria-hidden className="size-4 text-emerald-600" strokeWidth={2.4} />
               {t.securePayment}
             </p>
-            <div className="-mt-2 flex items-center justify-center gap-1 text-center text-xs">
+            <div ref={secureBadgeRef} className="-mt-2 flex items-center justify-center gap-1 text-center text-xs">
               <span className="italic text-muted-foreground">{t.securedByPrefix}</span>
               <span className="text-sm font-bold italic">
                 <span style={{ color: PAYPAL_WORDMARK_COLORS.pay }}>Pay</span>
