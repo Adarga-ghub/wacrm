@@ -1070,6 +1070,8 @@ export interface PaymentOrderBump {
   popup_title: string | null;
   popup_description: string | null;
   checkbox_label: string | null;
+  /** Checkbox label once added (migration 067) — null = the default. */
+  checkbox_added_label: string | null;
   popup_button_label: string | null;
   popup_added_label: string | null;
   /** Checkout box font sizes in px (migration 065) — missing key = default. */
@@ -1096,6 +1098,8 @@ export interface PublicOrderBump {
   popup_description: string | null;
   /** Checkbox label in the checkout box — null = "Añadir a la compra". */
   checkbox_label: string | null;
+  /** Checkbox label once the bump is added — null = "Añadido a tu compra". */
+  checkbox_added_label: string | null;
   /** Pop-up button before/after it's pressed — null = the checkout's default labels. */
   popup_button_label: string | null;
   popup_added_label: string | null;

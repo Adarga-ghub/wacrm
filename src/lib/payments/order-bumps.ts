@@ -44,7 +44,7 @@ export async function loadOrderBumps(db: AnySupabase, form: MainForm): Promise<R
   const { data: bumps, error } = await db
     .from('payment_order_bumps')
     .select(
-      'id, bump_form_id, title, description, price, compare_at_price, gallery_images, popup_title, popup_description, checkbox_label, popup_button_label, popup_added_label, box_font_sizes',
+      'id, bump_form_id, title, description, price, compare_at_price, gallery_images, popup_title, popup_description, checkbox_label, checkbox_added_label, popup_button_label, popup_added_label, box_font_sizes',
     )
     .eq('form_id', form.id)
     .eq('active', true)
@@ -118,6 +118,7 @@ export async function loadOrderBumps(db: AnySupabase, form: MainForm): Promise<R
         popup_title: bump.popup_title?.trim() || null,
         popup_description: bump.popup_description?.trim() || null,
         checkbox_label: bump.checkbox_label?.trim() || null,
+        checkbox_added_label: bump.checkbox_added_label?.trim() || null,
         popup_button_label: bump.popup_button_label?.trim() || null,
         popup_added_label: bump.popup_added_label?.trim() || null,
       },

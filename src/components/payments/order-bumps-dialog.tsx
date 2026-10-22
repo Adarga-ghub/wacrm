@@ -71,6 +71,7 @@ const EMPTY_POPUP_COPY: Record<keyof BumpPopupCopy, string> = {
   popup_title: "",
   popup_description: "",
   checkbox_label: "",
+  checkbox_added_label: "",
   popup_button_label: "",
   popup_added_label: "",
 }
@@ -428,6 +429,7 @@ export function OrderBumpsDialog({
     popup_title: popupCopy.popup_title.trim() || null,
     popup_description: popupCopy.popup_description.trim() || null,
     checkbox_label: popupCopy.checkbox_label.trim() || null,
+    checkbox_added_label: popupCopy.checkbox_added_label.trim() || null,
     popup_button_label: popupCopy.popup_button_label.trim() || null,
     popup_added_label: popupCopy.popup_added_label.trim() || null,
     box_font_sizes: fontSizes,
@@ -533,6 +535,7 @@ export function OrderBumpsDialog({
         popup_title: bump.popup_title ?? "",
         popup_description: bump.popup_description ?? "",
         checkbox_label: bump.checkbox_label ?? "",
+        checkbox_added_label: bump.checkbox_added_label ?? "",
         popup_button_label: bump.popup_button_label ?? "",
         popup_added_label: bump.popup_added_label ?? "",
       },
@@ -906,16 +909,35 @@ export function OrderBumpsDialog({
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-muted-foreground">{t("bumps.checkboxLabel")}</Label>
-                    <CharCounter value={popupCopy.checkbox_label} max={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-muted-foreground">{t("bumps.checkboxLabel")}</Label>
+                        <CharCounter value={popupCopy.checkbox_label} max={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel} />
+                      </div>
+                      <Input
+                        value={popupCopy.checkbox_label}
+                        maxLength={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel}
+                        onChange={(e) => setCopy("checkbox_label", e.target.value)}
+                        onFocus={() => setLiveChecked(false)}
+                        placeholder={t("bumps.checkboxPlaceholder")}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-muted-foreground">{t("bumps.checkboxAddedLabel")}</Label>
+                        <CharCounter value={popupCopy.checkbox_added_label} max={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel} />
+                      </div>
+                      <Input
+                        value={popupCopy.checkbox_added_label}
+                        maxLength={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel}
+                        onChange={(e) => setCopy("checkbox_added_label", e.target.value)}
+                        // Ticks the live preview so the label being typed is the one shown.
+                        onFocus={() => setLiveChecked(true)}
+                        placeholder={t("bumps.checkboxAddedPlaceholder")}
+                      />
+                    </div>
                   </div>
-                  <Input
-                    value={popupCopy.checkbox_label}
-                    maxLength={CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel}
-                    onChange={(e) => setCopy("checkbox_label", e.target.value)}
-                    placeholder={t("bumps.checkboxPlaceholder")}
-                  />
                   <div className="flex justify-end">
                     <FontSizeControl field="checkbox" sizes={fontSizes} onChange={setFontSizes} t={t} />
                   </div>

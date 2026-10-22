@@ -55,7 +55,7 @@ export function OrderBumpBox({
   onCheckedChange: (checked: boolean) => void
   /** Opens the eye pop-up — the eye is only shown when there's something to preview. */
   onPreview: () => void
-  t: Pick<PayPageStrings, "addToPurchase" | "viewBumpDetails">
+  t: Pick<PayPageStrings, "addToPurchase" | "bumpAdded" | "viewBumpDetails">
 }) {
   const hasPreview = bump.gallery_images.length > 0 || !!bump.image_url
   const layout = boxLayout(bump.box_font_sizes)
@@ -141,7 +141,7 @@ export function OrderBumpBox({
               )}
               style={layout.checkbox != null ? { fontSize: layout.checkbox } : undefined}
             >
-              {bump.checkbox_label || t.addToPurchase}
+              {checked ? bump.checkbox_added_label || t.bumpAdded : bump.checkbox_label || t.addToPurchase}
             </span>
           </span>
           {/* The struck-through "before" price (migration 062) frames the

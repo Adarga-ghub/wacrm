@@ -422,6 +422,8 @@ export interface PaymentsProductsStrings {
     livePreview: string
     checkboxLabel: string
     checkboxPlaceholder: string
+    checkboxAddedLabel: string
+    checkboxAddedPlaceholder: string
     fontSize: string
     fontSmaller: string
     fontBigger: string
@@ -941,8 +943,10 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         boxHint: "Every box has the same height: title and description show 2 lines each (in full in the preview).",
         boxSection: "Checkout box",
         livePreview: "Live preview — how the box looks on the checkout",
-        checkboxLabel: "Checkbox text",
+        checkboxLabel: "Checkbox (before adding)",
         checkboxPlaceholder: "Add to my order",
+        checkboxAddedLabel: "Checkbox (once added)",
+        checkboxAddedPlaceholder: "Added to your order",
         fontSize: "Font size",
         fontSmaller: "Smaller",
         fontBigger: "Bigger",
@@ -1449,8 +1453,10 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         boxHint: "Todas las cajas tienen la misma altura: el título y la descripción se muestran en 2 líneas cada uno (completos en la vista previa).",
         boxSection: "Caja del checkout",
         livePreview: "Vista previa en vivo — así se verá la caja en el checkout",
-        checkboxLabel: "Texto de la casilla",
+        checkboxLabel: "Casilla (antes de añadir)",
         checkboxPlaceholder: "Añadir a la compra",
+        checkboxAddedLabel: "Casilla (ya añadido)",
+        checkboxAddedPlaceholder: "Añadido a tu compra",
         fontSize: "Tamaño de letra",
         fontSmaller: "Más pequeña",
         fontBigger: "Más grande",

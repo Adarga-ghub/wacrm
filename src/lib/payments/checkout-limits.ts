@@ -33,6 +33,8 @@ export interface BumpPopupCopy {
   popup_title: string | null
   popup_description: string | null
   checkbox_label: string | null
+  /** Checkbox label once the bump is added (migration 067). */
+  checkbox_added_label: string | null
   popup_button_label: string | null
   popup_added_label: string | null
 }
@@ -41,6 +43,7 @@ const BUMP_POPUP_COPY_LIMITS: Record<keyof BumpPopupCopy, number> = {
   popup_title: CHECKOUT_TEXT_LIMITS.bumpPopupTitle,
   popup_description: CHECKOUT_TEXT_LIMITS.bumpPopupDescription,
   checkbox_label: CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel,
+  checkbox_added_label: CHECKOUT_TEXT_LIMITS.bumpCheckboxLabel,
   popup_button_label: CHECKOUT_TEXT_LIMITS.bumpButtonLabel,
   popup_added_label: CHECKOUT_TEXT_LIMITS.bumpButtonLabel,
 }
