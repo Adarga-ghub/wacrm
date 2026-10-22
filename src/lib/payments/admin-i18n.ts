@@ -270,6 +270,23 @@ export interface PaymentsProductsStrings {
       menu: string
       bumps: string
       funnel: string
+      editLink: string
+    }
+    /** "Editar enlace" dialog — `src/components/payments/edit-link-dialog.tsx` (migration 068). */
+    link: {
+      title: string
+      label: string
+      useName: string
+      checking: string
+      available: string
+      taken: string
+      invalid: string
+      redirectNote: string
+      cancel: string
+      save: string
+      saved: string
+      saveFailed: string
+      editButton: string
     }
   }
   /** Upsell / Downsell manager dialog — `src/components/payments/funnel-dialog.tsx` (migration 063). */
@@ -807,6 +824,22 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
           menu: 'Actions',
           bumps: 'Order bumps',
           funnel: 'Upsell & Downsell',
+          editLink: 'Edit link',
+        },
+        link: {
+          title: 'Edit link',
+          label: 'Checkout link',
+          useName: 'Use the offer name',
+          checking: 'Checking…',
+          available: 'Link available',
+          taken: 'Another offer already uses that link.',
+          invalid: 'At least 3 characters: letters, numbers and hyphens.',
+          redirectNote: 'The previous link ({old}) keeps working: it takes the buyer to the new one automatically, tracking code included.',
+          cancel: 'Cancel',
+          save: 'Save link',
+          saved: 'Link updated. The previous one redirects to it.',
+          saveFailed: 'Could not save the link.',
+          editButton: 'Edit link',
         },
       },
       funnel: {
@@ -1317,6 +1350,22 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
           menu: 'Acciones',
           bumps: 'Order bumps',
           funnel: 'Upsell y Downsell',
+          editLink: 'Editar enlace',
+        },
+        link: {
+          title: 'Editar enlace',
+          label: 'Enlace del checkout',
+          useName: 'Usar el nombre de la oferta',
+          checking: 'Comprobando…',
+          available: 'Enlace disponible',
+          taken: 'Ese enlace ya lo usa otra oferta.',
+          invalid: 'Mínimo 3 caracteres: letras, números y guiones.',
+          redirectNote: 'El enlace anterior ({old}) seguirá funcionando: llevará al cliente automáticamente al nuevo, con su código de seguimiento.',
+          cancel: 'Cancelar',
+          save: 'Guardar enlace',
+          saved: 'Enlace actualizado. El anterior redirige al nuevo.',
+          saveFailed: 'No se pudo guardar el enlace.',
+          editButton: 'Editar enlace',
         },
       },
       funnel: {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { isValidSlug } from '@/lib/payments/slug'
+import { isSlugAvailable, recordSlugChange } from '@/lib/payments/slug-history'
 import { enforceLockedFields } from '@/lib/payments/default-fields'
 import { PAYMENT_CURRENCY_CODES, isPaypalSupportedCurrency } from '@/lib/currency'
 import type { PaymentFormDesign, PaymentFormField, PaymentFormProduct } from '@/types'
@@ -107,6 +108,16 @@ export async function PUT(
         { status: 400 },
       )
     }
+    // Slugs are unique across every account, and an old slug still
+    // redirects to its offer (migration 068) — neither may be taken.
+    let available
+    try {
+      available = await isSlugAvailable(body.slug, id)
+    } catch (err) {
+      console.error('[payments/forms/[id] PUT] slug check failed:', err)
+      return NextResponse.json({ error: 'Failed to save payment form' }, { status: 500 })
+    }
+    if (!available) return NextResponse.json({ error: 'That slug is already taken' }, { status: 409 })
     update.slug = body.slug
   }
 
@@ -211,6 +222,15 @@ export async function PUT(
     }
     console.error('[payments/forms/[id] PUT] failed:', error)
     return NextResponse.json({ error: 'Failed to save payment form' }, { status: 500 })
+  }
+
+  // The old link keeps working: `/pay/[old-slug]` redirects here.
+  if (update.slug !== undefined) {
+    try {
+      await recordSlugChange(id, ctx.accountId, existing.slug, data.slug)
+    } catch (err) {
+      console.error('[payments/forms/[id] PUT] failed to record the old slug:', err)
+    }
   }
 
   return NextResponse.json({ form: data })

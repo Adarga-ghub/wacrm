@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Copy, ExternalLink, Layers, Loader2, MoreVertical, Pencil, Plus, Settings2, TrendingUp } from "lucide-react"
+import { ArrowLeft, Copy, ExternalLink, Layers, Link2, Loader2, MoreVertical, Pencil, Plus, Settings2, TrendingUp } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { usePaymentsT } from "@/hooks/use-payments-locale"
@@ -48,6 +48,7 @@ import { PaymentsLanguageToggle } from "@/components/payments/payments-language-
 import { PaymentCurrencySelect } from "@/components/payments/payment-currency-select"
 import { OrderBumpsDialog } from "@/components/payments/order-bumps-dialog"
 import { FunnelDialog } from "@/components/payments/funnel-dialog"
+import { EditLinkDialog } from "@/components/payments/edit-link-dialog"
 
 const STATUS_BADGE: Record<PaymentProduct["status"], string> = {
   draft: "border-slate-500/30 bg-slate-500/10 text-muted-foreground",
@@ -96,6 +97,8 @@ export default function ProductDetailPage() {
   // separate "sync" step — whichever one saves last is simply what
   // `/pay/[slug]` reads next.
   const [editingPrice, setEditingPrice] = useState<PaymentForm | null>(null)
+  // "Editar enlace" — the offer whose `/pay/[slug]` is being edited.
+  const [linkOffer, setLinkOffer] = useState<PaymentForm | null>(null)
   const [editPriceName, setEditPriceName] = useState("")
   const [editPriceAmount, setEditPriceAmount] = useState("")
   const [editPriceCurrency, setEditPriceCurrency] = useState("USD")
@@ -424,9 +427,20 @@ export default function ProductDetailPage() {
                           {formatPaymentAmount(price.amount ?? 0, price.currency)}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
-                          <code className="rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs">
-                            /pay/{price.slug}
-                          </code>
+                          <span className="inline-flex items-center gap-1">
+                            <code className="rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs">
+                              /pay/{price.slug}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => setLinkOffer(price)}
+                              aria-label={t("detail.link.editButton")}
+                              title={t("detail.link.editButton")}
+                              className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                          </span>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -451,6 +465,9 @@ export default function ProductDetailPage() {
                                 </OfferActionItem>
                                 <OfferActionItem icon={TrendingUp} onClick={() => setFunnelOffer(price)}>
                                   {t("detail.actions.funnel")}
+                                </OfferActionItem>
+                                <OfferActionItem icon={Link2} onClick={() => setLinkOffer(price)}>
+                                  {t("detail.actions.editLink")}
                                 </OfferActionItem>
                               </DropdownMenuGroup>
                               {price.status === "published" && (
@@ -481,6 +498,14 @@ export default function ProductDetailPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <EditLinkDialog
+        offer={linkOffer}
+        onOpenChange={(open) => {
+          if (!open) setLinkOffer(null)
+        }}
+        onSaved={load}
+      />
 
       <Dialog open={priceDialogOpen} onOpenChange={setPriceDialogOpen}>
         <DialogContent>
