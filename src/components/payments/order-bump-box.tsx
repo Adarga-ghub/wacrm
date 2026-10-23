@@ -9,13 +9,14 @@ import type { PayPageStrings } from "@/lib/payments/pay-page-i18n"
 import { BUMP_BOX_FONT_SIZES } from "@/lib/payments/checkout-limits"
 
 /** Box height at the default font sizes. */
-const BOX_HEIGHT = 134
+const BOX_HEIGHT = 152
 
 /**
  * Font sizes + line heights of the box's text, and the box height that
- * fits them: the defaults reproduce the original 134px box, and every
- * px a bigger font adds to the 2-line title/description slots (or the
- * checkbox row) is added to the box, so nothing is ever cut off.
+ * fits them: the defaults give a 152px box (134px before the prices
+ * got their own line), and every px a bigger font adds to the 2-line
+ * title/description slots (or the checkbox row) is added to the box,
+ * so nothing is ever cut off.
  */
 function boxLayout(sizes: PublicOrderBump["box_font_sizes"] | undefined) {
   const title = sizes?.title ?? BUMP_BOX_FONT_SIZES.title.default
@@ -113,7 +114,19 @@ export function OrderBumpBox({
         >
           {bump.description}
         </p>
-        <div className="mt-auto flex items-center justify-between gap-2">
+        {/* Prices on their own line above the checkbox, so the checkbox
+            label gets the full width — beside the prices it was cut to
+            "Añadido a…" on phones. The struck-through "before" price
+            (migration 062) frames the bump price as a deal. */}
+        <span className="mt-auto self-end whitespace-nowrap leading-[18px]">
+          {bump.compare_at_price != null && (
+            <span className="mr-1.5 text-[11px] text-slate-400 line-through">
+              {formatPaymentAmount(bump.compare_at_price, currency)}
+            </span>
+          )}
+          <span className="text-sm font-extrabold text-slate-900">{formatPaymentAmount(bump.price, currency)}</span>
+        </span>
+        <div className="mt-1 flex min-w-0 items-center">
           <span className="flex min-w-0 items-center gap-2">
             {/* Drawn by us (`appearance-none` + a Check icon), NOT the
                 browser's native checkbox: a phone in system dark mode
@@ -143,16 +156,6 @@ export function OrderBumpBox({
             >
               {checked ? bump.checkbox_added_label || t.bumpAdded : bump.checkbox_label || t.addToPurchase}
             </span>
-          </span>
-          {/* The struck-through "before" price (migration 062) frames the
-              bump price as a deal. */}
-          <span className="shrink-0 whitespace-nowrap">
-            {bump.compare_at_price != null && (
-              <span className="mr-1.5 text-[11px] text-slate-400 line-through">
-                {formatPaymentAmount(bump.compare_at_price, currency)}
-              </span>
-            )}
-            <span className="text-sm font-extrabold text-slate-900">{formatPaymentAmount(bump.price, currency)}</span>
           </span>
         </div>
       </div>
