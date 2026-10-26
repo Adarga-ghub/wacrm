@@ -564,6 +564,7 @@ export type AutomationStepType =
   | 'send_cta_url'
   | 'send_template'
   | 'send_audio'
+  | 'send_video'
   | 'send_documents'
   | 'add_tag'
   | 'remove_tag'
@@ -656,6 +657,19 @@ export interface SendTemplateStepConfig {
 export interface SendAudioStepConfig {
   media_url: string;
   filename?: string;
+}
+
+/**
+ * "Send Video" — sends an uploaded MP4 via the WhatsApp Cloud API.
+ * Same storage convention as `SendAudioStepConfig` (`media_url` points
+ * into the CRM's own chat-media bucket). Unlike audio, Meta accepts a
+ * `caption` on video messages; `filename` stays display-only.
+ */
+export interface SendVideoStepConfig {
+  media_url: string;
+  filename?: string;
+  /** Optional text shown under the video. Supports `{{ }}` interpolation. */
+  caption?: string;
 }
 
 /**
@@ -764,6 +778,7 @@ export type AutomationStepConfig =
   | SendListStepConfig
   | SendTemplateStepConfig
   | SendAudioStepConfig
+  | SendVideoStepConfig
   | SendDocumentsStepConfig
   | TagStepConfig
   | AssignConversationStepConfig

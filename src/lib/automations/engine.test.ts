@@ -125,6 +125,7 @@ vi.mock("./meta-send", () => ({
   engineSendTemplate: vi.fn(async () => ({ whatsapp_message_id: "m1", content_text: "" })),
   engineSendInteractive: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
   engineSendAudio: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
+  engineSendVideo: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
   engineSendDocument: vi.fn(async (args: { title: string }) => ({
     whatsapp_message_id: `wamid-${args.title}`,
   })),
@@ -145,7 +146,7 @@ import {
   resumePendingExecution,
 } from "./engine";
 import { MAX_OUTBOUND_CHAIN_DEPTH } from "./dispatch-chain";
-import { engineSendText, engineSendAudio, engineSendDocument } from "./meta-send";
+import { engineSendText, engineSendAudio, engineSendVideo, engineSendDocument } from "./meta-send";
 import { sendMetaConversionEvent } from "./meta-conversion";
 import type { Automation, KeywordMatchTriggerConfig } from "@/types";
 
@@ -165,6 +166,7 @@ beforeEach(() => {
   h.state.logUpdates = [];
   vi.mocked(engineSendText).mockClear();
   vi.mocked(engineSendAudio).mockClear();
+  vi.mocked(engineSendVideo).mockClear();
   vi.mocked(engineSendDocument).mockClear();
 });
 
@@ -441,6 +443,82 @@ describe("send_audio", () => {
     });
 
     expect(engineSendAudio).not.toHaveBeenCalled();
+    expect(h.state.logUpdates.at(-1)?.status).toBe("failed");
+  });
+});
+
+describe("send_video", () => {
+  function videoStep(step_config: Record<string, unknown>) {
+    return {
+      id: "s1",
+      automation_id: "a1",
+      step_type: "send_video",
+      position: 0,
+      parent_step_id: null,
+      step_config,
+    };
+  }
+
+  it("sends the uploaded video with its caption", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [
+      videoStep({
+        media_url: "https://example.com/storage/account-1/libro.mp4",
+        filename: "libro.mp4",
+        caption: "Mira el libro por dentro",
+      }),
+    ];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(engineSendVideo).toHaveBeenCalledWith({
+      accountId: ACCOUNT,
+      userId: "u1",
+      conversationId: "conv1",
+      contactId: "c1",
+      mediaUrl: "https://example.com/storage/account-1/libro.mp4",
+      caption: "Mira el libro por dentro",
+    });
+    expect(h.state.logUpdates.at(-1)?.status).toBe("success");
+  });
+
+  it("sends no caption when none is set", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [videoStep({ media_url: "https://example.com/v.mp4" })];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(vi.mocked(engineSendVideo).mock.calls[0]?.[0]).toMatchObject({ caption: undefined });
+  });
+
+  it("refuses without an uploaded file", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [videoStep({})];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(engineSendVideo).not.toHaveBeenCalled();
     expect(h.state.logUpdates.at(-1)?.status).toBe("failed");
   });
 });

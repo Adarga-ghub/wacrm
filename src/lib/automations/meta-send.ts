@@ -173,6 +173,116 @@ export async function engineSendAudio(
   return { whatsapp_message_id: waMessageId }
 }
 
+interface SendVideoArgs {
+  accountId: string
+  userId: string
+  conversationId: string
+  contactId: string
+  /** Public URL into the CRM's own storage (chat-media bucket). */
+  mediaUrl: string
+  /** Optional caption, already interpolated. Meta caps it at 1024 chars. */
+  caption?: string
+}
+
+/**
+ * Send a "Send Video" automation step as a WhatsApp video message.
+ *
+ * Same shape as `engineSendAudio` (contact/config lookup + phone-variant
+ * retry, `media_url` persisted so the CRM's inbox can play it), except
+ * that video accepts a caption, which is sent to Meta and stored as
+ * `content_text` so the inbox bubble shows it under the player.
+ */
+export async function engineSendVideo(
+  args: SendVideoArgs,
+): Promise<{ whatsapp_message_id: string }> {
+  const db = supabaseAdmin()
+
+  const { data: contact, error: contactErr } = await db
+    .from('contacts')
+    .select('id, phone')
+    .eq('id', args.contactId)
+    .eq('account_id', args.accountId)
+    .maybeSingle()
+  if (contactErr || !contact?.phone) {
+    throw new Error('contact not found for this account')
+  }
+
+  const sanitized = sanitizePhoneForMeta(contact.phone)
+  if (!isValidE164(sanitized)) {
+    throw new Error(`contact phone invalid: ${contact.phone}`)
+  }
+
+  const { data: config, error: configErr } = await db
+    .from('whatsapp_config')
+    .select('*')
+    .eq('account_id', args.accountId)
+    .single()
+  if (configErr || !config) {
+    throw new Error('WhatsApp not configured for this account')
+  }
+
+  const accessToken = decrypt(config.access_token)
+  const caption = args.caption?.trim() ? args.caption.trim().slice(0, 1024) : undefined
+
+  const attempt = async (phone: string): Promise<string> => {
+    const r = await sendMediaMessage({
+      phoneNumberId: config.phone_number_id,
+      accessToken,
+      to: phone,
+      kind: 'video',
+      link: args.mediaUrl,
+      caption,
+    })
+    return r.messageId
+  }
+
+  const variants = phoneVariants(sanitized)
+  let workingPhone = sanitized
+  let waMessageId = ''
+  let lastError: unknown = null
+  for (const v of variants) {
+    try {
+      waMessageId = await attempt(v)
+      workingPhone = v
+      lastError = null
+      break
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!isRecipientNotAllowedError(msg)) throw err
+      lastError = err
+    }
+  }
+  if (lastError) throw lastError
+
+  if (workingPhone !== sanitized) {
+    await db.from('contacts').update({ phone: workingPhone }).eq('id', contact.id)
+  }
+
+  const { error: msgErr } = await db.from('messages').insert({
+    conversation_id: args.conversationId,
+    sender_type: 'bot',
+    content_type: 'video',
+    content_text: caption ?? null,
+    media_url: args.mediaUrl,
+    message_id: waMessageId,
+    status: 'sent',
+  })
+  if (msgErr) {
+    throw new Error(`sent to Meta but DB insert failed: ${msgErr.message}`)
+  }
+
+  await db
+    .from('conversations')
+    .update({
+      last_message_text: caption ?? '[video]',
+      last_message_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', args.conversationId)
+
+  return { whatsapp_message_id: waMessageId }
+}
+
 /**
  * Best-effort filename for a "Send PDFs" document: the user's title,
  * sanitized of path-hostile characters, with the uploaded file's real

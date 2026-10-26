@@ -38,6 +38,7 @@ import {
   ExternalLink,
   List,
   Mic,
+  Video,
   Upload,
   Paperclip,
   X,
@@ -127,6 +128,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   send_cta_url: { label: "send_cta_url", icon: ExternalLink, border: "border-l-primary" },
   send_template: { label: "send_template", icon: FileText, border: "border-l-primary" },
   send_audio: { label: "send_audio", icon: Mic, border: "border-l-primary" },
+  send_video: { label: "send_video", icon: Video, border: "border-l-primary" },
   send_documents: { label: "send_documents", icon: Files, border: "border-l-primary" },
   add_tag: { label: "add_tag", icon: Tag, border: "border-l-primary" },
   remove_tag: { label: "remove_tag", icon: TagIcon, border: "border-l-primary" },
@@ -147,6 +149,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "send_cta_url",
   "send_template",
   "send_audio",
+  "send_video",
   "send_documents",
   "add_tag",
   "remove_tag",
@@ -207,6 +210,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { template_name: "", language: "en_US" }
     case "send_audio":
       return { media_url: "", filename: "" }
+    case "send_video":
+      return { media_url: "", filename: "", caption: "" }
     case "send_documents":
       return { documents: [] }
     case "add_tag":
@@ -768,6 +773,135 @@ function SendAudioFields({
       />
       <p className="mt-1 text-[11px] text-muted-foreground">{t("config.audioFileHint")}</p>
     </FieldBlock>
+  )
+}
+
+// Videos reuse the same chat-media bucket as audio (it already allows
+// video/mp4 and video/3gpp — migration 023), capped at Meta's 16 MB.
+const AUTOMATION_VIDEO_BUCKET = "chat-media"
+const VIDEO_ACCEPT = "video/mp4,video/3gpp"
+
+function SendVideoFields({
+  mediaUrl,
+  filename,
+  caption,
+  onChange,
+  t,
+}: {
+  mediaUrl: string
+  filename: string
+  caption: string
+  onChange: (patch: Record<string, unknown>) => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
+  const displayName = filename || (mediaUrl ? mediaUrl.split("/").pop() ?? "" : "")
+
+  const handleFile = useCallback(
+    async (file: File) => {
+      const limit = MEDIA_MAX_BYTES_BY_KIND.video
+      if (file.size > limit) {
+        toast.error(
+          `File is ${(file.size / 1024 / 1024).toFixed(1)} MB — limit is ${limit / 1024 / 1024} MB.`,
+        )
+        return
+      }
+      setUploading(true)
+      try {
+        const { publicUrl } = await uploadAccountMedia(AUTOMATION_VIDEO_BUCKET, file)
+        onChange({ media_url: publicUrl, filename: file.name })
+        toast.success("File uploaded.")
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Upload failed."
+        toast.error(msg)
+      } finally {
+        setUploading(false)
+      }
+    },
+    [onChange],
+  )
+
+  const handleClear = () => onChange({ media_url: "", filename: "" })
+
+  return (
+    <>
+      <FieldBlock label={t("config.videoFileLabel")}>
+        {mediaUrl ? (
+          <div className="space-y-2">
+            <video
+              src={mediaUrl}
+              controls
+              preload="metadata"
+              className="max-h-56 w-full rounded-md border border-border bg-black"
+            />
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-xs">
+              <Paperclip className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
+              <a
+                href={mediaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="min-w-0 flex-1 truncate text-foreground hover:text-cyan-300"
+                title={displayName || mediaUrl}
+              >
+                {displayName || mediaUrl}
+              </a>
+              <button
+                type="button"
+                onClick={handleClear}
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label={t("config.removeVideoFile")}
+                disabled={uploading}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-card px-3 py-4 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {t("config.uploadingVideo")}
+              </>
+            ) : (
+              <>
+                <Upload className="h-3.5 w-3.5" />
+                {t("config.clickToUploadVideo")}
+              </>
+            )}
+          </button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={VIDEO_ACCEPT}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) void handleFile(f)
+            // Reset so picking the same file twice still fires onChange.
+            e.target.value = ""
+          }}
+        />
+      </FieldBlock>
+      <FieldBlock label={t("config.videoCaptionLabel")}>
+        <Textarea
+          value={caption}
+          maxLength={1024}
+          rows={3}
+          placeholder={t("config.videoCaptionPlaceholder")}
+          onChange={(e) => onChange({ caption: e.target.value })}
+        />
+        <p className="mt-1 text-[11px] text-muted-foreground">{t("config.videoFileHint")}</p>
+      </FieldBlock>
+    </>
   )
 }
 
@@ -1755,6 +1889,16 @@ function StepEditor({
           t={t}
         />
       )
+    case "send_video":
+      return (
+        <SendVideoFields
+          mediaUrl={(cfg.media_url as string) ?? ""}
+          filename={(cfg.filename as string) ?? ""}
+          caption={(cfg.caption as string) ?? ""}
+          onChange={(patch) => set(patch)}
+          t={t}
+        />
+      )
     case "send_documents":
       return (
         <SendDocumentsFields
@@ -2032,6 +2176,11 @@ function previewFor(step: BuilderStep): string {
       return (
         (step.step_config.filename as string) ||
         (step.step_config.media_url ? "audio file" : "no audio yet")
+      )
+    case "send_video":
+      return (
+        (step.step_config.filename as string) ||
+        (step.step_config.media_url ? "video file" : "no video yet")
       )
     case "send_documents": {
       const docs = (step.step_config.documents as DocumentItem[] | undefined) ?? []
