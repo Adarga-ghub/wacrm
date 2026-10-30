@@ -137,6 +137,10 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
       .eq('account_id', input.accountId)
       .eq('trigger_type', input.triggerType)
       .eq('is_active', true)
+      // Matching automations run one after another, so a Wait step in one
+      // delays the rest. Oldest first keeps that order stable instead of
+      // whatever order Postgres returns rows in.
+      .order('created_at', { ascending: true })
     if (input.automationId) automationsQuery = automationsQuery.eq('id', input.automationId)
     const { data: automations, error } = await automationsQuery
 
