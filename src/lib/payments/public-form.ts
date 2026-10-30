@@ -18,7 +18,7 @@ export async function loadPublicPaymentForm(slug: string): Promise<PublicPayment
   const { data, error } = await supabaseAdmin()
     .from('payment_forms')
     .select(
-      'id, account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id, product_id, checkout_description, bump_heading',
+      'id, account_id, name, status, fields, amount_type, amount, min_amount, products, currency, design, skin_id, product_id, checkout_description, checkout_title, bump_heading',
     )
     .eq('slug', slug)
     .eq('status', 'published')
@@ -64,6 +64,7 @@ export async function loadPublicPaymentForm(slug: string): Promise<PublicPayment
     paypal_client_id: gateway?.clientId ?? null,
     product: productRow ?? null,
     checkout_description: data.checkout_description ?? null,
+    checkout_title: data.checkout_title?.trim() || null,
     order_bumps: bumps.map((b) => ({
       id: b.id,
       title: b.title,

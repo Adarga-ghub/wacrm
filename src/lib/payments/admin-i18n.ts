@@ -228,6 +228,11 @@ export interface PaymentsProductsStrings {
     noPrices: string
     priceNameLabel: string
     priceNamePlaceholder: string
+    /** Under the price name: it's internal only — the buyer sees `checkoutTitleLabel` instead. */
+    priceNameHint: string
+    /** "Título en la página de pago" (migration 069) — the per-offer headline buyers see on `/pay/[slug]`. */
+    checkoutTitleLabel: string
+    checkoutTitleHint: string
     amountLabel: string
     currencyLabel: string
     currencyWarning: string
@@ -784,8 +789,11 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         pricesTitle: 'Prices',
         addPrice: 'New price',
         noPrices: 'No prices yet — add one to generate a payment link.',
-        priceNameLabel: 'Price name',
+        priceNameLabel: 'Internal offer name',
         priceNamePlaceholder: 'e.g. Full payment',
+        priceNameHint: 'Only you see it in the CRM — use it to tell your offers apart.',
+        checkoutTitleLabel: 'Checkout page title',
+        checkoutTitleHint: 'The main heading your buyers will see. Leave it empty to use the product name.',
         amountLabel: 'Amount',
         currencyLabel: 'Currency',
         currencyWarning: "PayPal can't process payments in this currency — only USD and MXN are supported. You can still save it, but publishing will be blocked.",
@@ -1310,8 +1318,11 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
         pricesTitle: 'Precios',
         addPrice: 'Nuevo precio',
         noPrices: 'Aún no hay precios — añade uno para generar un enlace de pago.',
-        priceNameLabel: 'Nombre del precio',
+        priceNameLabel: 'Nombre interno de la oferta',
         priceNamePlaceholder: 'ej. Pago completo',
+        priceNameHint: 'Solo lo ves tú en el CRM, para distinguir tus ofertas.',
+        checkoutTitleLabel: 'Título en la página de pago',
+        checkoutTitleHint: 'Es el título principal que verán tus compradores. Si lo dejas vacío, se usa el nombre del producto.',
         amountLabel: 'Monto',
         currencyLabel: 'Moneda',
         currencyWarning: 'PayPal no puede procesar cobros en esta moneda — solo admite USD y MXN. Puedes guardarlo igual, pero no podrás publicarlo hasta cambiarla.',

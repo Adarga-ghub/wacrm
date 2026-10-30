@@ -88,6 +88,7 @@ export default function ProductDetailPage() {
   const [priceAmount, setPriceAmount] = useState("")
   const [priceCurrency, setPriceCurrency] = useState("USD")
   const [priceCheckoutDescription, setPriceCheckoutDescription] = useState("")
+  const [priceCheckoutTitle, setPriceCheckoutTitle] = useState("")
   const [publishNow, setPublishNow] = useState(true)
   const [creatingPrice, setCreatingPrice] = useState(false)
 
@@ -104,6 +105,7 @@ export default function ProductDetailPage() {
   const [editPriceAmount, setEditPriceAmount] = useState("")
   const [editPriceCurrency, setEditPriceCurrency] = useState("USD")
   const [editPriceCheckoutDescription, setEditPriceCheckoutDescription] = useState("")
+  const [editPriceCheckoutTitle, setEditPriceCheckoutTitle] = useState("")
   // The offer whose "Order bumps" dialog is open (migration 061).
   const [bumpsOffer, setBumpsOffer] = useState<PaymentForm | null>(null)
   // The offer whose "Upsell y Downsell" dialog is open (migration 063).
@@ -169,6 +171,7 @@ export default function ProductDetailPage() {
     setPriceAmount("")
     setPriceCurrency(PAYMENT_CURRENCY_CODES.includes(defaultCurrency) ? defaultCurrency : "USD")
     setPriceCheckoutDescription("")
+    setPriceCheckoutTitle("")
     setPublishNow(true)
   }
 
@@ -183,6 +186,7 @@ export default function ProductDetailPage() {
         amount: Number(priceAmount),
         currency: priceCurrency,
         checkout_description: priceCheckoutDescription.trim() || undefined,
+        checkout_title: priceCheckoutTitle.trim() || undefined,
         publish: publishNow,
       }),
     })
@@ -214,6 +218,7 @@ export default function ProductDetailPage() {
     setEditPriceAmount(String(price.amount ?? ""))
     setEditPriceCurrency(price.currency)
     setEditPriceCheckoutDescription(price.checkout_description ?? "")
+    setEditPriceCheckoutTitle(price.checkout_title ?? "")
   }
 
   async function handleSavePrice() {
@@ -227,6 +232,7 @@ export default function ProductDetailPage() {
         amount: Number(editPriceAmount),
         currency: editPriceCurrency,
         checkout_description: editPriceCheckoutDescription.trim() || null,
+        checkout_title: editPriceCheckoutTitle.trim() || null,
       }),
     })
     const data = await res.json()
@@ -516,6 +522,16 @@ export default function ProductDetailPage() {
                 placeholder={t("detail.priceNamePlaceholder")}
                 autoFocus
               />
+              <p className="text-xs text-muted-foreground">{t("detail.priceNameHint")}</p>
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-muted-foreground">{t("detail.checkoutTitleLabel")}</Label>
+              <Input
+                value={priceCheckoutTitle}
+                onChange={(e) => setPriceCheckoutTitle(e.target.value)}
+                placeholder={product.name}
+              />
+              <p className="text-xs text-muted-foreground">{t("detail.checkoutTitleHint")}</p>
             </div>
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <div className="grid gap-2">
@@ -583,6 +599,16 @@ export default function ProductDetailPage() {
                 placeholder={t("detail.priceNamePlaceholder")}
                 autoFocus
               />
+              <p className="text-xs text-muted-foreground">{t("detail.priceNameHint")}</p>
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-muted-foreground">{t("detail.checkoutTitleLabel")}</Label>
+              <Input
+                value={editPriceCheckoutTitle}
+                onChange={(e) => setEditPriceCheckoutTitle(e.target.value)}
+                placeholder={product.name}
+              />
+              <p className="text-xs text-muted-foreground">{t("detail.checkoutTitleHint")}</p>
             </div>
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <div className="grid gap-2">

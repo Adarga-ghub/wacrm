@@ -980,6 +980,8 @@ export interface PaymentForm {
   product_id: string | null;
   /** "Descripción de la Página de Pago" (migration 057) — per-offer text shown to buyers on `/pay/[slug]`, under the price line. Distinct from `PaymentProduct.description`, which never reaches the public checkout. Null = no description set. */
   checkout_description: string | null;
+  /** "Título en la página de pago" (migration 069) — per-offer headline shown to buyers on `/pay/[slug]`, above the price line. Null = the linked product's name (or this form's `name` when standalone). */
+  checkout_title: string | null;
   /** Headline above this offer's order bumps on its checkout (migration 064). Null = the checkout's localized default. */
   bump_heading: string | null;
   created_at: string;
@@ -1057,6 +1059,8 @@ export interface PublicPaymentForm {
   product: PublicPaymentProduct | null;
   /** "Descripción de la Página de Pago" (migration 057) — unlike `PublicPaymentProduct`, which deliberately excludes `description`, this ONE is meant to reach the public checkout by design. Null = nothing configured for this offer. */
   checkout_description: string | null;
+  /** "Título en la página de pago" (migration 069) — null = fall back to `product.name` / `name`. */
+  checkout_title: string | null;
   /** Active, purchasable order bumps for this offer (migration 061), already resolved to a price — empty when none are configured. */
   order_bumps: PublicOrderBump[];
   /** Headline above the order bumps (migration 064) — null = localized default. */

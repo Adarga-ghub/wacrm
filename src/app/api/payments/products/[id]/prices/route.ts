@@ -49,6 +49,8 @@ interface PostBody {
   publish?: boolean
   /** "Descripción de la Página de Pago" (migration 057) — shown to buyers on `/pay/[slug]` under the price line. Optional at creation, editable later via `PUT /api/payments/forms/[id]`. */
   checkout_description?: string
+  /** "Título en la página de pago" (migration 069) — the checkout headline; omitted = the product's name. */
+  checkout_title?: string
 }
 
 /**
@@ -137,6 +139,7 @@ export async function POST(
         amount,
         currency,
         checkout_description: body?.checkout_description?.trim() || null,
+        checkout_title: body?.checkout_title?.trim() || null,
         send_automation_default: true,
       })
       .select()

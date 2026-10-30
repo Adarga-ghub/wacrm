@@ -52,6 +52,8 @@ interface PutBody {
   design?: PaymentFormDesign
   currency?: string
   checkout_description?: string | null
+  /** "Título en la página de pago" (migration 069). */
+  checkout_title?: string | null
   /** Headline above this offer's order bumps (migration 064). */
   bump_heading?: string | null
 }
@@ -198,6 +200,9 @@ export async function PUT(
   }
   if (body.checkout_description !== undefined) {
     update.checkout_description = body.checkout_description?.trim() || null
+  }
+  if (body.checkout_title !== undefined) {
+    update.checkout_title = body.checkout_title?.trim() || null
   }
   const bumpHeading = parseLimitedText(body.bump_heading, CHECKOUT_TEXT_LIMITS.bumpHeading)
   if (bumpHeading === 'too_long') {

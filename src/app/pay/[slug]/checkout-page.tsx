@@ -888,7 +888,7 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
                 className="text-base font-bold text-[#181817]"
                 style={{ fontFamily: '"Times New Roman", Times, serif' }}
               >
-                {product.name}
+                {form.checkout_title ?? product.name}
               </CardTitle>
               {product.author && (
                 <p
@@ -918,7 +918,7 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
           <>
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
               <CreditCard className="size-5 text-primary" style={accent ? { color: accent } : undefined} />
-              {form.name}
+              {form.checkout_title ?? form.name}
             </CardTitle>
             <CardDescription>{priceLine}</CardDescription>
             {form.checkout_description && (
