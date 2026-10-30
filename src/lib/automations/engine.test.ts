@@ -126,6 +126,7 @@ vi.mock("./meta-send", () => ({
   engineSendInteractive: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
   engineSendAudio: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
   engineSendVideo: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
+  engineSendImage: vi.fn(async () => ({ whatsapp_message_id: "m1" })),
   engineSendDocument: vi.fn(async (args: { title: string }) => ({
     whatsapp_message_id: `wamid-${args.title}`,
   })),
@@ -146,7 +147,13 @@ import {
   resumePendingExecution,
 } from "./engine";
 import { MAX_OUTBOUND_CHAIN_DEPTH } from "./dispatch-chain";
-import { engineSendText, engineSendAudio, engineSendVideo, engineSendDocument } from "./meta-send";
+import {
+  engineSendText,
+  engineSendAudio,
+  engineSendVideo,
+  engineSendImage,
+  engineSendDocument,
+} from "./meta-send";
 import { sendMetaConversionEvent } from "./meta-conversion";
 import type { Automation, KeywordMatchTriggerConfig } from "@/types";
 
@@ -167,6 +174,7 @@ beforeEach(() => {
   vi.mocked(engineSendText).mockClear();
   vi.mocked(engineSendAudio).mockClear();
   vi.mocked(engineSendVideo).mockClear();
+  vi.mocked(engineSendImage).mockClear();
   vi.mocked(engineSendDocument).mockClear();
 });
 
@@ -519,6 +527,66 @@ describe("send_video", () => {
     });
 
     expect(engineSendVideo).not.toHaveBeenCalled();
+    expect(h.state.logUpdates.at(-1)?.status).toBe("failed");
+  });
+});
+
+describe("send_image", () => {
+  function imageStep(step_config: Record<string, unknown>) {
+    return {
+      id: "s1",
+      automation_id: "a1",
+      step_type: "send_image",
+      position: 0,
+      parent_step_id: null,
+      step_config,
+    };
+  }
+
+  it("sends the uploaded image with its caption", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [
+      imageStep({
+        media_url: "https://example.com/storage/account-1/resumen.jpg",
+        filename: "resumen.jpg",
+        caption: "Resumen del libro",
+      }),
+    ];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(engineSendImage).toHaveBeenCalledWith({
+      accountId: ACCOUNT,
+      userId: "u1",
+      conversationId: "conv1",
+      contactId: "c1",
+      mediaUrl: "https://example.com/storage/account-1/resumen.jpg",
+      caption: "Resumen del libro",
+    });
+    expect(h.state.logUpdates.at(-1)?.status).toBe("success");
+  });
+
+  it("refuses without an uploaded file", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.conversation = { id: "conv1" };
+    h.state.automations = [automationWithUpdateStep()];
+    h.state.steps = [imageStep({})];
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: {},
+    });
+
+    expect(engineSendImage).not.toHaveBeenCalled();
     expect(h.state.logUpdates.at(-1)?.status).toBe("failed");
   });
 });

@@ -98,6 +98,17 @@ describe("validateStepsForActivation", () => {
     ).toEqual([]);
   });
 
+  it("send_image requires an uploaded file, caption optional", () => {
+    expect(
+      validateStepsForActivation([{ step_type: "send_image", step_config: { caption: "hola" } }]),
+    ).toEqual([{ path: "steps[0].media_url", message: "an image file is required" }]);
+    expect(
+      validateStepsForActivation([
+        { step_type: "send_image", step_config: { media_url: "https://example.com/r.jpg" } },
+      ]),
+    ).toEqual([]);
+  });
+
   it("send_documents requires at least one document, each with a file and a title", () => {
     expect(
       validateStepsForActivation([

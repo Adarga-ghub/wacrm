@@ -173,7 +173,7 @@ export async function engineSendAudio(
   return { whatsapp_message_id: waMessageId }
 }
 
-interface SendVideoArgs {
+interface SendCaptionedMediaArgs {
   accountId: string
   userId: string
   conversationId: string
@@ -192,8 +192,22 @@ interface SendVideoArgs {
  * that video accepts a caption, which is sent to Meta and stored as
  * `content_text` so the inbox bubble shows it under the player.
  */
-export async function engineSendVideo(
-  args: SendVideoArgs,
+export function engineSendVideo(
+  args: SendCaptionedMediaArgs,
+): Promise<{ whatsapp_message_id: string }> {
+  return engineSendCaptionedMedia('video', args)
+}
+
+/** "Send Image" step — same as `engineSendVideo`, sent as an image message. */
+export function engineSendImage(
+  args: SendCaptionedMediaArgs,
+): Promise<{ whatsapp_message_id: string }> {
+  return engineSendCaptionedMedia('image', args)
+}
+
+async function engineSendCaptionedMedia(
+  kind: 'image' | 'video',
+  args: SendCaptionedMediaArgs,
 ): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
 
@@ -229,7 +243,7 @@ export async function engineSendVideo(
       phoneNumberId: config.phone_number_id,
       accessToken,
       to: phone,
-      kind: 'video',
+      kind,
       link: args.mediaUrl,
       caption,
     })
@@ -261,7 +275,7 @@ export async function engineSendVideo(
   const { error: msgErr } = await db.from('messages').insert({
     conversation_id: args.conversationId,
     sender_type: 'bot',
-    content_type: 'video',
+    content_type: kind,
     content_text: caption ?? null,
     media_url: args.mediaUrl,
     message_id: waMessageId,
@@ -274,7 +288,7 @@ export async function engineSendVideo(
   await db
     .from('conversations')
     .update({
-      last_message_text: caption ?? '[video]',
+      last_message_text: caption ?? `[${kind}]`,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })

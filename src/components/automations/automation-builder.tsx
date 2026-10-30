@@ -39,6 +39,7 @@ import {
   List,
   Mic,
   Video,
+  ImageIcon,
   Upload,
   Paperclip,
   X,
@@ -129,6 +130,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   send_template: { label: "send_template", icon: FileText, border: "border-l-primary" },
   send_audio: { label: "send_audio", icon: Mic, border: "border-l-primary" },
   send_video: { label: "send_video", icon: Video, border: "border-l-primary" },
+  send_image: { label: "send_image", icon: ImageIcon, border: "border-l-primary" },
   send_documents: { label: "send_documents", icon: Files, border: "border-l-primary" },
   add_tag: { label: "add_tag", icon: Tag, border: "border-l-primary" },
   remove_tag: { label: "remove_tag", icon: TagIcon, border: "border-l-primary" },
@@ -150,6 +152,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "send_template",
   "send_audio",
   "send_video",
+  "send_image",
   "send_documents",
   "add_tag",
   "remove_tag",
@@ -211,6 +214,7 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
     case "send_audio":
       return { media_url: "", filename: "" }
     case "send_video":
+    case "send_image":
       return { media_url: "", filename: "", caption: "" }
     case "send_documents":
       return { documents: [] }
@@ -780,14 +784,19 @@ function SendAudioFields({
 // video/mp4 and video/3gpp — migration 023), capped at Meta's 16 MB.
 const AUTOMATION_VIDEO_BUCKET = "chat-media"
 const VIDEO_ACCEPT = "video/mp4,video/3gpp"
+// Meta image messages accept only JPEG and PNG.
+const IMAGE_ACCEPT = "image/jpeg,image/png"
 
 function SendVideoFields({
+  kind = "video",
   mediaUrl,
   filename,
   caption,
   onChange,
   t,
 }: {
+  /** "image" reuses this editor for the Send Image step. */
+  kind?: "video" | "image"
   mediaUrl: string
   filename: string
   caption: string
@@ -801,7 +810,7 @@ function SendVideoFields({
 
   const handleFile = useCallback(
     async (file: File) => {
-      const limit = MEDIA_MAX_BYTES_BY_KIND.video
+      const limit = MEDIA_MAX_BYTES_BY_KIND[kind]
       if (file.size > limit) {
         toast.error(
           `File is ${(file.size / 1024 / 1024).toFixed(1)} MB — limit is ${limit / 1024 / 1024} MB.`,
@@ -820,22 +829,32 @@ function SendVideoFields({
         setUploading(false)
       }
     },
-    [onChange],
+    [kind, onChange],
   )
 
   const handleClear = () => onChange({ media_url: "", filename: "" })
+  const k = kind === "image" ? "image" : "video"
 
   return (
     <>
-      <FieldBlock label={t("config.videoFileLabel")}>
+      <FieldBlock label={t(`config.${k}FileLabel`)}>
         {mediaUrl ? (
           <div className="space-y-2">
-            <video
-              src={mediaUrl}
-              controls
-              preload="metadata"
-              className="max-h-56 w-full rounded-md border border-border bg-black"
-            />
+            {kind === "image" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={mediaUrl}
+                alt={displayName}
+                className="max-h-56 w-full rounded-md border border-border bg-black object-contain"
+              />
+            ) : (
+              <video
+                src={mediaUrl}
+                controls
+                preload="metadata"
+                className="max-h-56 w-full rounded-md border border-border bg-black"
+              />
+            )}
             <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-xs">
               <Paperclip className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
               <a
@@ -851,7 +870,7 @@ function SendVideoFields({
                 type="button"
                 onClick={handleClear}
                 className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label={t("config.removeVideoFile")}
+                aria-label={t(`config.remove${kind === "image" ? "Image" : "Video"}File`)}
                 disabled={uploading}
               >
                 <X className="h-3.5 w-3.5" />
@@ -868,12 +887,12 @@ function SendVideoFields({
             {uploading ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                {t("config.uploadingVideo")}
+                {t(kind === "image" ? "config.uploadingImage" : "config.uploadingVideo")}
               </>
             ) : (
               <>
                 <Upload className="h-3.5 w-3.5" />
-                {t("config.clickToUploadVideo")}
+                {t(kind === "image" ? "config.clickToUploadImage" : "config.clickToUploadVideo")}
               </>
             )}
           </button>
@@ -881,7 +900,7 @@ function SendVideoFields({
         <input
           ref={fileInputRef}
           type="file"
-          accept={VIDEO_ACCEPT}
+          accept={kind === "image" ? IMAGE_ACCEPT : VIDEO_ACCEPT}
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0]
@@ -891,15 +910,15 @@ function SendVideoFields({
           }}
         />
       </FieldBlock>
-      <FieldBlock label={t("config.videoCaptionLabel")}>
+      <FieldBlock label={t(`config.${k}CaptionLabel`)}>
         <Textarea
           value={caption}
           maxLength={1024}
           rows={3}
-          placeholder={t("config.videoCaptionPlaceholder")}
+          placeholder={t(`config.${k}CaptionPlaceholder`)}
           onChange={(e) => onChange({ caption: e.target.value })}
         />
-        <p className="mt-1 text-[11px] text-muted-foreground">{t("config.videoFileHint")}</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">{t(`config.${k}FileHint`)}</p>
       </FieldBlock>
     </>
   )
@@ -1899,6 +1918,17 @@ function StepEditor({
           t={t}
         />
       )
+    case "send_image":
+      return (
+        <SendVideoFields
+          kind="image"
+          mediaUrl={(cfg.media_url as string) ?? ""}
+          filename={(cfg.filename as string) ?? ""}
+          caption={(cfg.caption as string) ?? ""}
+          onChange={(patch) => set(patch)}
+          t={t}
+        />
+      )
     case "send_documents":
       return (
         <SendDocumentsFields
@@ -2181,6 +2211,11 @@ function previewFor(step: BuilderStep): string {
       return (
         (step.step_config.filename as string) ||
         (step.step_config.media_url ? "video file" : "no video yet")
+      )
+    case "send_image":
+      return (
+        (step.step_config.filename as string) ||
+        (step.step_config.media_url ? "image file" : "no image yet")
       )
     case "send_documents": {
       const docs = (step.step_config.documents as DocumentItem[] | undefined) ?? []

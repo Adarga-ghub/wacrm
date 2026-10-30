@@ -100,6 +100,11 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
         issues.push({ path: `${path}.media_url`, message: 'a video file is required' })
       }
       break
+    case 'send_image':
+      if (!nonEmpty(c.media_url)) {
+        issues.push({ path: `${path}.media_url`, message: 'an image file is required' })
+      }
+      break
     case 'send_documents': {
       const docs = Array.isArray(c.documents) ? c.documents : []
       if (docs.length === 0) {

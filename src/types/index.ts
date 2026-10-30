@@ -565,6 +565,7 @@ export type AutomationStepType =
   | 'send_template'
   | 'send_audio'
   | 'send_video'
+  | 'send_image'
   | 'send_documents'
   | 'add_tag'
   | 'remove_tag'
@@ -669,6 +670,17 @@ export interface SendVideoStepConfig {
   media_url: string;
   filename?: string;
   /** Optional text shown under the video. Supports `{{ }}` interpolation. */
+  caption?: string;
+}
+
+/**
+ * "Send Image" — sends an uploaded JPG/PNG via the WhatsApp Cloud API.
+ * Same shape and storage convention as `SendVideoStepConfig`.
+ */
+export interface SendImageStepConfig {
+  media_url: string;
+  filename?: string;
+  /** Optional text shown under the image. Supports `{{ }}` interpolation. */
   caption?: string;
 }
 
@@ -779,6 +791,7 @@ export type AutomationStepConfig =
   | SendTemplateStepConfig
   | SendAudioStepConfig
   | SendVideoStepConfig
+  | SendImageStepConfig
   | SendDocumentsStepConfig
   | TagStepConfig
   | AssignConversationStepConfig

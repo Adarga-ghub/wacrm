@@ -14,6 +14,7 @@ import type {
   SendTemplateStepConfig,
   SendAudioStepConfig,
   SendVideoStepConfig,
+  SendImageStepConfig,
   SendDocumentsStepConfig,
   SendWebhookStepConfig,
   TagStepConfig,
@@ -33,6 +34,7 @@ import {
   engineSendInteractive,
   engineSendAudio,
   engineSendVideo,
+  engineSendImage,
   engineSendDocument,
 } from './meta-send'
 import { sendMetaConversionEvent } from './meta-conversion'
@@ -660,6 +662,23 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         caption: cfg.caption ? interpolate(cfg.caption, args) : undefined,
       })
       return `video sent via Meta (${whatsapp_message_id})`
+    }
+
+    case 'send_image': {
+      const cfg = step.step_config as SendImageStepConfig
+      if (!args.contactId) throw new Error('send_image needs a contact')
+      if (!cfg.media_url) throw new Error('send_image needs an uploaded image file')
+      const conversationId = await resolveConversationId(args)
+      // Caption not re-dispatched as outbound, same as send_video.
+      const { whatsapp_message_id } = await engineSendImage({
+        accountId: args.automation.account_id,
+        userId: args.automation.user_id,
+        conversationId,
+        contactId: args.contactId,
+        mediaUrl: cfg.media_url,
+        caption: cfg.caption ? interpolate(cfg.caption, args) : undefined,
+      })
+      return `image sent via Meta (${whatsapp_message_id})`
     }
 
     case 'send_documents': {
