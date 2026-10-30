@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dialog"
 import { PaymentsLanguageToggle } from "@/components/payments/payments-language-toggle"
 import { PaymentCurrencySelect } from "@/components/payments/payment-currency-select"
+import { ImageUploadField } from "@/components/payments/image-upload-field"
 import { OrderBumpsDialog } from "@/components/payments/order-bumps-dialog"
 import { FunnelDialog } from "@/components/payments/funnel-dialog"
 import { EditLinkDialog } from "@/components/payments/edit-link-dialog"
@@ -310,23 +311,16 @@ export default function ProductDetailPage() {
                   placeholder={t("detail.descriptionPlaceholder")}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label className="text-muted-foreground">{t("detail.imageUrlLabel")}</Label>
-                <Input
-                  type="url"
-                  value={product.image_url ?? ""}
-                  onChange={(e) => update("image_url", e.target.value || null)}
-                  placeholder="https://…/portada.png"
-                />
-                {product.image_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={product.image_url}
-                    alt=""
-                    className="mt-1 h-20 w-auto rounded border border-border object-cover"
-                  />
-                )}
-              </div>
+              {/* Same upload/replace/remove control (and 600×600 ceiling) as the
+                  create wizard, so the cover can be swapped after creation. */}
+              <ImageUploadField
+                label={t("detail.imageUrlLabel")}
+                value={product.image_url ?? ""}
+                onChange={(url) => update("image_url", url || null)}
+                maxWidth={600}
+                maxHeight={600}
+                t={t}
+              />
               <div className="grid gap-2">
                 <Label className="text-muted-foreground">{t("detail.appearanceLabel")}</Label>
                 <select

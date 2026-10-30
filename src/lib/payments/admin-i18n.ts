@@ -773,7 +773,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       detail: {
         descriptionLabel: 'Description',
         descriptionPlaceholder: "What's this product about?",
-        imageUrlLabel: 'Cover image URL',
+        imageUrlLabel: 'Cover image',
         appearanceLabel: 'Default payment skin',
         appearanceNone: 'No skin — use default design',
         saveFailed: 'Could not save the product.',
@@ -1299,7 +1299,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       detail: {
         descriptionLabel: 'Descripción',
         descriptionPlaceholder: '¿De qué trata este producto?',
-        imageUrlLabel: 'URL de la imagen de portada',
+        imageUrlLabel: 'Imagen de portada',
         appearanceLabel: 'Apariencia de pago predeterminada',
         appearanceNone: 'Sin apariencia — usar diseño predeterminado',
         saveFailed: 'No se pudo guardar el producto.',
