@@ -576,9 +576,21 @@ export default function CheckoutAnalyticsPage() {
                   <Fragment key={group.key}>
                     <TableRow
                       data-state={isSelected ? "selected" : undefined}
+                      // In selection mode the whole row toggles its checkbox —
+                      // except clicks on the row's own controls (checkbox,
+                      // trash, open-chat, history toggle).
+                      onClick={
+                        selectMode
+                          ? (e) => {
+                              if ((e.target as HTMLElement).closest("button, a, [role='checkbox'], [role='button']")) return
+                              toggleSelected(group.key, !isSelected)
+                            }
+                          : undefined
+                      }
                       className={cn(
                         "group border-border",
                         isOpen && "bg-muted/30",
+                        selectMode && "cursor-pointer select-none",
                         isSelected && "bg-primary/5 hover:bg-primary/10",
                       )}
                     >
