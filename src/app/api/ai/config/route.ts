@@ -9,6 +9,7 @@ import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 import { validateAiCredentials } from '@/lib/ai/validate'
 import { embedTexts } from '@/lib/ai/embeddings'
 import { AiError, type AiProvider } from '@/lib/ai/types'
+import { clampAutoReplyDebounceSeconds } from '@/lib/ai/defaults'
 
 function bad(message: string) {
   return NextResponse.json({ error: message }, { status: 400 })
@@ -30,7 +31,7 @@ export async function GET() {
       // `api_key` is selected only to derive `has_key` — it is stripped
       // out below and never returned to the client.
       .select(
-        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, run_parallel_with_flows, api_key, embeddings_api_key',
+        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, run_parallel_with_flows, auto_reply_debounce_enabled, auto_reply_debounce_seconds, api_key, embeddings_api_key',
       )
       .eq('account_id', accountId)
       .maybeSingle()
@@ -94,6 +95,13 @@ export async function POST(request: Request) {
     // the field is omitted — e.g. an older client that predates this
     // switch — so the decoupled behavior stays the default everywhere.
     const runParallelWithFlows = body.run_parallel_with_flows !== false
+    // Burst-grouping wait. Only written when the client sends the field,
+    // so an older client that predates the setting can't reset it.
+    const debounceEnabledProvided = typeof body.auto_reply_debounce_enabled === 'boolean'
+    const debounceSecondsProvided = 'auto_reply_debounce_seconds' in body
+    const debounceSeconds = clampAutoReplyDebounceSeconds(
+      body.auto_reply_debounce_seconds,
+    )
 
     let maxPer = Number(body.auto_reply_max_per_conversation)
     if (!Number.isFinite(maxPer)) maxPer = 3
@@ -172,6 +180,8 @@ export async function POST(request: Request) {
           handoffAgentId: null,
           embeddingsApiKey: null,
           runParallelWithFlows,
+          autoReplyDebounceEnabled: false,
+          autoReplyDebounceSeconds: debounceSeconds,
         })
       } catch (err) {
         if (err instanceof AiError) {
@@ -215,6 +225,10 @@ export async function POST(request: Request) {
     // Only touch the handoff target when the form actually sent the field,
     // so a partial save (e.g. flipping a toggle) doesn't wipe it.
     if (handoffProvided) shared.handoff_agent_id = handoffAgentId
+    if (debounceEnabledProvided) {
+      shared.auto_reply_debounce_enabled = body.auto_reply_debounce_enabled
+    }
+    if (debounceSecondsProvided) shared.auto_reply_debounce_seconds = debounceSeconds
     if (rawEmbeddingsKey) {
       shared.embeddings_api_key = encrypt(rawEmbeddingsKey)
     } else if (clearEmbeddingsKey) {

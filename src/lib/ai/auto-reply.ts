@@ -25,6 +25,51 @@ interface DispatchArgs {
    *  has opted out of parallel execution (`runParallelWithFlows: false`)
    *  — see the eligibility gates below. */
   flowConsumed?: boolean
+  /** `messages.id` of the inbound that triggered this dispatch. Needed
+   *  by the burst-grouping wait (Settings → AI Agents): after waiting,
+   *  only the newest inbound of the burst replies. Without it the wait
+   *  is skipped and the bot answers immediately, as before. */
+  inboundMessageId?: string
+}
+
+interface InboundRow {
+  id: string
+  created_at: string
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * True when `inboundMessageId` is still the newest plain-text customer
+ * message of the conversation — i.e. no other message arrived during
+ * the grouping wait. Ties on `created_at` (Meta timestamps have 1 s
+ * resolution) are broken by id so concurrent dispatches for the same
+ * burst all agree on a single winner. Fails open (returns true) on a
+ * read error, so a DB hiccup degrades to the old reply-every-message
+ * behavior rather than silence.
+ */
+async function isNewestInboundOfBurst(
+  db: ReturnType<typeof supabaseAdmin>,
+  conversationId: string,
+  inboundMessageId: string,
+): Promise<boolean> {
+  const { data, error } = await db
+    .from('messages')
+    .select('id, created_at')
+    .eq('conversation_id', conversationId)
+    .eq('sender_type', 'customer')
+    .eq('content_type', 'text')
+    .order('created_at', { ascending: false })
+    .limit(10)
+  if (error || !data || data.length === 0) return true
+  const rows = data as InboundRow[]
+  const newestAt = rows[0].created_at
+  const winner = rows
+    .filter((r) => r.created_at === newestAt)
+    .map((r) => r.id)
+    .sort()
+    .pop()
+  return winner === inboundMessageId
 }
 
 /**
@@ -102,6 +147,22 @@ export async function dispatchInboundToAiReply(
     // Cheap early-out; the authoritative cap check is the atomic claim
     // below (this read can race a concurrent inbound).
     if (conv.ai_reply_count >= config.autoReplyMaxPerConversation) return
+
+    // Burst grouping (Settings → AI Agents, off by default). Wait a few
+    // seconds; if the customer sent another message meanwhile, stand
+    // down — that newer inbound's own dispatch replies once, with the
+    // whole burst in its context. Prevents duplicate replies (and
+    // duplicate outbound keyword automations) when a customer sends two
+    // messages in a row.
+    if (config.autoReplyDebounceEnabled && args.inboundMessageId) {
+      await sleep(config.autoReplyDebounceSeconds * 1000)
+      const newest = await isNewestInboundOfBurst(
+        db,
+        conversationId,
+        args.inboundMessageId,
+      )
+      if (!newest) return
+    }
 
     const messages = await buildConversationContext(db, conversationId)
     if (messages.length === 0) return

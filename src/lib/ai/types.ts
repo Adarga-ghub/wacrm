@@ -36,6 +36,13 @@ export interface AiConfig {
    *  exclusive behavior: a Flow that consumes the inbound, or an active
    *  message-triggered Automation, makes the bot stand down. */
   runParallelWithFlows: boolean
+  /** When true, auto-reply waits `autoReplyDebounceSeconds` after an
+   *  inbound and answers only the last message of a quick burst, so a
+   *  customer who sends two messages in a row gets one reply. False
+   *  (default) answers every inbound immediately. */
+  autoReplyDebounceEnabled: boolean
+  /** Wait length for the burst grouping above, in seconds (1–30). */
+  autoReplyDebounceSeconds: number
 }
 
 /** A single conversation turn in the shape both providers accept. */

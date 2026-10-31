@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
     claim: true as boolean,
     updatePayload: null as Record<string, unknown> | null,
     rpcCalls: [] as { name: string; args: unknown }[],
+    inbounds: [] as { id: string; created_at: string }[],
   },
 }))
 
@@ -45,7 +46,17 @@ vi.mock('./admin-client', () => ({
         // config/inbound row in this suite, so it no-ops (its own
         // try/catch swallows the rest); covered directly in
         // typing-indicator.test.ts.
-        const chain = { select: () => chain, eq: () => chain, order: () => chain, limit: () => chain, maybeSingle: () => Promise.resolve({ data: null, error: null }) }
+        // Awaiting the chain itself (no maybeSingle) is the burst-grouping
+        // "newest customer inbound" read → `state.inbounds`.
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          order: () => chain,
+          limit: () => chain,
+          maybeSingle: () => Promise.resolve({ data: null, error: null }),
+          then: (resolve: (v: unknown) => unknown) =>
+            resolve({ data: h.state.inbounds, error: null }),
+        }
         return chain
       }
       // conversations
@@ -90,6 +101,8 @@ function aiConfig(overrides: Partial<AiConfig> = {}): AiConfig {
     handoffAgentId: null,
     embeddingsApiKey: null,
     runParallelWithFlows: true,
+    autoReplyDebounceEnabled: false,
+    autoReplyDebounceSeconds: 5,
     ...overrides,
   }
 }
@@ -104,6 +117,7 @@ beforeEach(() => {
   h.state.claim = true
   h.state.updatePayload = null
   h.state.rpcCalls = []
+  h.state.inbounds = []
   h.loadAiConfig.mockResolvedValue(aiConfig())
   h.buildConversationContext.mockResolvedValue([{ role: 'user', content: 'hi' }])
   h.retrieveKnowledge.mockResolvedValue([])
@@ -259,5 +273,66 @@ describe('dispatchInboundToAiReply — handoff', () => {
       ai_autoreply_disabled: true,
       assigned_agent_id: 'agent-7',
     })
+  })
+})
+
+describe('dispatchInboundToAiReply — burst grouping', () => {
+  const T = '2026-10-31T12:03:00.000Z'
+
+  async function runWithTimers(args: Parameters<typeof dispatchInboundToAiReply>[0]) {
+    vi.useFakeTimers()
+    try {
+      const p = dispatchInboundToAiReply(args)
+      await vi.advanceTimersByTimeAsync(30_000)
+      await p
+    } finally {
+      vi.useRealTimers()
+    }
+  }
+
+  it('replies to the newest message of the burst after waiting', async () => {
+    h.loadAiConfig.mockResolvedValue(
+      aiConfig({ autoReplyDebounceEnabled: true, autoReplyDebounceSeconds: 5 }),
+    )
+    h.state.inbounds = [{ id: 'msg-2', created_at: T }]
+    await runWithTimers({ ...ARGS, inboundMessageId: 'msg-2' })
+    expect(h.engineSendText).toHaveBeenCalledTimes(1)
+  })
+
+  it('stands down when a newer customer message arrived during the wait', async () => {
+    h.loadAiConfig.mockResolvedValue(
+      aiConfig({ autoReplyDebounceEnabled: true, autoReplyDebounceSeconds: 5 }),
+    )
+    h.state.inbounds = [
+      { id: 'msg-2', created_at: '2026-10-31T12:03:02.000Z' },
+      { id: 'msg-1', created_at: T },
+    ]
+    await runWithTimers({ ...ARGS, inboundMessageId: 'msg-1' })
+    expect(h.generateReply).not.toHaveBeenCalled()
+    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.dispatchOutboundMessage).not.toHaveBeenCalled()
+  })
+
+  it('picks exactly one winner when two messages share the same second', async () => {
+    h.loadAiConfig.mockResolvedValue(
+      aiConfig({ autoReplyDebounceEnabled: true, autoReplyDebounceSeconds: 5 }),
+    )
+    h.state.inbounds = [
+      { id: 'aaa', created_at: T },
+      { id: 'bbb', created_at: T },
+    ]
+    await runWithTimers({ ...ARGS, inboundMessageId: 'aaa' })
+    expect(h.engineSendText).not.toHaveBeenCalled()
+    await runWithTimers({ ...ARGS, inboundMessageId: 'bbb' })
+    expect(h.engineSendText).toHaveBeenCalledTimes(1)
+  })
+
+  it('answers immediately (no wait, no newest check) when the setting is off', async () => {
+    h.state.inbounds = [
+      { id: 'msg-2', created_at: '2026-10-31T12:03:02.000Z' },
+      { id: 'msg-1', created_at: T },
+    ]
+    await dispatchInboundToAiReply({ ...ARGS, inboundMessageId: 'msg-1' })
+    expect(h.engineSendText).toHaveBeenCalledTimes(1)
   })
 })

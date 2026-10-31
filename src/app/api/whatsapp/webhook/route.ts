@@ -1035,6 +1035,7 @@ async function processMessage(
       contactId: contactRecord.id,
       configOwnerUserId,
       flowConsumed,
+      inboundMessageId: insertedRows[0].id,
     })
   }
 

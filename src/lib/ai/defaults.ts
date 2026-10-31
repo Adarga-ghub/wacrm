@@ -42,6 +42,20 @@ export function aiContextMessageLimit(): number {
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_CONTEXT_MESSAGE_LIMIT
 }
 
+/** Bounds for the auto-reply "group quick messages" wait (Settings → AI
+ *  Agents). The upper cap keeps the wait well inside the webhook's
+ *  60 s maxDuration, leaving room for the LLM call itself. */
+export const AUTOREPLY_DEBOUNCE_MIN_SECONDS = 1
+export const AUTOREPLY_DEBOUNCE_MAX_SECONDS = 30
+export const AUTOREPLY_DEBOUNCE_DEFAULT_SECONDS = 5
+
+/** Clamp a stored/posted debounce value into the supported range. */
+export function clampAutoReplyDebounceSeconds(value: unknown): number {
+  const n = Math.round(Number(value))
+  if (!Number.isFinite(n)) return AUTOREPLY_DEBOUNCE_DEFAULT_SECONDS
+  return Math.min(Math.max(n, AUTOREPLY_DEBOUNCE_MIN_SECONDS), AUTOREPLY_DEBOUNCE_MAX_SECONDS)
+}
+
 /**
  * Build the system prompt shared by draft + auto-reply. The account's
  * own `system_prompt` (business context / persona / tone) is appended

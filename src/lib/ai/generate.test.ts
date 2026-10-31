@@ -14,6 +14,8 @@ function config(overrides: Partial<AiConfig> = {}): AiConfig {
     handoffAgentId: null,
     embeddingsApiKey: null,
     runParallelWithFlows: true,
+    autoReplyDebounceEnabled: false,
+    autoReplyDebounceSeconds: 5,
     ...overrides,
   }
 }

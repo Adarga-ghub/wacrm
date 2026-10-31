@@ -26,7 +26,13 @@ import {
 } from '@/components/ui/select';
 import { SettingsPanelHead } from './settings-panel-head';
 import { AiKnowledgeCard } from './ai-knowledge';
-import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults';
+import {
+  AI_PROVIDER_DEFAULT_MODEL,
+  AUTOREPLY_DEBOUNCE_DEFAULT_SECONDS,
+  AUTOREPLY_DEBOUNCE_MAX_SECONDS,
+  AUTOREPLY_DEBOUNCE_MIN_SECONDS,
+  clampAutoReplyDebounceSeconds,
+} from '@/lib/ai/defaults';
 import type { AiProvider } from '@/lib/ai/types';
 import type { AccountMember } from '@/types';
 import { fetchAccountMembers, memberLabel } from '@/lib/account/members';
@@ -79,6 +85,12 @@ export function AiConfig() {
   // pipeline stage, tagging, running a timer, …). Defaults to true —
   // parallel execution is the platform default.
   const [runParallelWithFlows, setRunParallelWithFlows] = useState(true);
+  // Burst grouping: wait N seconds and answer a quick run of customer
+  // messages once. Off = reply to every message immediately (legacy).
+  const [debounceEnabled, setDebounceEnabled] = useState(false);
+  const [debounceSeconds, setDebounceSeconds] = useState(
+    AUTOREPLY_DEBOUNCE_DEFAULT_SECONDS,
+  );
   const [members, setMembers] = useState<AccountMember[]>([]);
 
   // Guard keyed on the account (not a bare boolean) so an in-place
@@ -106,6 +118,12 @@ export function AiConfig() {
         setMaxPerConversation(data.auto_reply_max_per_conversation ?? 3);
         setHandoffAgentId(data.handoff_agent_id ?? '');
         setRunParallelWithFlows(data.run_parallel_with_flows ?? true);
+        setDebounceEnabled(data.auto_reply_debounce_enabled === true);
+        setDebounceSeconds(
+          clampAutoReplyDebounceSeconds(
+            data.auto_reply_debounce_seconds ?? AUTOREPLY_DEBOUNCE_DEFAULT_SECONDS,
+          ),
+        );
         setHasStoredKey(Boolean(data.has_key));
         setApiKey(data.has_key ? MASKED_KEY : '');
         setKeyEdited(false);
@@ -158,6 +176,8 @@ export function AiConfig() {
     auto_reply_max_per_conversation: maxPerConversation,
     handoff_agent_id: handoffAgentId || null,
     run_parallel_with_flows: runParallelWithFlows,
+    auto_reply_debounce_enabled: debounceEnabled,
+    auto_reply_debounce_seconds: debounceSeconds,
   });
 
   const handleTest = async () => {
@@ -462,6 +482,45 @@ export function AiConfig() {
                 disabled={disabled || !autoReplyEnabled}
                 className="w-20"
               />
+            </div>
+
+            <div className="space-y-3 rounded-md border border-border p-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="ai-debounce" className="text-sm font-medium text-foreground">
+                    {t('groupMessages')}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('groupMessagesDesc')}
+                  </p>
+                </div>
+                <Switch
+                  id="ai-debounce"
+                  checked={debounceEnabled}
+                  onCheckedChange={setDebounceEnabled}
+                  disabled={disabled || !autoReplyEnabled}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <Label htmlFor="ai-debounce-seconds" className="text-xs">
+                  {t('groupMessagesSeconds', {
+                    min: AUTOREPLY_DEBOUNCE_MIN_SECONDS,
+                    max: AUTOREPLY_DEBOUNCE_MAX_SECONDS,
+                  })}
+                </Label>
+                <Input
+                  id="ai-debounce-seconds"
+                  type="number"
+                  min={AUTOREPLY_DEBOUNCE_MIN_SECONDS}
+                  max={AUTOREPLY_DEBOUNCE_MAX_SECONDS}
+                  value={debounceSeconds}
+                  onChange={(e) =>
+                    setDebounceSeconds(clampAutoReplyDebounceSeconds(e.target.value))
+                  }
+                  disabled={disabled || !autoReplyEnabled || !debounceEnabled}
+                  className="w-20"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

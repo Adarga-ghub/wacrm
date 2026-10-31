@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import type { AiConfig } from './types'
+import { clampAutoReplyDebounceSeconds } from './defaults'
 
 interface AiConfigRow {
   provider: 'openai' | 'anthropic'
@@ -13,10 +14,12 @@ interface AiConfigRow {
   handoff_agent_id: string | null
   embeddings_api_key: string | null
   run_parallel_with_flows: boolean
+  auto_reply_debounce_enabled: boolean
+  auto_reply_debounce_seconds: number
 }
 
 const CONFIG_COLUMNS =
-  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key, run_parallel_with_flows'
+  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key, run_parallel_with_flows, auto_reply_debounce_enabled, auto_reply_debounce_seconds'
 
 /**
  * Load and decrypt the account's AI config for *use* (draft or
@@ -81,6 +84,10 @@ export async function loadAiConfig(
     handoffAgentId: row.handoff_agent_id,
     embeddingsApiKey,
     runParallelWithFlows: row.run_parallel_with_flows,
+    autoReplyDebounceEnabled: row.auto_reply_debounce_enabled === true,
+    autoReplyDebounceSeconds: clampAutoReplyDebounceSeconds(
+      row.auto_reply_debounce_seconds,
+    ),
   }
 }
 
