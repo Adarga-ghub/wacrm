@@ -45,10 +45,22 @@ export interface AiConfig {
   autoReplyDebounceSeconds: number
 }
 
+/** An image attached to a customer turn, already downloaded and
+ *  base64-encoded so both providers can take it inline. */
+export interface ChatImage {
+  /** Normalized MIME type: image/jpeg | image/png | image/gif | image/webp. */
+  mimeType: string
+  base64: string
+}
+
 /** A single conversation turn in the shape both providers accept. */
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+  /** Images the customer sent in this turn (user role only). Only the
+   *  most recent images of the conversation are attached — see
+   *  `buildConversationContext`. */
+  images?: ChatImage[]
 }
 
 /**

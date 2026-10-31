@@ -101,9 +101,38 @@ export function mergeConsecutive(messages: ChatMessage[]): ChatMessage[] {
     const last = out[out.length - 1]
     if (last && last.role === m.role) {
       last.content = `${last.content}\n\n${m.content}`
+      if (m.images?.length) last.images = [...(last.images ?? []), ...m.images]
     } else {
-      out.push({ role: m.role, content: m.content })
+      const copy: ChatMessage = { role: m.role, content: m.content }
+      if (m.images?.length) copy.images = [...m.images]
+      out.push(copy)
     }
   }
   return out
+}
+
+/** OpenAI Chat Completions message content: a plain string, or text +
+ *  inline data-URL images when the turn carries any. */
+export function toOpenAiContent(m: ChatMessage): unknown {
+  if (!m.images?.length || m.role !== 'user') return m.content
+  return [
+    { type: 'text', text: m.content },
+    ...m.images.map((img) => ({
+      type: 'image_url',
+      image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
+    })),
+  ]
+}
+
+/** Anthropic Messages content: a plain string, or base64 image blocks
+ *  followed by the text when the turn carries any. */
+export function toAnthropicContent(m: ChatMessage): unknown {
+  if (!m.images?.length || m.role !== 'user') return m.content
+  return [
+    ...m.images.map((img) => ({
+      type: 'image',
+      source: { type: 'base64', media_type: img.mimeType, data: img.base64 },
+    })),
+    { type: 'text', text: m.content },
+  ]
 }

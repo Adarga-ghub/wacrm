@@ -20,7 +20,10 @@ const h = vi.hoisted(() => ({
 }))
 
 vi.mock('./config', () => ({ loadAiConfig: h.loadAiConfig }))
-vi.mock('./context', () => ({ buildConversationContext: h.buildConversationContext }))
+vi.mock('./context', () => ({
+  buildConversationContext: h.buildConversationContext,
+  AI_CONTEXT_CONTENT_TYPES: ['text', 'audio', 'image'],
+}))
 vi.mock('./knowledge', () => ({ retrieveKnowledge: h.retrieveKnowledge }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
 vi.mock('@/lib/flows/meta-send', () => ({ engineSendText: h.engineSendText }))
@@ -51,6 +54,7 @@ vi.mock('./admin-client', () => ({
         const chain = {
           select: () => chain,
           eq: () => chain,
+          in: () => chain,
           order: () => chain,
           limit: () => chain,
           maybeSingle: () => Promise.resolve({ data: null, error: null }),

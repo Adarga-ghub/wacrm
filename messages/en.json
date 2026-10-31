@@ -252,6 +252,7 @@
       "aiBadgeTitle": "Sent automatically by the AI assistant",
       "download": "Download",
       "downloadFailed": "Couldn't download the attachment",
+      "transcriptTitle": "Automatic transcription of the voice note",
       "viewImage": "View image",
       "expandVideo": "Expand video",
       "imageAlt": "Shared image",

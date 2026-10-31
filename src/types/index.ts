@@ -272,6 +272,11 @@ export interface Message {
    * Null on every row written before migration 039.
    */
   media_type?: string | null;
+  /**
+   * Speech-to-text of an audio message, written by the AI agent the
+   * first time the voice note enters its context (migration 071).
+   */
+  media_transcript?: string | null;
   template_name?: string;
   message_id?: string;
   status: MessageStatus;

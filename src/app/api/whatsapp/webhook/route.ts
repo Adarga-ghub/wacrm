@@ -1017,7 +1017,7 @@ async function processMessage(
     }).catch((err) => console.error('[automations] dispatch failed:', err))
   }
 
-  // AI auto-reply. Runs for plain-text inbound whenever the account has
+  // AI auto-reply. Runs for text, voice-note and image inbound whenever the account has
   // it enabled — independently of the Flow runner and Automations by
   // default (both subsystems act on the same inbound in parallel; Flows/
   // Automations own the pipeline, the AI owns the conversation).
@@ -1028,7 +1028,12 @@ async function processMessage(
   // `after()` (same reason as the webhook dispatch below);
   // `dispatchInboundToAiReply` owns its eligibility gates + try/catch
   // and never throws.
-  if (!interactiveReplyId && inboundText.trim()) {
+  // Voice notes and images also reach the bot: it transcribes the audio
+  // and looks at the picture (src/lib/ai/media.ts). Stickers are stored
+  // as images but are reactions, not questions — they don't trigger it.
+  const aiReadableMedia =
+    message.type === 'audio' || message.type === 'image'
+  if (!interactiveReplyId && (inboundText.trim() || aiReadableMedia)) {
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,

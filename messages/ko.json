@@ -252,6 +252,7 @@
       "aiBadgeTitle": "AI 어시스턴트가 자동으로 전송함",
       "download": "다운로드",
       "downloadFailed": "첨부파일을 다운로드할 수 없습니다",
+      "transcriptTitle": "음성 메시지 자동 전사",
       "viewImage": "이미지 보기",
       "expandVideo": "동영상 확대",
       "imageAlt": "공유된 이미지",

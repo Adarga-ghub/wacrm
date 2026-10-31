@@ -232,15 +232,27 @@ export function MediaAudioBubble({
 }) {
   const { downloading, download } = useMediaDownload(message, t);
 
+  const transcript = message.media_transcript?.trim();
+
   return (
-    <div className="flex items-center gap-2">
-      <audio src={message.media_url} controls className="max-w-60" />
-      <MediaActionButton
-        icon={Download}
-        label={t("download")}
-        onClick={download}
-        busy={downloading}
-      />
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <audio src={message.media_url} controls className="max-w-60" />
+        <MediaActionButton
+          icon={Download}
+          label={t("download")}
+          onClick={download}
+          busy={downloading}
+        />
+      </div>
+      {transcript && (
+        <p
+          className="max-w-72 whitespace-pre-wrap break-words text-xs italic text-muted-foreground"
+          title={t("transcriptTitle")}
+        >
+          “{transcript}”
+        </p>
+      )}
     </div>
   );
 }

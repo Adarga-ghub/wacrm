@@ -1,6 +1,6 @@
 import { supabaseAdmin } from './admin-client'
 import { loadAiConfig } from './config'
-import { buildConversationContext } from './context'
+import { AI_CONTEXT_CONTENT_TYPES, buildConversationContext } from './context'
 import { retrieveKnowledge } from './knowledge'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
@@ -58,7 +58,7 @@ async function isNewestInboundOfBurst(
     .select('id, created_at')
     .eq('conversation_id', conversationId)
     .eq('sender_type', 'customer')
-    .eq('content_type', 'text')
+    .in('content_type', [...AI_CONTEXT_CONTENT_TYPES])
     .order('created_at', { ascending: false })
     .limit(10)
   if (error || !data || data.length === 0) return true
@@ -164,7 +164,11 @@ export async function dispatchInboundToAiReply(
       if (!newest) return
     }
 
-    const messages = await buildConversationContext(db, conversationId)
+    // Voice notes are transcribed and recent images attached here, so
+    // the bot can answer audio and photos (see `./media`).
+    const messages = await buildConversationContext(db, conversationId, {
+      media: { accountId, config },
+    })
     if (messages.length === 0) return
 
     // Account-wide throttle on the shared BYO key. The per-conversation

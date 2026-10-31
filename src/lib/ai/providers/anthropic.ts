@@ -4,6 +4,7 @@ import {
   mergeConsecutive,
   normalizeUsage,
   providerHttpError,
+  toAnthropicContent,
   toNetworkError,
   type ProviderArgs,
 } from './shared'
@@ -55,7 +56,10 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
         model,
         system: systemPrompt,
         max_tokens: MAX_OUTPUT_TOKENS,
-        messages: normalizeForAnthropic(messages),
+        messages: normalizeForAnthropic(messages).map((m) => ({
+          role: m.role,
+          content: toAnthropicContent(m),
+        })),
       }),
       signal: AbortSignal.timeout(timeoutMs),
     })
