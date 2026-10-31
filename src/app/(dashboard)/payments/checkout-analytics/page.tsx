@@ -14,6 +14,7 @@ import {
   Eye,
   Filter,
   History,
+  ListChecks,
   Loader2,
   Trash2,
   TrendingUp,
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils"
 import { BackLink } from "@/components/layout/back-link"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -150,8 +152,14 @@ function StepIndicator({ at, notYet }: { at: string | null; notYet: string }) {
   )
 }
 
-/** What the confirm dialog is about to delete: one visit, or a whole group. */
-type PendingDelete = { kind: "visit"; visit: Row } | { kind: "group"; group: Group }
+/** What the confirm dialog is about to delete: one visit, a whole group, or a bulk selection of groups. */
+type PendingDelete =
+  | { kind: "visit"; visit: Row }
+  | { kind: "group"; group: Group }
+  | { kind: "bulk"; groups: Group[] }
+
+/** Max ids per request — mirrors the bulk DELETE route's limit. */
+const BULK_DELETE_CHUNK = 500
 
 export default function CheckoutAnalyticsPage() {
   const tList = usePaymentsT("list")
@@ -164,6 +172,10 @@ export default function CheckoutAnalyticsPage() {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // Bulk-delete selection mode: a checkbox column over the visible
+  // groups (selecting a group selects every visit it shows).
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
 
   async function load() {
     const res = await fetch("/api/payments/checkout-sessions")
@@ -205,6 +217,34 @@ export default function CheckoutAnalyticsPage() {
       : groups.filter((g) => g.latest.effectiveStatus === statusFilter)
   }, [inRange, statusFilter])
 
+  // Only groups still on screen count — changing a filter never deletes
+  // rows the user can no longer see.
+  const selectedGroups = useMemo(
+    () => visible.filter((g) => selected.has(g.key)),
+    [visible, selected],
+  )
+  const selectedVisitCount = selectedGroups.reduce((n, g) => n + g.visits.length, 0)
+  const allSelected = visible.length > 0 && selectedGroups.length === visible.length
+  const someSelected = selectedGroups.length > 0 && !allSelected
+
+  function toggleSelected(key: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }
+
+  function toggleSelectAll(checked: boolean) {
+    setSelected(checked ? new Set(visible.map((g) => g.key)) : new Set())
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false)
+    setSelected(new Set())
+  }
+
   // Funnel counts every visit in the date range (not the status filter —
   // filtering to "Completed" would otherwise read as a 100% conversion).
   const funnel = useMemo(() => {
@@ -229,29 +269,48 @@ export default function CheckoutAnalyticsPage() {
     const ids =
       pendingDelete.kind === "visit"
         ? [pendingDelete.visit.id]
-        : pendingDelete.group.visits.map((v) => v.id)
+        : pendingDelete.kind === "group"
+          ? pendingDelete.group.visits.map((v) => v.id)
+          : pendingDelete.groups.flatMap((g) => g.visits.map((v) => v.id))
+    const deleted = new Set<string>()
     setDeleting(true)
     try {
-      const res =
-        ids.length === 1
-          ? await fetch(`/api/payments/checkout-sessions/${ids[0]}`, { method: "DELETE" })
-          : await fetch("/api/payments/checkout-sessions", {
-              method: "DELETE",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ids }),
-            })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        toast.error(data.error || t("deleteFailed"))
-        return
+      if (ids.length === 1) {
+        const res = await fetch(`/api/payments/checkout-sessions/${ids[0]}`, { method: "DELETE" })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          toast.error(data.error || t("deleteFailed"))
+          return
+        }
+        deleted.add(ids[0])
+      } else {
+        for (let i = 0; i < ids.length; i += BULK_DELETE_CHUNK) {
+          const chunk = ids.slice(i, i + BULK_DELETE_CHUNK)
+          const res = await fetch("/api/payments/checkout-sessions", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: chunk }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) {
+            toast.error(data.error || t("deleteFailed"))
+            return
+          }
+          for (const id of (data.deleted as string[] | undefined) ?? chunk) deleted.add(id)
+        }
       }
-      const deleted = new Set(ids)
-      setSessions((prev) => prev?.filter((s) => !deleted.has(s.id)) ?? prev)
       setPendingDelete(null)
-      toast.success(t("deleteSuccess"))
+      if (pendingDelete.kind === "bulk") {
+        exitSelectMode()
+        toast.success(t("deleteBulkSuccess", { count: deleted.size }))
+      } else {
+        toast.success(t("deleteSuccess"))
+      }
     } catch {
       toast.error(t("deleteFailed"))
     } finally {
+      // Drop whatever was removed, even if a later chunk failed.
+      if (deleted.size > 0) setSessions((prev) => prev?.filter((s) => !deleted.has(s.id)) ?? prev)
       setDeleting(false)
     }
   }
@@ -345,6 +404,20 @@ export default function CheckoutAnalyticsPage() {
               {t("count", { count: visible.length })}
             </span>
           )}
+          {sessions !== null && sessions.length > 0 && (
+            <button
+              type="button"
+              onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+              aria-pressed={selectMode}
+              className={cn(
+                filterTrigger(selectMode),
+                !selectMode && "hover:border-destructive/40 hover:text-destructive",
+              )}
+            >
+              {selectMode ? <ListChecks className="size-3.5" /> : <Trash2 className="size-3.5" />}
+              {selectMode ? t("bulk.exit") : t("bulk.start")}
+            </button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger className={filterTrigger(statusFilter !== "all")}>
               <Filter className="size-3.5" />
@@ -425,10 +498,63 @@ export default function CheckoutAnalyticsPage() {
           )}
         </div>
       ) : (
+        <div className="space-y-3">
+          {selectMode && (
+            <div className="sticky top-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-card/95 px-4 py-2.5 shadow-sm backdrop-blur">
+              <div className="flex items-center gap-3 text-sm">
+                {selectedGroups.length === 0 ? (
+                  <span className="text-muted-foreground">{t("bulk.hint")}</span>
+                ) : (
+                  <>
+                    <span className="font-medium tabular-nums text-foreground">
+                      {t("bulk.selected", { count: selectedGroups.length })}
+                    </span>
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {t("bulk.visits", { count: selectedVisitCount })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(new Set())}
+                      className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      {t("bulk.clear")}
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={exitSelectMode}>
+                  {t("cancel")}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={selectedGroups.length === 0}
+                  onClick={() => setPendingDelete({ kind: "bulk", groups: selectedGroups })}
+                >
+                  <Trash2 className="size-3.5" />
+                  {t("bulk.deleteSelected")}
+                  {selectedGroups.length > 0 && (
+                    <span className="tabular-nums">({selectedGroups.length})</span>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         <div className="overflow-x-auto rounded-xl border border-border bg-card">
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
+                {selectMode && (
+                  <TableHead className="w-10 pr-0">
+                    <Checkbox
+                      checked={allSelected}
+                      indeterminate={someSelected}
+                      onCheckedChange={(checked) => toggleSelectAll(!!checked)}
+                      aria-label={t("bulk.selectAll")}
+                    />
+                  </TableHead>
+                )}
                 <TableHead className="text-muted-foreground">{t("table.customer")}</TableHead>
                 <TableHead className="text-muted-foreground">{t("table.product")}</TableHead>
                 <TableHead className="text-muted-foreground">{t("table.pageView")}</TableHead>
@@ -445,9 +571,26 @@ export default function CheckoutAnalyticsPage() {
                 const name = contactName(s)
                 const isOpen = expanded.has(group.key)
                 const multiple = group.visits.length > 1
+                const isSelected = selectMode && selected.has(group.key)
                 return (
                   <Fragment key={group.key}>
-                    <TableRow className={cn("group border-border", isOpen && "bg-muted/30")}>
+                    <TableRow
+                      data-state={isSelected ? "selected" : undefined}
+                      className={cn(
+                        "group border-border",
+                        isOpen && "bg-muted/30",
+                        isSelected && "bg-primary/5 hover:bg-primary/10",
+                      )}
+                    >
+                      {selectMode && (
+                        <TableCell className="w-10 pr-0">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => toggleSelected(group.key, !!checked)}
+                            aria-label={t("bulk.selectRow")}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="flex min-w-0 flex-col">
@@ -510,6 +653,7 @@ export default function CheckoutAnalyticsPage() {
                     {isOpen &&
                       group.visits.map((visit, i) => (
                         <TableRow key={visit.id} className="group/visit border-border bg-muted/20 hover:bg-muted/40">
+                          {selectMode && <TableCell className="w-10 pr-0" />}
                           <TableCell>
                             <div className="flex items-center gap-2 pl-4">
                               <History className="size-3.5 shrink-0 text-muted-foreground" />
@@ -550,15 +694,25 @@ export default function CheckoutAnalyticsPage() {
             </TableBody>
           </Table>
         </div>
+        </div>
       )}
 
       <Dialog open={!!pendingDelete} onOpenChange={(v) => !v && !deleting && setPendingDelete(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {pendingDelete?.kind === "group" ? t("deleteGroupTitle") : t("deleteTitle")}
+              {pendingDelete?.kind === "bulk"
+                ? t("deleteBulkTitle")
+                : pendingDelete?.kind === "group"
+                  ? t("deleteGroupTitle")
+                  : t("deleteTitle")}
             </DialogTitle>
             <DialogDescription>
+              {pendingDelete?.kind === "bulk" &&
+                t("deleteBulkDesc", {
+                  rows: pendingDelete.groups.length,
+                  visits: pendingDelete.groups.reduce((n, g) => n + g.visits.length, 0),
+                })}
               {pendingDelete?.kind === "group" &&
                 t("deleteGroupDesc", {
                   count: pendingDelete.group.visits.length,
@@ -572,6 +726,9 @@ export default function CheckoutAnalyticsPage() {
                 })}
             </DialogDescription>
           </DialogHeader>
+          {pendingDelete?.kind === "bulk" && dateRange !== "all" && (
+            <p className="text-xs text-muted-foreground">{t("deleteBulkFilteredNote")}</p>
+          )}
           <DialogFooter>
             <Button variant="outline" disabled={deleting} onClick={() => setPendingDelete(null)}>
               {t("cancel")}

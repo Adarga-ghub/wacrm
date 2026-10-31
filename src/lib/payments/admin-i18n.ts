@@ -545,6 +545,26 @@ export interface PaymentsCheckoutAnalyticsStrings {
   deleteGroupTitle: string
   /** `{count}`, `{contact}`, `{product}` */
   deleteGroupDesc: string
+  /** Bulk-delete selection mode (toolbar toggle + checkbox column). */
+  bulk: {
+    start: string
+    exit: string
+    selectAll: string
+    selectRow: string
+    hint: string
+    /** `{count}` rows selected */
+    selected: string
+    /** `{count}` visits inside the selected rows */
+    visits: string
+    clear: string
+    deleteSelected: string
+  }
+  deleteBulkTitle: string
+  /** `{rows}`, `{visits}` */
+  deleteBulkDesc: string
+  deleteBulkFilteredNote: string
+  /** `{count}` */
+  deleteBulkSuccess: string
   notYet: string
   status: Record<'viewed' | 'initiated' | 'abandoned' | 'completed', string>
   statusFilter: {
@@ -1083,6 +1103,21 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       },
       deleteGroupTitle: 'Delete all these visits?',
       deleteGroupDesc: 'The {count} visits from {contact} to {product} will be permanently removed from Checkout Analytics. The contact, their conversation and any payment are kept.',
+      bulk: {
+        start: 'Bulk delete',
+        exit: 'Done',
+        selectAll: 'Select all rows',
+        selectRow: 'Select row',
+        hint: 'Select the rows you want to delete.',
+        selected: '{count} selected',
+        visits: '{count} visits',
+        clear: 'Clear selection',
+        deleteSelected: 'Delete selected',
+      },
+      deleteBulkTitle: 'Delete the selected rows?',
+      deleteBulkDesc: '{rows} rows ({visits} visits) will be permanently removed from Checkout Analytics. Contacts, their conversations and any payments are kept.',
+      deleteBulkFilteredNote: 'Only the visits matching the current filters are deleted.',
+      deleteBulkSuccess: '{count} visits deleted.',
       notYet: 'Not yet',
       status: {
         viewed: 'Viewed only',
@@ -1612,6 +1647,21 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       },
       deleteGroupTitle: '¿Eliminar todas estas visitas?',
       deleteGroupDesc: 'Las {count} visitas de {contact} a {product} se eliminarán definitivamente de Analíticas de Checkout. El contacto, su conversación y cualquier pago se conservan.',
+      bulk: {
+        start: 'Eliminar en lote',
+        exit: 'Listo',
+        selectAll: 'Seleccionar todas las filas',
+        selectRow: 'Seleccionar fila',
+        hint: 'Selecciona las filas que quieres eliminar.',
+        selected: '{count} seleccionadas',
+        visits: '{count} visitas',
+        clear: 'Quitar selección',
+        deleteSelected: 'Eliminar seleccionadas',
+      },
+      deleteBulkTitle: '¿Eliminar las filas seleccionadas?',
+      deleteBulkDesc: 'Se eliminarán definitivamente {rows} filas ({visits} visitas) de Analíticas de Checkout. Los contactos, sus conversaciones y cualquier pago se conservan.',
+      deleteBulkFilteredNote: 'Solo se eliminan las visitas que coinciden con los filtros actuales.',
+      deleteBulkSuccess: '{count} visitas eliminadas.',
       notYet: 'Aún no',
       status: {
         viewed: 'Solo visto',
