@@ -545,21 +545,32 @@ export function MessageThread({
 
     if (!lastCustomerMsg) return { expired: true, remaining: "No customer messages" };
 
+    // TEST (2026-11-01): chats that came from a Click-to-WhatsApp ad get a
+    // 72h window instead of 24h, to verify empirically whether Meta accepts
+    // free-form messages after 24h for ad-origin users. If Meta rejects them
+    // (error 131047), revert this block back to a flat 24h.
+    const adClickAt = conversation?.ad_referral_updated_at
+      ? new Date(conversation.ad_referral_updated_at)
+      : null;
+    const fromAd =
+      !!adClickAt && differenceInHours(new Date(), adClickAt) < 72;
+    const windowHours = fromAd ? 72 : 24;
+
     const hoursSince = differenceInHours(new Date(), new Date(lastCustomerMsg.created_at));
-    const expired = hoursSince >= 24;
+    const expired = hoursSince >= windowHours;
 
     if (expired) {
       return { expired: true, remaining: tTimer("expired") };
     }
 
-    const hoursLeft = 24 - hoursSince;
+    const hoursLeft = windowHours - hoursSince;
     const remaining =
       hoursLeft >= 1
         ? tTimer("xhRemaining", { hours: Math.floor(hoursLeft) })
         : tTimer("xmRemaining", { minutes: Math.floor(hoursLeft * 60) });
 
     return { expired, remaining };
-  }, [messages, tTimer]);
+  }, [messages, tTimer, conversation?.ad_referral_updated_at]);
 
   // Store latest callback in a ref so fetchMessages doesn't need to
   // depend on `onMessagesLoaded` — otherwise parent re-renders cause
