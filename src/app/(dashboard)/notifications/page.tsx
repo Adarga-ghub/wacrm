@@ -10,6 +10,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { MessageAlertSettings } from "@/components/alerts/message-alert-settings";
 
 // Icon per notification type — keeps adding a new type a one-line add.
 const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
@@ -184,6 +185,8 @@ export default function NotificationsPage() {
           Mark all as read
         </Button>
       </div>
+
+      <MessageAlertSettings />
 
       {notifications.length === 0 ? (
         <div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/40">
