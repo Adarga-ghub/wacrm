@@ -1632,7 +1632,7 @@ export function MessageThread({
           the messages area, in the top-left corner under the header by
           default (desktop and mobile). Draggable; keyed per
           conversation so reopening a chat resets it to that spot. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-start pl-2 pt-0.5">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-start pl-0.5 pt-0.5">
         <PhoneCountryBadge
           key={conversation.id}
           phone={contact.phone}
