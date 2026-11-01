@@ -80,9 +80,6 @@ export function PhoneCountryBadge({ phone, className }: { phone: string | null |
       className={cn(
         "inline-flex max-w-[14rem] shrink-0 touch-none select-none items-center gap-1.5 rounded-full border border-border bg-background/90 px-2.5 py-1 text-[11px] font-medium leading-4 text-foreground shadow-sm backdrop-blur",
         dragging ? "cursor-grabbing shadow-md" : "cursor-grab",
-        // Docked at its default spot: flat top + no top border so it reads
-        // as a tab hanging from the header. Fully rounded once moved.
-        !dragging && offset.x === 0 && offset.y === 0 && "rounded-t-none border-t-0",
         className
       )}
     >
