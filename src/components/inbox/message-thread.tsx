@@ -85,6 +85,7 @@ import { deleteAccountMedia } from "@/lib/storage/upload-media";
 import { TemplatePicker } from "./template-picker";
 import { AiThreadBanner } from "./ai-thread-banner";
 import { AdReferralCard } from "./ad-referral-card";
+import { PhoneCountryBadge } from "./phone-country-badge";
 import { buildReplyPreview } from "./reply-quote";
 import { renderTemplateBody } from "@/lib/whatsapp/template-body";
 import { ChargeFromConversationDialog } from "@/components/payments/charge-from-conversation-dialog";
@@ -1627,6 +1628,12 @@ export function MessageThread({
 
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+        {/* Customer's country (from the phone's calling code) — sticky
+            at the top of the messages area so it stays visible while
+            scrolling, on desktop and mobile alike. */}
+        <div className="pointer-events-none sticky top-0 z-10 -mt-2 mb-2 flex justify-center">
+          <PhoneCountryBadge phone={contact.phone} className="pointer-events-auto" />
+        </div>
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
