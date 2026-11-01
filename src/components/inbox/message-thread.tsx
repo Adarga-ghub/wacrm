@@ -1627,13 +1627,19 @@ export function MessageThread({
       </Dialog>
 
       {/* Messages Area */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+      {/* Customer's country (from the phone's calling code) — floats over
+          the messages area, centered and flush under the header by
+          default (desktop and mobile). Draggable; keyed per
+          conversation so reopening a chat resets it to that spot. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center">
+        <PhoneCountryBadge
+          key={conversation.id}
+          phone={contact.phone}
+          className="pointer-events-auto"
+        />
+      </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-        {/* Customer's country (from the phone's calling code) — sticky
-            at the top of the messages area so it stays visible while
-            scrolling, on desktop and mobile alike. */}
-        <div className="pointer-events-none sticky top-0 z-10 -mt-2 mb-2 flex justify-center">
-          <PhoneCountryBadge phone={contact.phone} className="pointer-events-auto" />
-        </div>
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -1733,6 +1739,7 @@ export function MessageThread({
             ))}
           </div>
         )}
+      </div>
       </div>
 
       {/* AI auto-reply banner — take over an active bot, or resume it
