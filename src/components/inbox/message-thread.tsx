@@ -534,7 +534,7 @@ export function MessageThread({
     [tagsPanelSize],
   );
 
-  // 24-hour session timer
+  // Session timer: 24h, or 72h for ad-origin chats
   const sessionInfo = useMemo(() => {
     if (!messages.length) return { expired: false, remaining: "" };
 
@@ -545,10 +545,11 @@ export function MessageThread({
 
     if (!lastCustomerMsg) return { expired: true, remaining: "No customer messages" };
 
-    // TEST (2026-11-01): chats that came from a Click-to-WhatsApp ad get a
-    // 72h window instead of 24h, to verify empirically whether Meta accepts
-    // free-form messages after 24h for ad-origin users. If Meta rejects them
-    // (error 131047), revert this block back to a flat 24h.
+    // Chats that came from a Click-to-WhatsApp ad (click in the last 72h)
+    // get a 72h window instead of 24h. Verified in prod on 2026-11-01: Meta
+    // delivered a free-form message ~28h after the customer's last message
+    // in an ad-origin chat. If Meta starts rejecting these with error
+    // 131047, go back to a flat 24h.
     const adClickAt = conversation?.ad_referral_updated_at
       ? new Date(conversation.ad_referral_updated_at)
       : null;
