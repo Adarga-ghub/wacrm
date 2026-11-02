@@ -73,24 +73,27 @@ export async function fetchAiTestPhones(force = false): Promise<AiTestPhone[]> {
   return phonesInflight;
 }
 
-/** Name of the AI agent that owns a conversation, or null. */
-export function useAiAgentName(agentId: string | null | undefined): string | null {
-  // Keyed by the id it was resolved for, so a stale name never shows
+/** The AI agent that owns a conversation (name, countries…), or null. */
+export function useAiAgent(agentId: string | null | undefined): AiAgentSummary | null {
+  // Keyed by the id it was resolved for, so a stale agent never shows
   // for a different conversation.
-  const [resolved, setResolved] = useState<{ id: string; name: string | null } | null>(null);
+  const [resolved, setResolved] = useState<{
+    id: string;
+    agent: AiAgentSummary | null;
+  } | null>(null);
   useEffect(() => {
     if (!agentId) return;
     let cancelled = false;
     void fetchAiAgents().then((agents) => {
       if (!cancelled) {
-        setResolved({ id: agentId, name: agents.find((a) => a.id === agentId)?.name ?? null });
+        setResolved({ id: agentId, agent: agents.find((a) => a.id === agentId) ?? null });
       }
     });
     return () => {
       cancelled = true;
     };
   }, [agentId]);
-  return agentId && resolved?.id === agentId ? resolved.name : null;
+  return agentId && resolved?.id === agentId ? resolved.agent : null;
 }
 
 /** Simulated country (ISO) when `phone` is a saved test number, else null. */

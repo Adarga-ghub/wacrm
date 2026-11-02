@@ -24,6 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { SettingsPanelHead } from './settings-panel-head';
 import { AiKnowledgeCard } from './ai-knowledge';
 import {
@@ -77,6 +85,7 @@ export function AiConfig({
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   const [configured, setConfigured] = useState(false);
   const [provider, setProvider] = useState<AiProvider>('openai');
@@ -605,7 +614,7 @@ export function AiConfig({
           {configured ? (
             <Button
               variant="ghost"
-              onClick={handleRemove}
+              onClick={() => setConfirmRemove(true)}
               disabled={!canEdit || removing}
               className="text-destructive hover:text-destructive"
             >
@@ -626,6 +635,45 @@ export function AiConfig({
           </Button>
         </div>
       </div>
+
+      {/* Removal is permanent — always confirm first. */}
+      <Dialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {isDefaultAgent ? '¿Eliminar la configuración de IA?' : '¿Eliminar este agente?'}
+            </DialogTitle>
+            <DialogDescription>
+              Esta eliminación es definitiva y no se puede deshacer. Se borrarán el prompt,
+              la API key guardada, la configuración y los documentos de este agente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmRemove(false)}
+              disabled={removing}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                await handleRemove();
+                setConfirmRemove(false);
+              }}
+              disabled={removing}
+            >
+              {removing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -89,6 +89,12 @@ export default function AgentsPage() {
                     setTab('setup');
                   });
                 }}
+                onChanged={() => void loadAgents()}
+                onDeleted={(id) => {
+                  void loadAgents().then((list) => {
+                    if (selectedId === id) setSelectedId(list[0]?.id ?? null);
+                  });
+                }}
               />
             </div>
           )}

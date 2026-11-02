@@ -8,6 +8,7 @@ import {
   Crown,
   Globe2,
   Loader2,
+  Pencil,
   Phone,
   Plus,
   Save,
@@ -52,7 +53,7 @@ import {
 // Small shared bits
 // ------------------------------------------------------------
 
-function Flag({ iso, className }: { iso: string; className?: string }) {
+export function Flag({ iso, className }: { iso: string; className?: string }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
     return (
@@ -152,8 +153,21 @@ function CountrySelect({
   );
 }
 
+/** Boxed "[flag] Country" tile for a country assigned to an agent. */
+export function CountryTile({ iso }: { iso: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1 text-xs font-medium text-foreground"
+      title={`Atiende a clientes de ${countryNameFromIso(iso)}`}
+    >
+      <Flag iso={iso} className="h-4 w-6 rounded-[3px]" />
+      {countryNameFromIso(iso)}
+    </span>
+  );
+}
+
 // ------------------------------------------------------------
-// Agent list (cards) + duplicate
+// Agent list (cards) + duplicate / rename / delete
 // ------------------------------------------------------------
 
 export function AgentList({
@@ -162,6 +176,8 @@ export function AgentList({
   onSelect,
   canEdit,
   onDuplicated,
+  onChanged,
+  onDeleted,
 }: {
   agents: AiAgentSummary[];
   selectedId: string | null;
@@ -169,10 +185,71 @@ export function AgentList({
   canEdit: boolean;
   /** Called with the new agent's id after a successful duplicate. */
   onDuplicated: (id: string) => void;
+  /** Called after a rename (refresh the list). */
+  onChanged: () => void;
+  /** Called with the removed agent's id after a delete. */
+  onDeleted: (id: string) => void;
 }) {
   const [source, setSource] = useState<AiAgentSummary | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [renaming, setRenaming] = useState<AiAgentSummary | null>(null);
+  const [newName, setNewName] = useState("");
+  const [deleting, setDeleting] = useState<AiAgentSummary | null>(null);
+
+  const rename = async () => {
+    if (!renaming) return;
+    const value = newName.trim();
+    if (!value) {
+      toast.error("El nombre no puede estar vacío.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/ai/agents/${renaming.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "No se pudo cambiar el nombre.");
+        return;
+      }
+      invalidateAiAgentCaches();
+      toast.success("Nombre actualizado.");
+      setRenaming(null);
+      onChanged();
+    } catch {
+      toast.error("No se pudo cambiar el nombre.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!deleting) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/ai/config?agentId=${encodeURIComponent(deleting.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "No se pudo eliminar el agente.");
+        return;
+      }
+      invalidateAiAgentCaches();
+      toast.success(`Agente "${deleting.name}" eliminado.`);
+      const id = deleting.id;
+      setDeleting(null);
+      onDeleted(id);
+    } catch {
+      toast.error("No se pudo eliminar el agente.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const openDuplicate = (a: AiAgentSummary) => {
     setSource(a);
@@ -269,7 +346,7 @@ export function AgentList({
                     <Globe2 className="h-3.5 w-3.5" /> Todos los países sin agente propio
                   </span>
                 ) : a.countries.length > 0 ? (
-                  a.countries.map((iso) => <CountryChip key={iso} iso={iso} />)
+                  a.countries.map((iso) => <CountryTile key={iso} iso={iso} />)
                 ) : (
                   <span className="text-xs text-amber-700 dark:text-amber-400">
                     Sin países asignados — no recibe chats todavía
@@ -278,7 +355,18 @@ export function AgentList({
               </div>
 
               {canEdit && (
-                <div className="flex justify-end">
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenaming(a);
+                      setNewName(a.name);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Editar nombre
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -289,6 +377,21 @@ export function AgentList({
                   >
                     <Copy className="h-3.5 w-3.5" /> Duplicar
                   </Button>
+                  {/* The default agent is the fallback for every country
+                      without an agent, so it can't be deleted from here. */}
+                  {!a.is_default && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleting(a);
+                      }}
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -326,6 +429,63 @@ export function AgentList({
             <Button onClick={duplicate} disabled={busy}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
               Duplicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename */}
+      <Dialog open={!!renaming} onOpenChange={(open) => !open && setRenaming(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar nombre del agente</DialogTitle>
+            <DialogDescription>
+              Solo cambia el nombre; su prompt, países y configuración quedan igual.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="rename-agent">Nombre</Label>
+            <Input
+              id="rename-agent"
+              value={newName}
+              autoFocus
+              maxLength={80}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void rename();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenaming(null)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button onClick={rename} disabled={busy}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>¿Eliminar el agente “{deleting?.name}”?</DialogTitle>
+            <DialogDescription>
+              Esta eliminación es definitiva y no se puede deshacer. Se borrarán su prompt,
+              su configuración y sus documentos. Los chats que atendía pasarán al agente de su
+              país o, si no hay, al agente principal.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={remove} disabled={busy}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Eliminar definitivamente
             </Button>
           </DialogFooter>
         </DialogContent>

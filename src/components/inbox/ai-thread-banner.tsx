@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/hooks/use-auth";
-import { useAiAgentName } from "@/components/agents/use-ai-agents";
+import { useAiAgent } from "@/components/agents/use-ai-agents";
+import { countryNameFromIso } from "@/lib/whatsapp/phone-country";
 
 // ------------------------------------------------------------
 // Account AI status is the same for every conversation, so cache it per
@@ -88,7 +89,7 @@ export function AiThreadBanner({
 }: AiThreadBannerProps) {
   const t = useTranslations("Inbox.aiBanner");
   const { accountId } = useAuth();
-  const agentName = useAiAgentName(aiAgentId);
+  const agent = useAiAgent(aiAgentId);
   const [autoReplyOn, setAutoReplyOn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   // Optimistic local mirror of the pause flag so the banner flips
@@ -176,14 +177,34 @@ export function AiThreadBanner({
         <span className="truncate font-medium text-foreground">
           {t("activeText")}
         </span>
-        {agentName && (
+        {agent && (
           <span
             className="flex-shrink-0 truncate rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
             title="Agente de IA que atiende este chat"
           >
-            {agentName}
+            {agent.name}
           </span>
         )}
+        {/* The countries that agent is assigned to, as boxed flags. */}
+        {agent &&
+          !agent.is_default &&
+          agent.countries.map((iso) => (
+            <span
+              key={iso}
+              className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-1.5 py-0.5 text-[11px] font-medium text-foreground"
+              title={`Agente asignado a ${countryNameFromIso(iso)}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`https://flagcdn.com/w40/${iso.toLowerCase()}.png`}
+                alt=""
+                width={20}
+                height={14}
+                className="h-3.5 w-5 rounded-[2px] object-cover shadow-[0_0_0_0.5px_rgba(0,0,0,0.25)]"
+              />
+              {countryNameFromIso(iso)}
+            </span>
+          ))}
       </div>
       <BannerButton onClick={() => toggle(true)} busy={busy} icon={Hand}>
         {t("takeOver")}
