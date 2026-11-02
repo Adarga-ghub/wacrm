@@ -14,6 +14,12 @@ export type AiProvider = 'openai' | 'anthropic'
  * (stored AES-256-GCM-encrypted at rest).
  */
 export interface AiConfig {
+  /** `ai_configs.id` of the agent this config belongs to (set by
+   *  `loadAiConfig`; absent in hand-built configs such as tests). Scopes
+   *  knowledge-base retrieval to that agent. */
+  id?: string
+  /** Agent label shown in AI Agents (e.g. "Agente Dominicano"). */
+  name?: string
   provider: AiProvider
   model: string
   apiKey: string

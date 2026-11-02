@@ -8,19 +8,25 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { loadEmbeddingsKey } from '@/lib/ai/config'
 import { ingestDocument } from '@/lib/ai/knowledge'
 import { AiError } from '@/lib/ai/types'
+import { agentIdFromRequest, resolveAgent } from '@/lib/ai/agents'
 
 /**
  * GET /api/ai/knowledge
  *
  * List the account's knowledge-base documents (any member).
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { supabase, accountId } = await getCurrentAccount()
+    // Each agent has its own knowledge base (`?agentId=`, default agent
+    // when absent).
+    const agent = await resolveAgent(supabase, accountId, agentIdFromRequest(request))
+    if (!agent) return NextResponse.json({ documents: [] })
     const { data, error } = await supabase
       .from('ai_knowledge_documents')
       .select('id, title, updated_at')
       .eq('account_id', accountId)
+      .eq('ai_config_id', agent.id)
       .order('updated_at', { ascending: false })
     if (error) {
       console.error('[ai/knowledge GET] error:', error)
@@ -57,9 +63,23 @@ export async function POST(request: Request) {
       )
     }
 
+    const agent = await resolveAgent(supabase, accountId, agentIdFromRequest(request))
+    if (!agent) {
+      return NextResponse.json(
+        { error: 'Configure the agent before adding knowledge.' },
+        { status: 400 },
+      )
+    }
+
     const { data: doc, error } = await supabase
       .from('ai_knowledge_documents')
-      .insert({ account_id: accountId, created_by: userId, title, content })
+      .insert({
+        account_id: accountId,
+        ai_config_id: agent.id,
+        created_by: userId,
+        title,
+        content,
+      })
       .select('id')
       .single()
     if (error || !doc) {
@@ -73,6 +93,7 @@ export async function POST(request: Request) {
     const { key: embeddingsApiKey, corrupt } = await loadEmbeddingsKey(
       supabase,
       accountId,
+      agent.id,
     )
     try {
       await ingestDocument(
@@ -81,6 +102,7 @@ export async function POST(request: Request) {
         { embeddingsApiKey },
         doc.id,
         content,
+        agent.id,
       )
     } catch (err) {
       const message = err instanceof AiError ? err.message : 'indexing failed'

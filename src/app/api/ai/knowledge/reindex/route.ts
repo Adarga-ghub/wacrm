@@ -4,6 +4,7 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { loadEmbeddingsKey } from '@/lib/ai/config'
 import { ingestDocument } from '@/lib/ai/knowledge'
 import { AiError } from '@/lib/ai/types'
+import { agentIdFromRequest, resolveAgent } from '@/lib/ai/agents'
 
 /**
  * POST /api/ai/knowledge/reindex  (admin+)
@@ -13,16 +14,21 @@ import { AiError } from '@/lib/ai/types'
  * lexical-only, and this backfills their vectors so semantic search
  * turns on. Also recovers documents whose indexing failed earlier.
  */
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const { supabase, accountId, userId } = await requireRole('admin')
     const limit = checkRateLimit(`ai-kb-reindex:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
 
+    // One agent's knowledge base (`?agentId=`, default agent when absent).
+    const agent = await resolveAgent(supabase, accountId, agentIdFromRequest(request))
+    if (!agent) return NextResponse.json({ success: true, reindexed: 0 })
+
     const { data: docs, error } = await supabase
       .from('ai_knowledge_documents')
       .select('id, content')
       .eq('account_id', accountId)
+      .eq('ai_config_id', agent.id)
     if (error) {
       console.error('[ai/knowledge/reindex] fetch error:', error)
       return NextResponse.json(
@@ -34,6 +40,7 @@ export async function POST() {
     const { key: embeddingsApiKey, corrupt } = await loadEmbeddingsKey(
       supabase,
       accountId,
+      agent.id,
     )
     // The whole point of Reindex is usually to backfill embeddings — so
     // if a key is configured but can't be decrypted, don't quietly do a
@@ -53,7 +60,7 @@ export async function POST() {
     let reindexed = 0
     for (const doc of docs ?? []) {
       try {
-        await ingestDocument(supabase, accountId, { embeddingsApiKey }, doc.id, doc.content)
+        await ingestDocument(supabase, accountId, { embeddingsApiKey }, doc.id, doc.content, agent.id)
         reindexed += 1
       } catch (err) {
         // One bad document (e.g. a mid-run embeddings rate-limit) should

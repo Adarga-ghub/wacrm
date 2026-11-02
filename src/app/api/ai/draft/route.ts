@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     // row means "not yours / not found" either way.
     const { data: conversation, error: convErr } = await supabase
       .from('conversations')
-      .select('id')
+      .select('id, ai_agent_id')
       .eq('id', conversationId)
       .maybeSingle()
     if (convErr) {
@@ -58,14 +58,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
     }
 
-    const config = await loadAiConfig(supabase, accountId).catch((err) => {
+    const onDecryptError = (err: unknown): never => {
       // Decrypt failure — surface distinctly from "not configured".
       console.error('[ai/draft] loadAiConfig error:', err)
       throw new AiError('Stored API key could not be decrypted.', {
         code: 'key_decrypt_failed',
         status: 400,
       })
-    })
+    }
+    // Draft as the agent that owns this thread (multi-agent), falling
+    // back to the default agent.
+    const ownerId = (conversation.ai_agent_id as string | null) ?? null
+    const config =
+      (ownerId
+        ? await loadAiConfig(supabase, accountId, { agentId: ownerId }).catch(onDecryptError)
+        : null) ??
+      (await loadAiConfig(supabase, accountId).catch(onDecryptError))
     if (!config) {
       return NextResponse.json(
         {

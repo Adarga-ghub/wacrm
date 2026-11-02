@@ -30,6 +30,9 @@ export async function ingestDocument(
   config: Pick<AiConfig, 'embeddingsApiKey'>,
   documentId: string,
   content: string,
+  /** Owning agent (`ai_configs.id`) — stamped on every chunk so
+   *  retrieval only reads that agent's knowledge base. */
+  agentId?: string | null,
 ): Promise<void> {
   const chunks = chunkText(content)
 
@@ -63,6 +66,7 @@ export async function ingestDocument(
     account_id: accountId,
     chunk_index: i,
     content,
+    ...(agentId ? { ai_config_id: agentId } : {}),
     embedding: embeddings ? toVectorLiteral(embeddings[i]) : null,
   }))
 
@@ -84,7 +88,7 @@ export async function ingestDocument(
 export async function retrieveKnowledge(
   db: SupabaseClient,
   accountId: string,
-  config: Pick<AiConfig, 'embeddingsApiKey'>,
+  config: Pick<AiConfig, 'embeddingsApiKey' | 'id'>,
   queryText: string,
   k = 5,
 ): Promise<string[]> {
@@ -95,11 +99,16 @@ export async function retrieveKnowledge(
   // every draft / auto-reply would pay for a query embedding + two RPCs
   // just to get []. One cheap indexed COUNT (head, no rows) instead of a
   // paid embeddings call on the hot path.
+  // Each agent has its own knowledge base; `config.id` scopes it.
+  const agentId = config.id ?? null
   try {
-    const { count, error } = await db
+    const base = db
       .from('ai_knowledge_chunks')
       .select('id', { count: 'exact', head: true })
       .eq('account_id', accountId)
+    const { count, error } = await (agentId
+      ? base.eq('ai_config_id', agentId)
+      : base)
     if (error || !count) return []
   } catch {
     return []
@@ -116,6 +125,7 @@ export async function retrieveKnowledge(
           p_account_id: accountId,
           p_query_embedding: toVectorLiteral(queryEmbedding),
           p_match_count: k,
+          ...(agentId ? { p_ai_config_id: agentId } : {}),
         })
         if (!error && Array.isArray(data)) {
           for (const row of data as MatchRow[]) picked.set(row.id, row.content)
@@ -133,6 +143,7 @@ export async function retrieveKnowledge(
         p_account_id: accountId,
         p_query: query,
         p_match_count: k,
+        ...(agentId ? { p_ai_config_id: agentId } : {}),
       })
       if (!error && Array.isArray(data)) {
         for (const row of data as MatchRow[]) {

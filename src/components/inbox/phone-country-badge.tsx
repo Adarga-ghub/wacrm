@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { getPhoneCountry } from "@/lib/whatsapp/phone-country";
+import { countryNameFromIso, getPhoneCountry } from "@/lib/whatsapp/phone-country";
+import { useSimulatedCountry } from "@/components/agents/use-ai-agents";
 import { cn } from "@/lib/utils";
 
 /**
@@ -15,7 +16,18 @@ import { cn } from "@/lib/utils";
  * The drag is clamped to the offset parent (the messages area).
  */
 export function PhoneCountryBadge({ phone, className }: { phone: string | null | undefined; className?: string }) {
-  const country = useMemo(() => getPhoneCountry(phone), [phone]);
+  // A saved AI test number (AI Agents → Números de prueba) shows its
+  // simulated country, the same one the agent routing uses.
+  const simulatedIso = useSimulatedCountry(phone);
+  const country = useMemo(() => {
+    const real = getPhoneCountry(phone);
+    if (!simulatedIso) return real;
+    return {
+      iso: simulatedIso,
+      dialCode: real?.dialCode ?? "",
+      name: countryNameFromIso(simulatedIso),
+    };
+  }, [phone, simulatedIso]);
   const [imgFailed, setImgFailed] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
@@ -71,7 +83,11 @@ export function PhoneCountryBadge({ phone, className }: { phone: string | null |
   return (
     <span
       ref={elRef}
-      title={`${country.name} (+${country.dialCode})`}
+      title={
+        simulatedIso
+          ? `${country.name} — país simulado (número de prueba)`
+          : `${country.name} (+${country.dialCode})`
+      }
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
@@ -98,7 +114,11 @@ export function PhoneCountryBadge({ phone, className }: { phone: string | null |
         />
       )}
       <span className="truncate">{country.name}</span>
-      <span className="text-muted-foreground">+{country.dialCode}</span>
+      {simulatedIso ? (
+        <span className="text-amber-600 dark:text-amber-400">(prueba)</span>
+      ) : (
+        <span className="text-muted-foreground">+{country.dialCode}</span>
+      )}
     </span>
   );
 }

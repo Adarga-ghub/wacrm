@@ -117,3 +117,20 @@ export function getPhoneCountry(phone: string | null | undefined, locale = "es")
   }
   return null;
 }
+
+/** Localized name for an ISO 3166-1 alpha-2 code (e.g. "DO" → "República Dominicana"). */
+export function countryNameFromIso(iso: string, locale = "es"): string {
+  return countryName(iso.toUpperCase(), locale);
+}
+
+/** Every country this module can detect from a phone number, sorted by
+ *  localized name — the options for AI agent country routing. */
+export function listPhoneCountries(locale = "es"): { iso: string; name: string }[] {
+  const isos = new Set<string>([
+    ...Object.values(CALLING_CODES),
+    ...Object.values(NANP_AREA_CODES),
+  ]);
+  return Array.from(isos)
+    .map((iso) => ({ iso, name: countryName(iso, locale) }))
+    .sort((a, b) => a.name.localeCompare(b.name, locale));
+}

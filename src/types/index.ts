@@ -210,6 +210,9 @@ export interface Conversation {
   ai_autoreply_disabled?: boolean;
   ai_reply_count?: number;
   ai_handoff_summary?: string | null;
+  /** AI agent (`ai_configs.id`) that owns this thread — set on its first
+   *  auto-reply; no other agent answers it afterwards (migration 072). */
+  ai_agent_id?: string | null;
   /**
    * Mirror of the most recent Click-to-WhatsApp ad referral seen on
    * this conversation (migration 042) — overwritten, not merged, when

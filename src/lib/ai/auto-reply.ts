@@ -7,6 +7,7 @@ import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
+import { resolveAutoReplyAgent, recordConversationAgent } from './routing'
 import { engineSendText } from '@/lib/flows/meta-send'
 import { dispatchOutboundMessage } from '@/lib/automations/engine'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
@@ -106,7 +107,18 @@ export async function dispatchInboundToAiReply(
   try {
     const db = supabaseAdmin()
 
-    const config = await loadAiConfig(db, accountId)
+    // Multi-agent routing: the agent that already owns this thread, else
+    // the agent for the customer's country, else the default agent.
+    // null → the owning agent is off; stay quiet rather than letting a
+    // different agent cut into the conversation.
+    const route = await resolveAutoReplyAgent(db, {
+      accountId,
+      conversationId,
+      contactId,
+    })
+    if (!route) return
+
+    const config = await loadAiConfig(db, accountId, { agentId: route.agentId })
     if (!config || !config.autoReplyEnabled) return
 
     // Legacy single-responder mode, opt-in via the "Run in parallel with
@@ -273,6 +285,9 @@ export async function dispatchInboundToAiReply(
       return
     }
     if (claimed !== true) return // lost the per-conversation cap race
+
+    // This agent now owns the thread — no other agent will answer it.
+    await recordConversationAgent(db, conversationId, route)
 
     await engineSendText({
       accountId,

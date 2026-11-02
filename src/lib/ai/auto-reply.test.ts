@@ -25,6 +25,12 @@ vi.mock('./context', () => ({
   AI_CONTEXT_CONTENT_TYPES: ['text', 'audio', 'image'],
 }))
 vi.mock('./knowledge', () => ({ retrieveKnowledge: h.retrieveKnowledge }))
+// Multi-agent routing is covered in routing.test.ts; here every inbound
+// goes to the default agent, as before multi-agent support.
+vi.mock('./routing', () => ({
+  resolveAutoReplyAgent: async () => ({ agentId: null, record: 'none' }),
+  recordConversationAgent: async () => {},
+}))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
 vi.mock('@/lib/flows/meta-send', () => ({ engineSendText: h.engineSendText }))
 vi.mock('@/lib/automations/engine', () => ({

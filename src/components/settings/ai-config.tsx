@@ -54,10 +54,24 @@ const KEY_PLACEHOLDER: Record<AiProvider, string> = {
   anthropic: 'sk-ant-...',
 };
 
-export function AiConfig() {
+export function AiConfig({
+  agentId,
+  isDefaultAgent = true,
+  onSaved,
+  onRemoved,
+}: {
+  /** Agent being edited; omitted = the account's default agent. */
+  agentId?: string | null;
+  /** The default agent can only be removed when it is the last one. */
+  isDefaultAgent?: boolean;
+  /** Called after a successful save / removal (refreshes the agent list). */
+  onSaved?: () => void;
+  onRemoved?: () => void;
+} = {}) {
   const { accountId, accountRole, profileLoading } = useAuth();
   const canEdit = accountRole ? canEditSettings(accountRole) : false;
   const t = useTranslations('Settings.aiConfig');
+  const agentQuery = agentId ? `?agentId=${encodeURIComponent(agentId)}` : '';
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -102,7 +116,7 @@ export function AiConfig() {
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/config');
+      const res = await fetch(`/api/ai/config${agentQuery}`);
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.error ?? t('loadFailed'));
@@ -136,7 +150,7 @@ export function AiConfig() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [agentQuery]);
 
   useEffect(() => {
     if (!accountId || loadedAccountIdRef.current === accountId) return;
@@ -183,7 +197,7 @@ export function AiConfig() {
   const handleTest = async () => {
     setTesting(true);
     try {
-      const res = await fetch('/api/ai/test', {
+      const res = await fetch(`/api/ai/test${agentQuery}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -213,7 +227,7 @@ export function AiConfig() {
     }
     setSaving(true);
     try {
-      const res = await fetch('/api/ai/config', {
+      const res = await fetch(`/api/ai/config${agentQuery}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildBody()),
@@ -222,6 +236,7 @@ export function AiConfig() {
       if (res.ok) {
         toast.success(t('saveSuccess'));
         await fetchConfig();
+        onSaved?.();
       } else {
         toast.error(data.error ?? t('saveFailed'));
       }
@@ -235,8 +250,9 @@ export function AiConfig() {
   const handleRemove = async () => {
     setRemoving(true);
     try {
-      const res = await fetch('/api/ai/config', { method: 'DELETE' });
+      const res = await fetch(`/api/ai/config${agentQuery}`, { method: 'DELETE' });
       if (res.ok) {
+        onRemoved?.();
         toast.success(t('removeSuccess'));
         setConfigured(false);
         setHasStoredKey(false);
@@ -575,6 +591,7 @@ export function AiConfig() {
         </Card>
 
         <AiKnowledgeCard
+          agentId={agentId}
           accountId={accountId}
           canEdit={canEdit}
           hasEmbeddingsKey={
@@ -597,7 +614,7 @@ export function AiConfig() {
               ) : (
                 <Trash2 className="mr-2 h-4 w-4" />
               )}
-              {t('remove')}
+              {isDefaultAgent ? t('remove') : 'Eliminar este agente'}
             </Button>
           ) : (
             <span />

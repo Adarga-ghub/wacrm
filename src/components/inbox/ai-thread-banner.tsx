@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/hooks/use-auth";
+import { useAiAgentName } from "@/components/agents/use-ai-agents";
 
 // ------------------------------------------------------------
 // Account AI status is the same for every conversation, so cache it per
@@ -33,7 +34,11 @@ async function fetchAiAccountStatus(accountId: string): Promise<AiAccountStatus>
     const status = {
       // AI auto-reply is "live" only when configured, the master switch
       // is on, and the inbound bot is enabled.
-      autoReplyOn: !!(j?.configured && j?.is_active && j?.auto_reply_enabled),
+      // With several agents, any one of them auto-replying counts.
+      autoReplyOn: !!(
+        j?.configured &&
+        (j?.any_auto_reply_on ?? (j?.is_active && j?.auto_reply_enabled))
+      ),
     };
     statusCache.set(accountId, status);
     return status;
@@ -53,6 +58,8 @@ interface AiThreadBannerProps {
   assignedAgentId?: string | null;
   /** The acting agent — "Take over" assigns the thread to them. */
   currentUserId?: string | null;
+  /** `conversations.ai_agent_id` — the AI agent that owns this thread. */
+  aiAgentId?: string | null;
   /** Called after a successful toggle so the parent can patch its local
    *  conversation state (the realtime UPDATE also arrives, but this keeps
    *  the banner instant). */
@@ -76,10 +83,12 @@ export function AiThreadBanner({
   handoffSummary,
   assignedAgentId,
   currentUserId,
+  aiAgentId,
   onChange,
 }: AiThreadBannerProps) {
   const t = useTranslations("Inbox.aiBanner");
   const { accountId } = useAuth();
+  const agentName = useAiAgentName(aiAgentId);
   const [autoReplyOn, setAutoReplyOn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   // Optimistic local mirror of the pause flag so the banner flips
@@ -167,6 +176,14 @@ export function AiThreadBanner({
         <span className="truncate font-medium text-foreground">
           {t("activeText")}
         </span>
+        {agentName && (
+          <span
+            className="flex-shrink-0 truncate rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+            title="Agente de IA que atiende este chat"
+          >
+            {agentName}
+          </span>
+        )}
       </div>
       <BannerButton onClick={() => toggle(true)} busy={busy} icon={Hand}>
         {t("takeOver")}

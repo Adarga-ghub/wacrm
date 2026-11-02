@@ -4,6 +4,7 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { validateAiCredentials } from '@/lib/ai/validate'
 import { AiError, type AiProvider } from '@/lib/ai/types'
+import { agentIdFromRequest } from '@/lib/ai/agents'
 
 /**
  * POST /api/ai/test  (admin+)
@@ -41,11 +42,14 @@ export async function POST(request: Request) {
     const rawKey = typeof body.api_key === 'string' ? body.api_key.trim() : ''
     let apiKeyPlain = rawKey
     if (!apiKeyPlain) {
-      const { data: existing } = await supabase
+      const agentId = agentIdFromRequest(request)
+      const base = supabase
         .from('ai_configs')
         .select('api_key')
         .eq('account_id', accountId)
-        .maybeSingle()
+      const { data: existing } = await (
+        agentId ? base.eq('id', agentId) : base.eq('is_default', true)
+      ).maybeSingle()
       if (!existing?.api_key) {
         return NextResponse.json(
           { error: 'Enter an API key to test.' },

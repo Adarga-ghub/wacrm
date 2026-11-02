@@ -10,6 +10,10 @@ import { validateAiCredentials } from '@/lib/ai/validate'
 import { embedTexts } from '@/lib/ai/embeddings'
 import { AiError, type AiProvider } from '@/lib/ai/types'
 import { clampAutoReplyDebounceSeconds } from '@/lib/ai/defaults'
+import { agentIdFromRequest } from '@/lib/ai/agents'
+
+/** Name given to an account's first (default) agent. */
+const DEFAULT_AGENT_NAME = 'Agente principal'
 
 function bad(message: string) {
   return NextResponse.json({ error: message }, { status: 400 })
@@ -21,20 +25,27 @@ function bad(message: string) {
  * Any member may read the config so the inbox/settings can reflect
  * whether AI is set up. The encrypted key is NEVER returned — only a
  * `has_key` flag; the settings form shows a masked placeholder.
+ *
+ * `?agentId=` selects one agent; without it the default agent is
+ * returned, plus `any_auto_reply_on` (is ANY agent auto-replying — the
+ * inbox banner uses it).
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { supabase, accountId } = await getCurrentAccount()
+    const agentId = agentIdFromRequest(request)
 
-    const { data, error } = await supabase
+    const base = supabase
       .from('ai_configs')
       // `api_key` is selected only to derive `has_key` — it is stripped
       // out below and never returned to the client.
       .select(
-        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, run_parallel_with_flows, auto_reply_debounce_enabled, auto_reply_debounce_seconds, api_key, embeddings_api_key',
+        'id, name, is_default, countries, provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, run_parallel_with_flows, auto_reply_debounce_enabled, auto_reply_debounce_seconds, api_key, embeddings_api_key',
       )
       .eq('account_id', accountId)
-      .maybeSingle()
+    const { data, error } = await (
+      agentId ? base.eq('id', agentId) : base.eq('is_default', true)
+    ).maybeSingle()
 
     if (error) {
       console.error('[ai/config GET] fetch error:', error)
@@ -48,10 +59,24 @@ export async function GET() {
     // The keys are selected only to derive the has_* flags; neither is
     // returned to the client.
     const { api_key, embeddings_api_key, ...safe } = data
+
+    let anyAutoReplyOn = !!(data.is_active && data.auto_reply_enabled)
+    if (!agentId && !anyAutoReplyOn) {
+      const { data: live } = await supabase
+        .from('ai_configs')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('is_active', true)
+        .eq('auto_reply_enabled', true)
+        .limit(1)
+      anyAutoReplyOn = !!live && live.length > 0
+    }
+
     return NextResponse.json({
       configured: true,
       has_key: !!api_key,
       has_embeddings_key: !!embeddings_api_key,
+      any_auto_reply_on: anyAutoReplyOn,
       ...safe,
     })
   } catch (err) {
@@ -137,12 +162,19 @@ export async function POST(request: Request) {
         : ''
     const clearEmbeddingsKey = body.embeddings_api_key === null
 
-    // Reuse the stored key when the form didn't send a fresh one.
-    const { data: existing } = await supabase
+    // Which agent: `?agentId=` or the default one. Reuse the stored key
+    // when the form didn't send a fresh one.
+    const agentId = agentIdFromRequest(request)
+    const existingBase = supabase
       .from('ai_configs')
       .select('id, provider, model, api_key')
       .eq('account_id', accountId)
-      .maybeSingle()
+    const { data: existing } = await (
+      agentId ? existingBase.eq('id', agentId) : existingBase.eq('is_default', true)
+    ).maybeSingle()
+    if (agentId && !existing) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
+    }
 
     let apiKeyPlain: string
     if (rawKey) {
@@ -240,6 +272,7 @@ export async function POST(request: Request) {
         .from('ai_configs')
         .update(encryptedKey ? { ...shared, api_key: encryptedKey } : shared)
         .eq('account_id', accountId)
+        .eq('id', existing.id)
       if (upErr) {
         console.error('[ai/config POST] update error:', upErr)
         return NextResponse.json(
@@ -251,6 +284,8 @@ export async function POST(request: Request) {
       const { error: insErr } = await supabase.from('ai_configs').insert({
         account_id: accountId,
         created_by: userId,
+        name: DEFAULT_AGENT_NAME,
+        is_default: true,
         api_key: encryptedKey, // guaranteed non-null: rawKey required when no existing row
         ...shared,
       })
@@ -275,13 +310,45 @@ export async function POST(request: Request) {
  * Removes the account's AI config (turns everything off and forgets the
  * key). Also used to recover from a corrupted encrypted key.
  */
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
     const { supabase, accountId } = await requireRole('admin')
+    const agentId = agentIdFromRequest(request)
+
+    // `?agentId=` deletes that agent (its knowledge base cascades; its
+    // conversations fall back to routing). Without it, the default agent
+    // is removed — only allowed when it is the last agent, since the
+    // others rely on it as the fallback.
+    const targetBase = supabase
+      .from('ai_configs')
+      .select('id, is_default')
+      .eq('account_id', accountId)
+    const { data: target } = await (
+      agentId ? targetBase.eq('id', agentId) : targetBase.eq('is_default', true)
+    ).maybeSingle()
+    if (!target) return NextResponse.json({ success: true })
+
+    if (target.is_default) {
+      const { count } = await supabase
+        .from('ai_configs')
+        .select('id', { count: 'exact', head: true })
+        .eq('account_id', accountId)
+      if ((count ?? 0) > 1) {
+        return NextResponse.json(
+          {
+            error:
+              'El agente principal no se puede eliminar mientras existan otros agentes. Elimina primero los demás.',
+          },
+          { status: 409 },
+        )
+      }
+    }
+
     const { error } = await supabase
       .from('ai_configs')
       .delete()
       .eq('account_id', accountId)
+      .eq('id', target.id)
     if (error) {
       console.error('[ai/config DELETE] error:', error)
       return NextResponse.json(

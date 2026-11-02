@@ -29,11 +29,15 @@ export function AiKnowledgeCard({
   accountId,
   canEdit,
   hasEmbeddingsKey,
+  agentId,
 }: {
   accountId: string | null;
   canEdit: boolean;
   hasEmbeddingsKey: boolean;
+  /** Agent whose knowledge base this is; omitted = the default agent. */
+  agentId?: string | null;
 }) {
+  const agentQuery = agentId ? `?agentId=${encodeURIComponent(agentId)}` : '';
   const [docs, setDocs] = useState<DocSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<EditTarget>(null);
@@ -47,7 +51,7 @@ export function AiKnowledgeCard({
   const fetchDocs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/knowledge');
+      const res = await fetch(`/api/ai/knowledge${agentQuery}`);
       const data = await res.json();
       if (res.ok) setDocs(data.documents ?? []);
       else toast.error(data.error ?? t('loadFailed'));
@@ -56,13 +60,14 @@ export function AiKnowledgeCard({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [agentQuery]);
 
   useEffect(() => {
-    if (!accountId || loadedAccountIdRef.current === accountId) return;
-    loadedAccountIdRef.current = accountId;
+    const loadKey = accountId ? `${accountId}:${agentId ?? ''}` : null;
+    if (!loadKey || loadedAccountIdRef.current === loadKey) return;
+    loadedAccountIdRef.current = loadKey;
     void fetchDocs();
-  }, [accountId, fetchDocs]);
+  }, [accountId, agentId, fetchDocs]);
 
   const openNew = () => {
     setEditing('new');
@@ -101,7 +106,7 @@ export function AiKnowledgeCard({
     try {
       const isNew = editing === 'new';
       const res = await fetch(
-        isNew ? '/api/ai/knowledge' : `/api/ai/knowledge/${editing}`,
+        isNew ? `/api/ai/knowledge${agentQuery}` : `/api/ai/knowledge/${editing}`,
         {
           method: isNew ? 'POST' : 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -143,7 +148,9 @@ export function AiKnowledgeCard({
   const reindex = async () => {
     setReindexing(true);
     try {
-      const res = await fetch('/api/ai/knowledge/reindex', { method: 'POST' });
+      const res = await fetch(`/api/ai/knowledge/reindex${agentQuery}`, {
+        method: 'POST',
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         toast.success(t('reindexSuccess', { count: data.reindexed }));

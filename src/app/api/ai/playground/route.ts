@@ -53,8 +53,14 @@ export async function POST(request: Request) {
       )
     }
 
+    // Which agent to test: `agent_id` in the body, else the default one.
+    const agentId =
+      typeof body?.agent_id === 'string' && body.agent_id.trim()
+        ? body.agent_id.trim()
+        : null
     const config = await loadAiConfig(supabase, accountId, {
       requireActive: false,
+      agentId,
     }).catch((err) => {
       console.error('[ai/playground] loadAiConfig error:', err)
       throw new AiError('Stored API key could not be decrypted.', {

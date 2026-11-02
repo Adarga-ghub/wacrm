@@ -4,6 +4,8 @@ import type { AiConfig } from './types'
 import { clampAutoReplyDebounceSeconds } from './defaults'
 
 interface AiConfigRow {
+  id: string
+  name: string | null
   provider: 'openai' | 'anthropic'
   model: string
   api_key: string
@@ -19,7 +21,7 @@ interface AiConfigRow {
 }
 
 const CONFIG_COLUMNS =
-  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key, run_parallel_with_flows, auto_reply_debounce_enabled, auto_reply_debounce_seconds'
+  'id, name, provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key, run_parallel_with_flows, auto_reply_debounce_enabled, auto_reply_debounce_seconds'
 
 /**
  * Load and decrypt the account's AI config for *use* (draft or
@@ -35,14 +37,18 @@ const CONFIG_COLUMNS =
 export async function loadAiConfig(
   db: SupabaseClient,
   accountId: string,
-  opts: { requireActive?: boolean } = {},
+  opts: { requireActive?: boolean; agentId?: string | null } = {},
 ): Promise<AiConfig | null> {
-  const { requireActive = true } = opts
-  const { data, error } = await db
+  const { requireActive = true, agentId } = opts
+  // A specific agent when `agentId` is given, else the account's default
+  // (fallback) agent — the one that existed before multi-agent support.
+  const base = db
     .from('ai_configs')
     .select(CONFIG_COLUMNS)
     .eq('account_id', accountId)
-    .maybeSingle()
+  const { data, error } = await (
+    agentId ? base.eq('id', agentId) : base.eq('is_default', true)
+  ).maybeSingle()
 
   if (error) throw error
   if (!data) return null
@@ -74,6 +80,8 @@ export async function loadAiConfig(
   }
 
   return {
+    id: row.id,
+    name: row.name ?? undefined,
     provider: row.provider,
     model: row.model,
     apiKey: decrypt(row.api_key),
@@ -105,12 +113,15 @@ export async function loadAiConfig(
 export async function loadEmbeddingsKey(
   db: SupabaseClient,
   accountId: string,
+  agentId?: string | null,
 ): Promise<{ key: string | null; corrupt: boolean }> {
-  const { data, error } = await db
+  const base = db
     .from('ai_configs')
     .select('embeddings_api_key')
     .eq('account_id', accountId)
-    .maybeSingle()
+  const { data, error } = await (
+    agentId ? base.eq('id', agentId) : base.eq('is_default', true)
+  ).maybeSingle()
   if (error || !data?.embeddings_api_key) return { key: null, corrupt: false }
   try {
     return { key: decrypt(data.embeddings_api_key), corrupt: false }
