@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Bot,
+  Check,
+  ChevronDown,
   Copy,
   Crown,
   Globe2,
@@ -12,6 +14,7 @@ import {
   Phone,
   Plus,
   Save,
+  Search,
   Trash2,
   X,
 } from "lucide-react";
@@ -33,13 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { countryNameFromIso, listPhoneCountries } from "@/lib/whatsapp/phone-country";
 import {
@@ -97,7 +94,16 @@ function CountryChip({ iso, onRemove }: { iso: string; onRemove?: () => void }) 
   );
 }
 
-/** Single-country picker over every country the CRM can detect. */
+/** Lower-case and strip accents so "republica" finds "República". */
+function normalizeCountry(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+/**
+ * Searchable single-country picker over every country the CRM can detect.
+ * Typing filters the list (accent-insensitive); countries whose name
+ * starts with the text come first. Arrow keys + Enter pick without the mouse.
+ */
 function CountrySelect({
   value,
   onChange,
@@ -113,43 +119,117 @@ function CountrySelect({
   disabled?: boolean;
   className?: string;
 }) {
-  const countries = useMemo(() => listPhoneCountries("es"), []);
-  const options = exclude?.length
-    ? countries.filter((c) => !exclude.includes(c.iso))
-    : countries;
+  const countries = useMemo(
+    () => listPhoneCountries("es").map((c) => ({ ...c, key: normalizeCountry(c.name) })),
+    [],
+  );
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState(0);
+
+  const options = useMemo(() => {
+    const base = exclude?.length
+      ? countries.filter((c) => !exclude.includes(c.iso))
+      : countries;
+    const q = normalizeCountry(query);
+    if (!q) return base;
+    const starts = base.filter((c) => c.key.startsWith(q));
+    const contains = base.filter((c) => !c.key.startsWith(q) && c.key.includes(q));
+    return [...starts, ...contains];
+  }, [countries, exclude, query]);
+
+  const pick = (iso: string) => {
+    onChange(iso);
+    setOpen(false);
+  };
+
   return (
-    <Select
-      value={value}
-      onValueChange={(v) => {
-        if (typeof v === "string" && v) onChange(v);
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          setQuery("");
+          setActive(0);
+        }
       }}
-      disabled={disabled}
     >
-      <SelectTrigger className={cn("w-full sm:w-64", className)}>
-        <SelectValue>
-          {(v: string | null) =>
-            v ? (
-              <span className="flex items-center gap-1.5">
-                <Flag iso={v} />
-                {countryNameFromIso(v)}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">{placeholder}</span>
-            )
-          }
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent className="max-h-72">
-        {options.map((c) => (
-          <SelectItem key={c.iso} value={c.iso}>
-            <span className="flex items-center gap-1.5">
-              <Flag iso={c.iso} />
-              {c.name}
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      <PopoverTrigger
+        disabled={disabled}
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            className={cn("w-full justify-between font-normal sm:w-64", className)}
+          />
+        }
+      >
+        {value ? (
+          <span className="flex min-w-0 items-center gap-1.5">
+            <Flag iso={value} />
+            <span className="truncate">{countryNameFromIso(value)}</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">{placeholder}</span>
+        )}
+        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 gap-2 p-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            autoFocus
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActive(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActive((i) => Math.min(i + 1, options.length - 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActive((i) => Math.max(i - 1, 0));
+              } else if (e.key === "Enter") {
+                e.preventDefault();
+                const c = options[active];
+                if (c) pick(c.iso);
+              }
+            }}
+            placeholder="Buscar país…"
+            className="pl-8"
+          />
+        </div>
+        <div className="max-h-64 overflow-y-auto" role="listbox">
+          {options.length === 0 ? (
+            <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+              Ningún país coincide con “{query}”.
+            </p>
+          ) : (
+            options.map((c, i) => (
+              <button
+                key={c.iso}
+                type="button"
+                role="option"
+                aria-selected={c.iso === value}
+                ref={i === active ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined}
+                onMouseEnter={() => setActive(i)}
+                onClick={() => pick(c.iso)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
+                  i === active ? "bg-muted" : "hover:bg-muted",
+                )}
+              >
+                <Flag iso={c.iso} />
+                <span className="flex-1 truncate">{c.name}</span>
+                {c.iso === value && <Check className="h-4 w-4 text-primary" />}
+              </button>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
