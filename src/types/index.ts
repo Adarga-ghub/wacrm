@@ -927,6 +927,8 @@ export interface PaymentFormDesign {
   logo_url?: string;
   /** Logo on/off switch — undefined = on (every design saved before the switch existed keeps its logo). */
   logo_enabled?: boolean;
+  /** Which gateway's typography the checkout follows. Undefined = 'paypal', the original look. */
+  font_style?: 'paypal' | 'whop';
   /** "¡Adquiere tu regalo!" line + countdown timer under it — always shown/hidden together. */
   urgency?: PaymentPageUrgency;
   /** "Fondo" block — page-wide background, Hotmart-style (see the Payment Skins builder). */
