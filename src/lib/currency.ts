@@ -48,29 +48,35 @@ export const CURRENCIES: CurrencyOption[] = [
 ];
 
 /**
- * Currencies offered by the Payments module (products/prices) — the
- * five LatAm-focused codes this product's merchants actually price
- * in. A narrower, explicitly-ordered subset of {@link CURRENCIES}
- * (which also serves the unrelated deals/pipelines picker).
+ * Currencies offered by the Payments module (products/prices): USD,
+ * EUR and the Latin American currencies Whop can charge. Honduras,
+ * Nicaragua, Venezuela and Cuba aren't here because Whop doesn't list
+ * their currencies; Panama, Ecuador and El Salvador use USD.
  *
- * `paypalSupported` matters because this app's only payment gateway
- * is PayPal (`src/lib/payments/paypal-client.ts`), and PayPal's
- * Orders v2 API only accepts a fixed list of settlement currencies
- * (developer.paypal.com/api/nvp-soap/currency-codes) — DOP, COP and
- * ARS are NOT on it (verified directly against that page), even
- * though PayPal recognizes DOP for account balances/withdrawals in
- * the Dominican Republic, which is a different thing. A price saved
- * in one of those three can still be recorded/displayed, but
- * publishing it would produce a checkout PayPal rejects at the
- * moment a customer tries to pay — so callers that create/publish a
- * live checkout must check this flag and block, not just warn.
+ * `paypalSupported` matters because PayPal's Orders v2 API only accepts
+ * a fixed list of settlement currencies
+ * (developer.paypal.com/api/nvp-soap/currency-codes). DOP, COP and ARS
+ * aren't on it, even though PayPal recognizes DOP for balances and
+ * withdrawals in the Dominican Republic; BRL is limited to accounts in
+ * Brazil. Offers in the others are charged through Whop only: PayPal
+ * isn't offered for them, and publishing needs Whop connected (see
+ * `src/lib/payments/currency-gateways.ts`).
  */
 export const PAYMENT_CURRENCIES: (CurrencyOption & { paypalSupported: boolean })[] = [
   { code: "DOP", label: "Dominican Peso", symbol: "RD$", paypalSupported: false },
   { code: "COP", label: "Colombian Peso", symbol: "$", paypalSupported: false },
   { code: "MXN", label: "Mexican Peso", symbol: "$", paypalSupported: true },
   { code: "USD", label: "US Dollar", symbol: "$", paypalSupported: true },
+  { code: "EUR", label: "Euro", symbol: "€", paypalSupported: true },
   { code: "ARS", label: "Argentine Peso", symbol: "$", paypalSupported: false },
+  { code: "BOB", label: "Bolivian Boliviano", symbol: "Bs", paypalSupported: false },
+  { code: "BRL", label: "Brazilian Real", symbol: "R$", paypalSupported: false },
+  { code: "CLP", label: "Chilean Peso", symbol: "$", paypalSupported: false },
+  { code: "CRC", label: "Costa Rican Colón", symbol: "₡", paypalSupported: false },
+  { code: "GTQ", label: "Guatemalan Quetzal", symbol: "Q", paypalSupported: false },
+  { code: "PYG", label: "Paraguayan Guaraní", symbol: "₲", paypalSupported: false },
+  { code: "PEN", label: "Peruvian Sol", symbol: "S/", paypalSupported: false },
+  { code: "UYU", label: "Uruguayan Peso", symbol: "$U", paypalSupported: false },
 ];
 
 export const PAYMENT_CURRENCY_CODES: readonly string[] = PAYMENT_CURRENCIES.map((c) => c.code);

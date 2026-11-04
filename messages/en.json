@@ -1190,7 +1190,7 @@
       "logoUrlLabel": "Logo URL",
       "amountLabel": "Amount",
       "currencyLabel": "Currency",
-      "currencyWarning": "PayPal can't process payments in this currency — only USD and MXN are supported. You can still save it, but publishing will be blocked.",
+      "currencyWarning": "PayPal can't process this currency, so buyers will only see Whop. Publishing needs Whop connected.",
       "minAmountLabel": "Minimum amount",
       "minAmountHint": "The payer can enter any amount at or above this minimum.",
       "automationLabel": "Automation to run on payment",

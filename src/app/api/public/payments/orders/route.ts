@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { resolveGateway } from '@/lib/payments/gateway'
+import { isPaypalSupportedCurrency } from '@/lib/currency'
 import { getAccessToken, createOrder } from '@/lib/payments/paypal-client'
 import { resolveWhopGateway } from '@/lib/payments/whop-gateway'
 import { createCheckoutConfiguration, WHOP_ORDER_METADATA_KEY } from '@/lib/payments/whop-client'
@@ -158,7 +159,7 @@ export async function POST(request: Request) {
   const whopGateway = useWhop ? await resolveWhopGateway(db, form.account_id) : null
   // Checked here too: a page opened before the merchant switched a
   // gateway off still has its button on screen.
-  if (useWhop ? !whopGateway?.enabled : !gateway?.enabled) {
+  if (useWhop ? !whopGateway?.enabled : !gateway?.enabled || !isPaypalSupportedCurrency(form.currency)) {
     return NextResponse.json(
       { error: 'This payment method is not available right now — please reload the page' },
       { status: 400 },

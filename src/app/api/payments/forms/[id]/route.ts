@@ -3,7 +3,8 @@ import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { isValidSlug } from '@/lib/payments/slug'
 import { isSlugAvailable, recordSlugChange } from '@/lib/payments/slug-history'
 import { enforceLockedFields } from '@/lib/payments/default-fields'
-import { PAYMENT_CURRENCY_CODES, isPaypalSupportedCurrency } from '@/lib/currency'
+import { PAYMENT_CURRENCY_CODES } from '@/lib/currency'
+import { canPublishInCurrency, publishCurrencyError } from '@/lib/payments/currency-gateways'
 import type { PaymentFormDesign, PaymentFormField, PaymentFormProduct } from '@/types'
 import { CHECKOUT_TEXT_LIMITS, designTextError, parseLimitedText } from '@/lib/payments/checkout-limits'
 
@@ -65,7 +66,7 @@ interface PutBody {
  * Comportamiento tabs post one combined payload — no per-tab
  * autosave). `currency` IS accepted here now — the "editar desde el
  * formulario de pago asociado" side of price editing — restricted to
- * `PAYMENT_CURRENCY_CODES` (the 5 the Payments module offers, see
+ * `PAYMENT_CURRENCY_CODES` (what the Payments module offers, see
  * src/lib/currency.ts). Publishing (setting `status: 'published'`,
  * here or already so) is blocked when the resulting currency isn't
  * one PayPal's Orders v2 API can actually settle in (DOP/COP/ARS
@@ -137,19 +138,17 @@ export async function PUT(
     update.currency = body.currency
   }
 
-  // Block PUBLISHING (not saving) a price in a currency PayPal can't
-  // actually process — checked against whichever currency/status this
-  // request leaves the row in, whether either one changed here or was
-  // already set from a previous save.
+  // Block PUBLISHING (not saving) a price no connected gateway can
+  // process — checked against whichever currency/status this request
+  // leaves the row in, whether either one changed here or was already
+  // set from a previous save.
   const resultingCurrency = (update.currency as string | undefined) ?? existing.currency
   const resultingStatus = (update.status as string | undefined) ?? existing.status
-  if (resultingStatus === 'published' && !isPaypalSupportedCurrency(resultingCurrency)) {
-    return NextResponse.json(
-      {
-        error: `PayPal cannot process payments in ${resultingCurrency}. Change the currency to USD or MXN before publishing.`,
-      },
-      { status: 400 },
-    )
+  if (
+    resultingStatus === 'published' &&
+    !(await canPublishInCurrency(ctx.supabase, ctx.accountId, resultingCurrency))
+  ) {
+    return NextResponse.json({ error: publishCurrencyError(resultingCurrency) }, { status: 400 })
   }
 
   if (body.fields !== undefined) {

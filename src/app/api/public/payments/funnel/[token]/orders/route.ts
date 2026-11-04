@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/payments/admin-db'
 import { resolveGateway } from '@/lib/payments/gateway'
+import { isPaypalSupportedCurrency } from '@/lib/currency'
 import { createOrder, getAccessToken } from '@/lib/payments/paypal-client'
 import {
   funnelLineItems,
@@ -49,7 +50,7 @@ export async function POST(
   }
 
   const gateway = await resolveGateway(db, parent.account_id)
-  if (!gateway?.enabled) {
+  if (!gateway?.enabled || !isPaypalSupportedCurrency(parent.currency)) {
     return NextResponse.json({ error: 'This payment method is not available right now' }, { status: 400 })
   }
 

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { generateSlug } from '@/lib/payments/slug'
 import { defaultPaymentFormFields } from '@/lib/payments/default-fields'
-import { PAYMENT_CURRENCY_CODES, isPaypalSupportedCurrency } from '@/lib/currency'
+import { PAYMENT_CURRENCY_CODES } from '@/lib/currency'
+import { canPublishInCurrency, publishCurrencyError } from '@/lib/payments/currency-gateways'
 
 /**
  * GET /api/payments/products/[id]/prices
@@ -113,11 +114,8 @@ export async function POST(
 
   const currency = body?.currency ?? account?.default_currency ?? 'USD'
 
-  if (body?.publish && !isPaypalSupportedCurrency(currency)) {
-    return NextResponse.json(
-      { error: `PayPal cannot process payments in ${currency}. Change the currency to USD or MXN before publishing.` },
-      { status: 400 },
-    )
+  if (body?.publish && !(await canPublishInCurrency(ctx.supabase, ctx.accountId, currency))) {
+    return NextResponse.json({ error: publishCurrencyError(currency) }, { status: 400 })
   }
 
   const status = body?.publish ? 'published' : 'draft'

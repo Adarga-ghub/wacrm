@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/payments/admin-db'
 import { resolveGateway } from '@/lib/payments/gateway'
+import { isPaypalSupportedCurrency } from '@/lib/currency'
 import {
   funnelMainForm,
   loadFunnelParent,
@@ -46,7 +47,7 @@ export async function GET(
   }
 
   const gateway = await resolveGateway(db, parent.account_id)
-  if (!gateway?.enabled) {
+  if (!gateway?.enabled || !isPaypalSupportedCurrency(parent.currency)) {
     return NextResponse.json({ stage: 'done', thank_you: thankYou })
   }
   const fields = parent.form_field_values ?? {}
