@@ -1250,7 +1250,7 @@
       "addEmail": "Add another email",
       "removeEmail": "Remove this email",
       "title": "Payment Gateway",
-      "description": "Connect PayPal so your checkout forms can accept real payments.",
+      "description": "Connect PayPal, Whop or both so your checkout forms can accept real payments.",
       "cardDescription": "Enter the Client ID and Secret from your PayPal app for each environment.",
       "sandbox": "Sandbox",
       "live": "Live",
