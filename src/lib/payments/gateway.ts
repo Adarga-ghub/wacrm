@@ -9,6 +9,8 @@ export interface ResolvedGateway {
   clientId: string
   clientSecret: string
   webhookId: string | null
+  /** False when the merchant switched PayPal off: no NEW payments, but orders in progress still get captured. */
+  enabled: boolean
 }
 
 /**
@@ -44,5 +46,5 @@ export async function resolveGateway(
     return null
   }
 
-  return { environment: env, clientId, clientSecret, webhookId: webhookId ?? null }
+  return { environment: env, clientId, clientSecret, webhookId: webhookId ?? null, enabled: config.enabled !== false }
 }

@@ -49,8 +49,8 @@ export async function POST(
   }
 
   const gateway = await resolveGateway(db, parent.account_id)
-  if (!gateway) {
-    return NextResponse.json({ error: 'This merchant has not connected PayPal yet' }, { status: 400 })
+  if (!gateway?.enabled) {
+    return NextResponse.json({ error: 'This payment method is not available right now' }, { status: 400 })
   }
 
   const items = funnelOrderItems(step)

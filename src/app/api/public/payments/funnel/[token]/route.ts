@@ -46,11 +46,14 @@ export async function GET(
   }
 
   const gateway = await resolveGateway(db, parent.account_id)
+  if (!gateway?.enabled) {
+    return NextResponse.json({ stage: 'done', thank_you: thankYou })
+  }
   const fields = parent.form_field_values ?? {}
   return NextResponse.json({
     stage,
     offer: toPublicFunnelOffer(step, parent.currency),
-    paypal_client_id: gateway?.clientId ?? null,
+    paypal_client_id: gateway.clientId,
     buyer_name: fields['name'] || parent.payer_name || null,
     thank_you: thankYou,
   })

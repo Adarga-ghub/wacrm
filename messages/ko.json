@@ -1216,6 +1216,10 @@
       "fieldAdd": "필드 추가"
     },
     "whop": {
+      "toggleOn": "활성",
+      "toggleOff": "꺼짐",
+      "toggledOn": "결제 수단을 켰습니다",
+      "toggledOff": "결제 수단을 껐습니다. 자격 증명은 저장된 상태로 유지됩니다.",
       "notificationEmailLabel": "알림 이메일",
       "notificationEmailHint": "결제가 확인될 때마다 이 주소로 이메일을 보냅니다.",
       "addEmail": "이메일 추가",
@@ -1239,6 +1243,10 @@
       "disconnectFailed": "Whop 연결을 해제하지 못했습니다"
     },
     "gateway": {
+      "toggleOn": "활성",
+      "toggleOff": "꺼짐",
+      "toggledOn": "결제 수단을 켰습니다",
+      "toggledOff": "결제 수단을 껐습니다. 자격 증명은 저장된 상태로 유지됩니다.",
       "addEmail": "이메일 추가",
       "removeEmail": "이 이메일 삭제",
       "title": "결제 게이트웨이",

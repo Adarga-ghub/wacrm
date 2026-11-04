@@ -156,9 +156,11 @@ export async function POST(request: Request) {
   const useWhop = body.gateway === 'whop'
   const gateway = useWhop ? null : await resolveGateway(db, form.account_id)
   const whopGateway = useWhop ? await resolveWhopGateway(db, form.account_id) : null
-  if (useWhop ? !whopGateway : !gateway) {
+  // Checked here too: a page opened before the merchant switched a
+  // gateway off still has its button on screen.
+  if (useWhop ? !whopGateway?.enabled : !gateway?.enabled) {
     return NextResponse.json(
-      { error: useWhop ? 'This merchant has not connected Whop yet' : 'This merchant has not connected PayPal yet' },
+      { error: 'This payment method is not available right now — please reload the page' },
       { status: 400 },
     )
   }

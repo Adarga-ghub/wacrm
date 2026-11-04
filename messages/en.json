@@ -1216,6 +1216,10 @@
       "fieldAdd": "Add field"
     },
     "whop": {
+      "toggleOn": "Active",
+      "toggleOff": "Off",
+      "toggledOn": "Gateway turned on",
+      "toggledOff": "Gateway turned off. Your credentials stay saved.",
       "notificationEmailLabel": "Notification email",
       "notificationEmailHint": "We'll email this address every time a payment is confirmed.",
       "addEmail": "Add another email",
@@ -1239,6 +1243,10 @@
       "disconnectFailed": "Could not disconnect Whop"
     },
     "gateway": {
+      "toggleOn": "Active",
+      "toggleOff": "Off",
+      "toggledOn": "Gateway turned on",
+      "toggledOff": "Gateway turned off. Your credentials stay saved.",
       "addEmail": "Add another email",
       "removeEmail": "Remove this email",
       "title": "Payment Gateway",

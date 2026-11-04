@@ -18,6 +18,7 @@ import {
   CardDescription,
 } from "@/components/ui/card"
 import { GatewayLogo } from "@/components/payments/gateway-logo"
+import { GatewayToggle } from "@/components/payments/gateway-toggle"
 import { NotificationEmailsField } from "@/components/payments/notification-emails-field"
 
 type Environment = "sandbox" | "live"
@@ -30,6 +31,7 @@ interface EnvStatus {
 
 interface ConfigResponse {
   connected: boolean
+  enabled: boolean
   environment: Environment
   currency: string
   notification_emails: string[]
@@ -56,6 +58,7 @@ export function PaymentGatewayConfig() {
   const [clientSecret, setClientSecret] = useState("")
   const [emails, setEmails] = useState<string[]>([""])
   const [saving, setSaving] = useState(false)
+  const [toggling, setToggling] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -121,6 +124,28 @@ export function PaymentGatewayConfig() {
     }
   }
 
+  async function handleToggle(enabled: boolean) {
+    setToggling(true)
+    try {
+      const res = await fetch("/api/payments/config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || t("saveFailed"))
+        return
+      }
+      toast.success(enabled ? t("toggledOn") : t("toggledOff"))
+      setConfig((prev) => (prev ? { ...prev, enabled } : prev))
+    } catch {
+      toast.error(t("saveFailed"))
+    } finally {
+      setToggling(false)
+    }
+  }
+
   async function handleDisconnect() {
     setSaving(true)
     try {
@@ -153,8 +178,14 @@ export function PaymentGatewayConfig() {
     <section className="animate-in fade-in-50 duration-200">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-foreground">
+          <CardTitle className="flex items-center justify-between gap-2 text-foreground">
             <GatewayLogo src="/logos/paypal.svg" alt="PayPal" />
+            <GatewayToggle
+              enabled={config.connected && config.enabled}
+              disabled={readOnly || toggling || !config.connected}
+              onChange={handleToggle}
+              label={config.connected && config.enabled ? t("toggleOn") : t("toggleOff")}
+            />
           </CardTitle>
           <CardDescription className="text-muted-foreground">
             {t("cardDescription")}

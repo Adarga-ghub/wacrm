@@ -22,13 +22,14 @@ export async function GET() {
   const { data: config } = await ctx.supabase
     .from('whop_gateway_credentials')
     .select(
-      'environment, sandbox_company_id, sandbox_api_key, sandbox_webhook_id, live_company_id, live_api_key, live_webhook_id, notification_emails',
+      'environment, sandbox_company_id, sandbox_api_key, sandbox_webhook_id, live_company_id, live_api_key, live_webhook_id, notification_emails, enabled',
     )
     .eq('account_id', ctx.accountId)
     .maybeSingle()
 
   return NextResponse.json({
     connected: !!config,
+    enabled: config?.enabled ?? true,
     environment: config?.environment ?? 'sandbox',
     notification_emails: config?.notification_emails ?? [],
     sandbox: {
@@ -155,6 +156,38 @@ export async function PUT(request: Request) {
   }
 
   return NextResponse.json({ success: true, environment: env, webhook_registered: !!webhookId })
+}
+
+/**
+ * PATCH — turns Whop on or off for new payments. Its credentials stay saved.
+ */
+export async function PATCH(request: Request) {
+  let ctx
+  try {
+    ctx = await requireRole('admin')
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+
+  const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null
+  if (typeof body?.enabled !== 'boolean') {
+    return NextResponse.json({ error: 'enabled must be true or false' }, { status: 400 })
+  }
+
+  const { data, error } = await ctx.supabase
+    .from('whop_gateway_credentials')
+    .update({ enabled: body.enabled })
+    .eq('account_id', ctx.accountId)
+    .select('enabled')
+    .maybeSingle()
+  if (error) {
+    console.error('[payments config PATCH] failed:', error)
+    return NextResponse.json({ error: 'Failed to save' }, { status: 500 })
+  }
+  if (!data) {
+    return NextResponse.json({ error: 'Connect Whop first' }, { status: 400 })
+  }
+  return NextResponse.json({ success: true, enabled: data.enabled })
 }
 
 /** DELETE /api/payments/whop/config — disconnects Whop only; PayPal's credentials are a separate table. */

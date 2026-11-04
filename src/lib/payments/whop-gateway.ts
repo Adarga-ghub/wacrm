@@ -8,6 +8,8 @@ export interface ResolvedWhopGateway {
   environment: WhopEnvironment
   companyId: string
   apiKey: string
+  /** False when the merchant switched Whop off: no NEW payments, but orders in progress still get confirmed. */
+  enabled: boolean
 }
 
 function decryptOrNull(value: string | null | undefined): string | null {
@@ -42,7 +44,7 @@ export async function resolveWhopGateway(
     environment === 'sandbox' ? config.sandbox_api_key : config.live_api_key,
   )
   if (!companyId || !apiKey) return null
-  return { environment, companyId, apiKey }
+  return { environment, companyId, apiKey, enabled: config.enabled !== false }
 }
 
 /** Both environments' signing secrets: a delivery may belong to either, and only one will verify. */

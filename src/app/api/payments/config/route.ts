@@ -26,7 +26,7 @@ export async function GET() {
     ctx.supabase
       .from('payment_gateway_credentials')
       .select(
-        'environment, sandbox_client_id, sandbox_webhook_id, live_client_id, live_webhook_id, notification_email, extra_notification_emails',
+        'environment, sandbox_client_id, sandbox_webhook_id, live_client_id, live_webhook_id, notification_email, extra_notification_emails, enabled',
       )
       .eq('account_id', ctx.accountId)
       .maybeSingle(),
@@ -39,6 +39,7 @@ export async function GET() {
 
   return NextResponse.json({
     connected: !!config,
+    enabled: config?.enabled ?? true,
     environment: config?.environment ?? 'sandbox',
     currency: account?.default_currency ?? 'USD',
     notification_emails: [
@@ -208,6 +209,38 @@ export async function PUT(request: Request) {
     environment: body.environment,
     webhook_registered: !!webhookId,
   })
+}
+
+/**
+ * PATCH — turns PayPal on or off for new payments. Its credentials stay saved.
+ */
+export async function PATCH(request: Request) {
+  let ctx
+  try {
+    ctx = await requireRole('admin')
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+
+  const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null
+  if (typeof body?.enabled !== 'boolean') {
+    return NextResponse.json({ error: 'enabled must be true or false' }, { status: 400 })
+  }
+
+  const { data, error } = await ctx.supabase
+    .from('payment_gateway_credentials')
+    .update({ enabled: body.enabled })
+    .eq('account_id', ctx.accountId)
+    .select('enabled')
+    .maybeSingle()
+  if (error) {
+    console.error('[payments config PATCH] failed:', error)
+    return NextResponse.json({ error: 'Failed to save' }, { status: 500 })
+  }
+  if (!data) {
+    return NextResponse.json({ error: 'Connect PayPal first' }, { status: 400 })
+  }
+  return NextResponse.json({ success: true, enabled: data.enabled })
 }
 
 /**
