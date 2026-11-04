@@ -1142,6 +1142,7 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
               <WhopEmbeddedCheckout
                 checkoutConfigurationId={whopCheckout.id}
                 returnUrl={whopCheckout.returnUrl}
+                locale={locale}
               />
             ) : (
               <button
