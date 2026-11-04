@@ -1076,6 +1076,8 @@ export interface PublicPaymentForm {
   design: PaymentFormDesign;
   /** The account's active-environment PayPal Client ID — safe to expose (it's designed to ship in client-side JS). Null when the merchant hasn't connected PayPal yet. */
   paypal_client_id: string | null;
+  /** Whether the account has connected Whop (migration 073), offered next to PayPal. */
+  whop_enabled: boolean;
   /** Set when this price is linked to a Producto (migration 054) — the checkout page renders title/description/image/author from here instead of the bare form/skin fields. Null for a standalone form. */
   product: PublicPaymentProduct | null;
   /** "Descripción de la Página de Pago" (migration 057) — unlike `PublicPaymentProduct`, which deliberately excludes `description`, this ONE is meant to reach the public checkout by design. Null = nothing configured for this offer. */
@@ -1252,6 +1254,8 @@ export interface PaymentTransaction {
   contact_id: string | null;
   paypal_order_id: string;
   paypal_capture_id: string | null;
+  /** Who processed it (migration 073). For 'whop', the two ids above hold our `whop_...` reference and Whop's `pay_...`. */
+  gateway: 'paypal' | 'whop';
   status: PaymentTransactionStatus;
   amount: number;
   currency: string;

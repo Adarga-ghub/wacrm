@@ -155,6 +155,12 @@ export interface PayPageStrings {
   startError: string
   thankYou: string
   noGateway: string
+  whopPayButton: string
+  whopConfirming: string
+  whopRedirecting: string
+  whopStillPending: string
+  whopNotCharged: string
+  whopBackToCheckout: string
   /** "Cambiar país" — label next to the current country code in the checkout header's country picker (replaces a bare ES/EN toggle). */
   changeCountry: string
   or: string
@@ -220,6 +226,12 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     startError: 'No se pudo iniciar el pago — inténtalo de nuevo',
     thankYou: 'Gracias — tu pago fue recibido.',
     noGateway: 'Este comercio todavía no ha conectado PayPal.',
+    whopPayButton: 'Pagar con tarjeta u otros métodos',
+    whopConfirming: 'Confirmando tu pago…',
+    whopRedirecting: '¡Pago exitoso! Te estamos redirigiendo…',
+    whopStillPending: 'Tu pago se está procesando. Te lo confirmaremos por correo en cuanto termine.',
+    whopNotCharged: 'El pago no se completó y no se te cobró nada.',
+    whopBackToCheckout: 'Volver a la página de pago',
     changeCountry: 'Cambiar país',
     or: 'o',
     cardSectionTitle: 'Tarjeta de débito o crédito',
@@ -268,6 +280,12 @@ export const payPageStrings: Record<PayLocale, PayPageStrings> = {
     startError: 'Could not start the payment — please try again',
     thankYou: 'Thank you — your payment was received.',
     noGateway: "This merchant hasn't connected PayPal yet.",
+    whopPayButton: 'Pay with card or other methods',
+    whopConfirming: 'Confirming your payment…',
+    whopRedirecting: 'Payment successful! Redirecting you…',
+    whopStillPending: "Your payment is being processed. We'll confirm by email as soon as it finishes.",
+    whopNotCharged: "The payment wasn't completed and you weren't charged.",
+    whopBackToCheckout: 'Back to the checkout',
     changeCountry: 'Change country',
     or: 'or',
     cardSectionTitle: 'Debit or Credit Card',

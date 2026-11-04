@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { resolveGateway } from '@/lib/payments/gateway'
 import { getAccessToken, createOrder } from '@/lib/payments/paypal-client'
+import { resolveWhopGateway } from '@/lib/payments/whop-gateway'
+import { createCheckoutConfiguration, WHOP_ORDER_METADATA_KEY } from '@/lib/payments/whop-client'
+import { resolveBaseUrl } from '@/lib/payments/site-url'
 import { normalizePhone } from '@/lib/whatsapp/phone-utils'
 import { isUuid } from '@/lib/payments/checkout-tracking'
 import { fromCents, loadOrderBumps, toCents, type ResolvedOrderBump } from '@/lib/payments/order-bumps'
@@ -31,6 +34,8 @@ interface OrderBody {
   checkout_session_id?: string
   /** Ticked order bumps (`payment_order_bumps.id`, migration 061) — only ids, never prices: each one is re-validated against this form and priced server-side. */
   bump_ids?: string[]
+  /** Which gateway the buyer chose; anything but 'whop' is PayPal, as it always was. */
+  gateway?: 'paypal' | 'whop'
 }
 
 /**
@@ -148,9 +153,14 @@ export async function POST(request: Request) {
   const totalCents = toCents(mainAmount) + selectedBumps.reduce((sum, b) => sum + toCents(b.price), 0)
   amount = totalCents / 100
 
-  const gateway = await resolveGateway(db, form.account_id)
-  if (!gateway) {
-    return NextResponse.json({ error: 'This merchant has not connected PayPal yet' }, { status: 400 })
+  const useWhop = body.gateway === 'whop'
+  const gateway = useWhop ? null : await resolveGateway(db, form.account_id)
+  const whopGateway = useWhop ? await resolveWhopGateway(db, form.account_id) : null
+  if (useWhop ? !whopGateway : !gateway) {
+    return NextResponse.json(
+      { error: useWhop ? 'This merchant has not connected Whop yet' : 'This merchant has not connected PayPal yet' },
+      { status: 400 },
+    )
   }
 
   // Resolve the exact item name/description PayPal will show on its
@@ -176,11 +186,36 @@ export async function POST(request: Request) {
   }
 
   let orderId: string
-  try {
-    const { accessToken } = await getAccessToken(gateway)
+  let whopCheckout: { id: string; purchase_url: string; return_url: string; environment: string } | null = null
+  if (whopGateway) {
+    orderId = `whop_${crypto.randomUUID()}`
+    const returnUrl = `${resolveBaseUrl(request)}/pay/whop-return?order=${orderId}&slug=${encodeURIComponent(body.slug)}`
+    try {
+      const checkout = await createCheckoutConfiguration({
+        environment: whopGateway.environment,
+        apiKey: whopGateway.apiKey,
+        companyId: whopGateway.companyId,
+        currency: form.currency,
+        amount: totalCents / 100,
+        title: selectedBumps.length > 0 ? `${itemName} + ${selectedBumps.length}` : itemName,
+        metadata: { [WHOP_ORDER_METADATA_KEY]: orderId },
+        redirectUrl: returnUrl,
+      })
+      whopCheckout = {
+        id: checkout.id,
+        purchase_url: checkout.purchase_url,
+        return_url: returnUrl,
+        environment: whopGateway.environment,
+      }
+    } catch (err) {
+      console.error('[public/payments/orders POST] Whop checkout failed:', err instanceof Error ? err.message : err)
+      return NextResponse.json({ error: 'Could not start the payment — please try again' }, { status: 502 })
+    }
+  } else try {
+    const { accessToken } = await getAccessToken(gateway!)
     const order = await createOrder({
       accessToken,
-      environment: gateway.environment,
+      environment: gateway!.environment,
       currency: form.currency,
       amount: fromCents(totalCents),
       referenceId: crypto.randomUUID(),
@@ -212,6 +247,9 @@ export async function POST(request: Request) {
     form_id: form.id,
     link_id: link?.id ?? null,
     paypal_order_id: orderId,
+    // Only set for Whop: PayPal orders rely on the column default, so
+    // they keep working even before migration 073 reaches a database.
+    ...(whopGateway ? { gateway: 'whop' } : {}),
     status: 'created',
     amount,
     line_items: lineItems,
@@ -256,5 +294,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ order_id: orderId })
+  return NextResponse.json({ order_id: orderId, ...(whopCheckout ? { whop: whopCheckout } : {}) })
 }

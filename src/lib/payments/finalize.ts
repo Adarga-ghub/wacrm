@@ -49,7 +49,10 @@ export async function finalizePaymentTransaction(
   if (!txn) return
   if (txn.status === 'completed') return
 
-  await db
+  // Only the caller that actually flips the status continues, so two
+  // simultaneous arrivals (Whop's return page and webhook usually land
+  // together) can't both send the receipt and run the automation.
+  const { data: claimed } = await db
     .from('payment_transactions')
     .update({
       status: 'completed',
@@ -58,6 +61,9 @@ export async function finalizePaymentTransaction(
       payer_email: args.payerEmail ?? txn.payer_email,
     })
     .eq('id', txn.id)
+    .neq('status', 'completed')
+    .select('id')
+  if (!claimed?.length) return
 
   // Checkout funnel (migration 060) — best-effort, never blocks the
   // receipt/automation steps below.
@@ -79,7 +85,7 @@ export async function finalizePaymentTransaction(
     db.from('accounts').select('name').eq('id', args.accountId).maybeSingle(),
     db
       .from('payment_gateway_credentials')
-      .select('notification_email')
+      .select('notification_email, extra_notification_emails')
       .eq('account_id', args.accountId)
       .maybeSingle(),
   ])
@@ -214,18 +220,39 @@ export async function finalizePaymentTransaction(
           attachments: [{ filename: `receipt-${receiptNumber}.pdf`, content: pdf }],
         })
       }
-      if (gatewayConfig?.notification_email) {
-        await sendEmail({
-          to: gatewayConfig.notification_email,
-          subject: `New payment received — ${itemLabel}`,
-          html: merchantNotificationEmailHtml({
-            formName: itemLabel,
-            amount: Number(txn.amount),
-            currency: txn.currency,
-            buyerName,
-            buyerPhone: txn.whatsapp_phone,
+      // Each gateway card has its own alert addresses, up to three each.
+      let merchantEmails: string[] = [
+        ...(gatewayConfig?.notification_email ? [gatewayConfig.notification_email] : []),
+        ...(gatewayConfig?.extra_notification_emails ?? []),
+      ]
+      if (txn.gateway === 'whop') {
+        const { data: whopConfig } = await db
+          .from('whop_gateway_credentials')
+          .select('notification_emails')
+          .eq('account_id', args.accountId)
+          .maybeSingle()
+        merchantEmails = whopConfig?.notification_emails ?? []
+      }
+      // Separately, so one bad address doesn't cost the others their alert.
+      const merchantAlerts = await Promise.allSettled(
+        merchantEmails.map((to) =>
+          sendEmail({
+            to,
+            subject: `New payment received — ${itemLabel}`,
+            html: merchantNotificationEmailHtml({
+              formName: itemLabel,
+              amount: Number(txn.amount),
+              currency: txn.currency,
+              buyerName,
+              buyerPhone: txn.whatsapp_phone,
+            }),
           }),
-        })
+        ),
+      )
+      for (const alert of merchantAlerts) {
+        if (alert.status === 'rejected' || !alert.value.ok) {
+          console.error('[payments/finalize] merchant alert failed:', alert.status === 'rejected' ? alert.reason : alert.value.error)
+        }
       }
       await db
         .from('payment_transactions')

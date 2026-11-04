@@ -15,6 +15,7 @@
 // ============================================================
 
 import { Suspense, useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react"
+import dynamic from "next/dynamic"
 import { useParams, useSearchParams } from "next/navigation"
 import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock, LockKeyhole } from "lucide-react"
 
@@ -44,6 +45,15 @@ declare global {
     paypal?: any
   }
 }
+
+const WhopEmbeddedCheckout = dynamic(() => import("@/components/payments/whop-embedded-checkout"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-24 items-center justify-center">
+      <Loader2 className="size-6 animate-spin text-primary" />
+    </div>
+  ),
+})
 
 /** PayPal's own two-tone wordmark colors ("Pay" dark navy, "Pal" light blue) — used verbatim for the "Powered by PayPal" trust badge so it matches PayPal's brand rendering exactly. Don't substitute theme tokens here; these are fixed brand colors, not accent-dependent. */
 const PAYPAL_WORDMARK_COLORS = {
@@ -235,6 +245,14 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
     setSelectedBumpIds((prev) => (on ? [...prev, bumpId] : prev.filter((id) => id !== bumpId)))
     refreshButtonsIfOrderOpen()
   }
+  // Whop's checkout for the order currently open, if any. Changing the
+  // purchase closes it, since its price was fixed when it was created.
+  const [whopCheckout, setWhopCheckout] = useState<{ id: string; returnUrl: string } | null>(null)
+  const [whopStarting, setWhopStarting] = useState(false)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWhopCheckout(null)
+  }, [selectedBumpIds, selectedProductId, variableAmount])
   const [sdkReady, setSdkReady] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<{ inline_message: string | null } | null>(null)
@@ -701,6 +719,56 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
     }
   }
 
+  /** Creates the order on our server, which fixes the price, then opens Whop's checkout for it. */
+  const startWhopCheckout = async () => {
+    if (!form) return
+    setErrorMessage(null)
+    const missing = form.fields.filter((f) => f.required && !fieldValues[f.id]?.trim())
+    if (missing.length > 0) {
+      setInvalidFields((prev) => ({ ...prev, ...Object.fromEntries(missing.map((f) => [f.id, true])) }))
+      setErrorMessage(t.fieldRequired(translateFieldLabel(missing[0], locale)))
+      return
+    }
+    if (form.amount_type === "product_list" && !selectedProductId) {
+      setErrorMessage(t.chooseProductError)
+      return
+    }
+    markCheckoutInitiated()
+    setWhopStarting(true)
+    try {
+      const res = await fetch("/api/public/payments/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gateway: "whop",
+          slug,
+          link_code: linkCode ?? undefined,
+          field_values: fieldValues,
+          checkout_session_id: sessionIdRef.current ?? undefined,
+          amount: form.amount_type === "variable" ? Number(variableAmount) : undefined,
+          product_id: form.amount_type === "product_list" ? selectedProductId : undefined,
+          bump_ids: selectedBumpIds.length > 0 ? selectedBumpIds : undefined,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.whop) {
+        setErrorMessage(data.error || t.startError)
+        return
+      }
+      // Whop Elements don't exist in its sandbox yet: test orders use
+      // Whop's hosted page, which runs the same order and return flow.
+      if (data.whop.environment === "sandbox") {
+        window.location.href = data.whop.purchase_url
+        return
+      }
+      setWhopCheckout({ id: data.whop.id, returnUrl: data.whop.return_url })
+    } catch {
+      setErrorMessage(t.startError)
+    } finally {
+      setWhopStarting(false)
+    }
+  }
+
   if (notFound) {
     return (
       <Card className="w-full max-w-md overflow-hidden sm:max-w-lg">
@@ -1068,6 +1136,34 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
           <p className="text-sm text-destructive">{errorMessage}</p>
         )}
 
+        {form.whop_enabled && (
+          <div className="space-y-3">
+            {whopCheckout ? (
+              <WhopEmbeddedCheckout
+                checkoutConfigurationId={whopCheckout.id}
+                returnUrl={whopCheckout.returnUrl}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={startWhopCheckout}
+                disabled={whopStarting}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-70"
+              >
+                {whopStarting ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
+                {t.whopPayButton}
+              </button>
+            )}
+            {form.paypal_client_id && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                {t.or}
+                <span className="h-px flex-1 bg-border" />
+              </div>
+            )}
+          </div>
+        )}
+
         {form.paypal_client_id ? (
           <div className="space-y-3">
             <div id="paypal-button-container" />
@@ -1148,7 +1244,7 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
               </span>
             </div>
           </div>
-        ) : (
+        ) : form.whop_enabled ? null : (
           <p className="text-center text-sm text-muted-foreground">{t.noGateway}</p>
         )}
       </CardContent>

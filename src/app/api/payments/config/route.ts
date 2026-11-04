@@ -3,6 +3,7 @@ import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 import { getAccessToken, registerWebhook } from '@/lib/payments/paypal-client'
 import { resolveBaseUrl } from '@/lib/payments/site-url'
+import { MAX_NOTIFICATION_EMAILS, normalizeNotificationEmails } from '@/lib/payments/notification-emails'
 import type { PayPalEnvironment } from '@/lib/payments/paypal-client'
 
 /**
@@ -25,7 +26,7 @@ export async function GET() {
     ctx.supabase
       .from('payment_gateway_credentials')
       .select(
-        'environment, sandbox_client_id, sandbox_webhook_id, live_client_id, live_webhook_id, notification_email',
+        'environment, sandbox_client_id, sandbox_webhook_id, live_client_id, live_webhook_id, notification_email, extra_notification_emails',
       )
       .eq('account_id', ctx.accountId)
       .maybeSingle(),
@@ -40,7 +41,10 @@ export async function GET() {
     connected: !!config,
     environment: config?.environment ?? 'sandbox',
     currency: account?.default_currency ?? 'USD',
-    notification_email: config?.notification_email ?? null,
+    notification_emails: [
+      ...(config?.notification_email ? [config.notification_email] : []),
+      ...(config?.extra_notification_emails ?? []),
+    ],
     sandbox: {
       configured: !!config?.sandbox_client_id,
       client_id: config?.sandbox_client_id ?? null,
@@ -60,8 +64,8 @@ interface PutBody {
   sandbox_client_secret?: string
   live_client_id?: string
   live_client_secret?: string
-  /** Where the "new payment received" merchant alert goes. `undefined` leaves it unchanged; `null`/`''` clears it. */
-  notification_email?: string | null
+  /** Up to three addresses for the "new payment received" alert. `undefined` leaves them unchanged; `[]` clears them. */
+  notification_emails?: string[]
 }
 
 /**
@@ -93,6 +97,15 @@ export async function PUT(request: Request) {
   const body = (await request.json().catch(() => null)) as PutBody | null
   if (!body?.environment || !['sandbox', 'live'].includes(body.environment)) {
     return NextResponse.json({ error: "environment must be 'sandbox' or 'live'" }, { status: 400 })
+  }
+
+  const notificationEmails =
+    body.notification_emails === undefined ? undefined : normalizeNotificationEmails(body.notification_emails)
+  if (notificationEmails === null) {
+    return NextResponse.json(
+      { error: `Enter valid notification emails, up to ${MAX_NOTIFICATION_EMAILS}.` },
+      { status: 400 },
+    )
   }
 
   const { data: existing } = await ctx.supabase
@@ -176,8 +189,9 @@ export async function PUT(request: Request) {
     [clientSecretField]: encrypt(clientSecret),
     [webhookIdField]: webhookId,
   }
-  if (body.notification_email !== undefined) {
-    row.notification_email = body.notification_email?.trim() || null
+  if (notificationEmails) {
+    row.notification_email = notificationEmails[0] ?? null
+    row.extra_notification_emails = notificationEmails.slice(1)
   }
 
   const { error: upsertError } = await ctx.supabase

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/payments/admin-db'
 import { resolveGateway } from '@/lib/payments/gateway'
+import { resolveWhopGateway } from '@/lib/payments/whop-gateway'
 import { loadOrderBumps } from '@/lib/payments/order-bumps'
 import type { PublicPaymentForm } from '@/types'
 
@@ -38,8 +39,9 @@ export async function loadPublicPaymentForm(slug: string): Promise<PublicPayment
   // The bumps use the same resolver `POST /api/public/payments/orders`
   // charges from — so the price shown in each bump box is exactly what
   // gets billed. Independent lookups, so they run in parallel.
-  const [gateway, skin, productRow, bumps] = await Promise.all([
+  const [gateway, whopGateway, skin, productRow, bumps] = await Promise.all([
     resolveGateway(supabaseAdmin(), data.account_id),
+    resolveWhopGateway(supabaseAdmin(), data.account_id),
     data.skin_id
       ? supabaseAdmin().from('payment_skins').select('design').eq('id', data.skin_id).maybeSingle().then((r: { data: { design: PublicPaymentForm['design'] } | null }) => r.data)
       : null,
@@ -62,6 +64,7 @@ export async function loadPublicPaymentForm(slug: string): Promise<PublicPayment
     currency: data.currency,
     design,
     paypal_client_id: gateway?.clientId ?? null,
+    whop_enabled: !!whopGateway,
     product: productRow ?? null,
     checkout_description: data.checkout_description ?? null,
     checkout_title: data.checkout_title?.trim() || null,

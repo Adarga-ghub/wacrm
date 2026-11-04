@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useTranslations } from "next-intl"
-import { CheckCircle2, Loader2, ShieldCheck, XCircle } from "lucide-react"
+import { CheckCircle2, Loader2, XCircle } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,8 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card"
-import { SettingsPanelHead } from "@/components/settings/settings-panel-head"
+import { GatewayLogo } from "@/components/payments/gateway-logo"
+import { NotificationEmailsField } from "@/components/payments/notification-emails-field"
 
 type Environment = "sandbox" | "live"
 
@@ -31,7 +32,7 @@ interface ConfigResponse {
   connected: boolean
   environment: Environment
   currency: string
-  notification_email: string | null
+  notification_emails: string[]
   sandbox: EnvStatus
   live: EnvStatus
 }
@@ -53,7 +54,7 @@ export function PaymentGatewayConfig() {
   const [environment, setEnvironment] = useState<Environment>("sandbox")
   const [clientId, setClientId] = useState("")
   const [clientSecret, setClientSecret] = useState("")
-  const [notificationEmail, setNotificationEmail] = useState("")
+  const [emails, setEmails] = useState<string[]>([""])
   const [saving, setSaving] = useState(false)
 
   async function load() {
@@ -64,7 +65,7 @@ export function PaymentGatewayConfig() {
       setConfig(data)
       setEnvironment(data.environment)
       setClientId(data[data.environment].client_id ?? "")
-      setNotificationEmail(data.notification_email ?? "")
+      setEmails(data.notification_emails.length > 0 ? data.notification_emails : [""])
     } catch {
       toast.error(t("loadFailed"))
     } finally {
@@ -102,7 +103,7 @@ export function PaymentGatewayConfig() {
           ...(clientSecret.trim()
             ? { [`${environment}_client_secret`]: clientSecret.trim() }
             : {}),
-          notification_email: notificationEmail.trim() || null,
+          notification_emails: emails,
         }),
       })
       const data = await res.json()
@@ -149,14 +150,11 @@ export function PaymentGatewayConfig() {
   const readOnly = !canEditSettings || profileLoading
 
   return (
-    <section className="max-w-2xl animate-in fade-in-50 duration-200">
-      <SettingsPanelHead title={t("title")} description={t("description")} />
-
+    <section className="animate-in fade-in-50 duration-200">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
-            <ShieldCheck className="size-4 text-primary" />
-            PayPal
+            <GatewayLogo src="/logos/paypal.svg" alt="PayPal" />
           </CardTitle>
           <CardDescription className="text-muted-foreground">
             {t("cardDescription")}
@@ -213,17 +211,15 @@ export function PaymentGatewayConfig() {
             <Badge variant="outline">{config.currency}</Badge>
           </div>
 
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground">{t("notificationEmailLabel")}</Label>
-            <Input
-              type="email"
-              value={notificationEmail}
-              onChange={(e) => setNotificationEmail(e.target.value)}
-              disabled={readOnly}
-              placeholder="ventas@tunegocio.com"
-            />
-            <p className="text-xs text-muted-foreground">{t("notificationEmailHint")}</p>
-          </div>
+          <NotificationEmailsField
+            emails={emails}
+            onChange={setEmails}
+            disabled={readOnly}
+            label={t("notificationEmailLabel")}
+            hint={t("notificationEmailHint")}
+            addLabel={t("addEmail")}
+            removeLabel={t("removeEmail")}
+          />
 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {envStatus.webhook_registered ? (
