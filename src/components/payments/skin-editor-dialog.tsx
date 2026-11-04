@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ImageUploadField } from "@/components/payments/image-upload-field"
 import { CheckoutHeaderSettings } from "@/components/payments/checkout-header-settings"
+import { CheckoutFontPicker } from "@/components/payments/checkout-font-picker"
 import {
   Dialog,
   DialogContent,
@@ -176,6 +177,13 @@ export function SkinEditorDialog({
             maxWidth={200}
             maxHeight={200}
             t={t}
+          />
+
+          <CheckoutFontPicker
+            value={design.font_style ?? "paypal"}
+            onChange={(font_style) => setDesign((d) => ({ ...d, font_style }))}
+            label={t("fontStyleLabel")}
+            hint={t("fontStyleHint")}
           />
 
           <CheckoutHeaderSettings design={design} onChange={setDesign} />

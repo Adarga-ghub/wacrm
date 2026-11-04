@@ -72,6 +72,8 @@ export interface PaymentsSkinsStrings {
   nameLabel: string
   namePlaceholder: string
   accentColorLabel: string
+  fontStyleLabel: string
+  fontStyleHint: string
   logoUrlLabel: string
   backgroundTitle: string
   backgroundColorTab: string
@@ -656,6 +658,8 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       nameLabel: 'Skin name',
       namePlaceholder: 'e.g. Black Friday',
       accentColorLabel: 'Accent color',
+      fontStyleLabel: 'Checkout font',
+      fontStyleHint: 'Choose which payment gateway the checkout and order bump fonts should match.',
       logoUrlLabel: 'Logo URL',
       logoEnabledLabel: "Show the logo",
       logoEnabledHint: "Upload a logo above for it to show.",
@@ -1200,6 +1204,8 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       nameLabel: 'Nombre de la apariencia',
       namePlaceholder: 'ej. Black Friday',
       accentColorLabel: 'Color de acento',
+      fontStyleLabel: 'Fuente del checkout',
+      fontStyleHint: 'Elige con qué pasarela deben combinar las fuentes del checkout y de los order bumps.',
       logoUrlLabel: 'URL del logo',
       logoEnabledLabel: "Mostrar el logo",
       logoEnabledHint: "Sube un logo arriba para que se vea.",

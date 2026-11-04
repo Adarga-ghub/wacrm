@@ -289,3 +289,10 @@ html[data-theme="rose"] {
     @apply font-sans;
   }
 }
+
+/* Checkout skin with Whop's typography (see src/lib/payments/checkout-font.ts):
+   its form never goes heavier than 600, so the page and order bumps do not either. */
+[data-checkout-font="whop"] .font-extrabold,
+[data-checkout-font="whop"] .font-bold {
+  font-weight: 600;
+}

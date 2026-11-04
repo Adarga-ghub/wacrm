@@ -37,6 +37,7 @@ import { PayPageLoading } from "./pay-page-loading"
 import { backgroundStyle, CountryPicker, CountryToggle, TopSectionBlock } from "@/lib/payments/checkout-render"
 import { CheckoutTopBar } from "@/lib/payments/checkout-header"
 import { BumpPreviewDialog } from "@/components/payments/bump-preview"
+import { checkoutFonts, useCheckoutFontAttribute } from "@/lib/payments/checkout-font"
 import { OrderBumpBox } from "@/components/payments/order-bump-box"
 
 declare global {
@@ -44,6 +45,16 @@ declare global {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     paypal?: any
   }
+}
+
+/** Outline card, as on PayPal's "Debit or Credit Card" button, whose look the Whop button copies. */
+function CardOutlineIcon() {
+  return (
+    <svg aria-hidden width="24" height="18" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="0.75" y="0.75" width="22.5" height="16.5" rx="1.5" />
+      <path d="M0.75 5.5h22.5" />
+    </svg>
+  )
 }
 
 const WhopEmbeddedCheckout = dynamic(() => import("@/components/payments/whop-embedded-checkout"), {
@@ -249,6 +260,7 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
   // purchase closes it, since its price was fixed when it was created.
   const [whopCheckout, setWhopCheckout] = useState<{ id: string; returnUrl: string } | null>(null)
   const [whopStarting, setWhopStarting] = useState(false)
+  useCheckoutFontAttribute(form?.design?.font_style)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWhopCheckout(null)
@@ -809,6 +821,7 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
   const accent = form.design?.accent_color || undefined
   const topSection = form.design?.top_section
   const product = form.product
+  const fonts = checkoutFonts(form.design?.font_style)
 
   const priceLine =
     form.amount_type === "fixed" && form.amount != null
@@ -954,28 +967,28 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
                   not per-form/per-skin styling. */}
               <CardTitle
                 className="text-base font-bold text-[#181817]"
-                style={{ fontFamily: '"Times New Roman", Times, serif' }}
+                style={fonts.title}
               >
                 {form.checkout_title ?? product.name}
               </CardTitle>
               {product.author && (
                 <p
                   className="mt-0.5 text-xs font-normal text-[#464542]"
-                  style={{ fontFamily: "var(--font-open-sans)" }}
+                  style={fonts.details}
                 >
                   {t.authorLabel(product.author)}
                 </p>
               )}
               <p
                 className="mt-1 text-lg font-bold text-[#0d0d0d]"
-                style={{ fontFamily: "var(--font-open-sans)" }}
+                style={fonts.details}
               >
                 {priceLine}
               </p>
               {form.checkout_description && (
                 <p
                   className="mt-1 text-xs font-normal text-[#464542]"
-                  style={{ fontFamily: "var(--font-open-sans)" }}
+                  style={fonts.details}
                 >
                   {form.checkout_description}
                 </p>
@@ -1149,9 +1162,10 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
                 type="button"
                 onClick={startWhopCheckout}
                 disabled={whopStarting}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-70"
+                className="flex h-[45px] w-full items-center justify-center gap-2 rounded bg-[#2C2E2F] text-base text-white transition-colors hover:bg-[#232425] disabled:opacity-70"
+                style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', fontWeight: 700 }}
               >
-                {whopStarting ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
+                {whopStarting ? <Loader2 className="size-5 animate-spin" /> : <CardOutlineIcon />}
                 {t.whopPayButton}
               </button>
             )}

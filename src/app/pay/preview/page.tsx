@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { payPageStrings, type PayLocale } from "@/lib/payments/pay-page-i18n"
 import { backgroundStyle, LanguageButtons, TopSectionBlock } from "@/lib/payments/checkout-render"
 import { CheckoutTopBar } from "@/lib/payments/checkout-header"
+import { checkoutFonts, useCheckoutFontAttribute } from "@/lib/payments/checkout-font"
 
 function parseDesign(raw: string | null): PaymentFormDesign {
   if (!raw) return {}
@@ -50,6 +51,8 @@ export default function SkinPreviewPage() {
 function SkinPreviewPageInner() {
   const searchParams = useSearchParams()
   const design = parseDesign(searchParams.get("design"))
+  useCheckoutFontAttribute(design.font_style)
+  const fonts = checkoutFonts(design.font_style)
   const requestedLocale = searchParams.get("locale")
 
   const [locale, setLocale] = useState<PayLocale>(isPayLocale(requestedLocale) ? requestedLocale : "es")
@@ -87,7 +90,7 @@ function SkinPreviewPageInner() {
         <TopSectionBlock topSection={topSection} />
 
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2" style={fonts.title}>
             <CreditCard className="size-5 text-primary" style={accent ? { color: accent } : undefined} />
             {t.sampleProductName}
           </CardTitle>
