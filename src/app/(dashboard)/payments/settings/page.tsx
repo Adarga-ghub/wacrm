@@ -7,6 +7,7 @@ import { BackLink } from "@/components/layout/back-link"
 import { SettingsPanelHead } from "@/components/settings/settings-panel-head"
 import { PaymentGatewayConfig } from "@/components/payments/payment-gateway-config"
 import { WhopGatewayConfig } from "@/components/payments/whop-gateway-config"
+import { WhopButtonEditor } from "@/components/payments/whop-button-editor"
 
 export default function PaymentsSettingsPage() {
   const t = useTranslations("Sidebar")
@@ -25,7 +26,10 @@ export default function PaymentsSettingsPage() {
         <SettingsPanelHead title={tGateway("title")} description={tGateway("description")} />
         <div className="grid max-w-5xl items-start gap-4 lg:grid-cols-2">
           <PaymentGatewayConfig />
-          <WhopGatewayConfig />
+          <div className="space-y-4">
+            <WhopGatewayConfig />
+            <WhopButtonEditor />
+          </div>
         </div>
       </div>
     </div>

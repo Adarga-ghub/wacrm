@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/payments/admin-db'
 import { resolveGateway } from '@/lib/payments/gateway'
 import { isPaypalSupportedCurrency } from '@/lib/currency'
 import { resolveWhopGateway } from '@/lib/payments/whop-gateway'
+import { normalizeWhopButtonStyle } from '@/lib/payments/whop-button-style'
 import { loadOrderBumps } from '@/lib/payments/order-bumps'
 import type { PublicPaymentForm } from '@/types'
 
@@ -66,6 +67,7 @@ export async function loadPublicPaymentForm(slug: string): Promise<PublicPayment
     design,
     paypal_client_id: gateway?.enabled && isPaypalSupportedCurrency(data.currency) ? gateway.clientId : null,
     whop_enabled: !!whopGateway?.enabled,
+    whop_button_style: normalizeWhopButtonStyle(whopGateway?.buttonStyle),
     product: productRow ?? null,
     checkout_description: data.checkout_description ?? null,
     checkout_title: data.checkout_title?.trim() || null,

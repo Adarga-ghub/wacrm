@@ -3,6 +3,7 @@ import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { decrypt, encrypt } from '@/lib/whatsapp/encryption'
 import { registerWebhook, verifyCredentials } from '@/lib/payments/whop-client'
 import { MAX_NOTIFICATION_EMAILS, normalizeNotificationEmails } from '@/lib/payments/notification-emails'
+import { normalizeWhopButtonStyle } from '@/lib/payments/whop-button-style'
 import type { WhopEnvironment } from '@/lib/payments/whop-client'
 import { resolveBaseUrl } from '@/lib/payments/site-url'
 
@@ -22,7 +23,7 @@ export async function GET() {
   const { data: config } = await ctx.supabase
     .from('whop_gateway_credentials')
     .select(
-      'environment, sandbox_company_id, sandbox_api_key, sandbox_webhook_id, live_company_id, live_api_key, live_webhook_id, notification_emails, enabled',
+      'environment, sandbox_company_id, sandbox_api_key, sandbox_webhook_id, live_company_id, live_api_key, live_webhook_id, notification_emails, enabled, button_style',
     )
     .eq('account_id', ctx.accountId)
     .maybeSingle()
@@ -30,6 +31,7 @@ export async function GET() {
   return NextResponse.json({
     connected: !!config,
     enabled: config?.enabled ?? true,
+    button_style: normalizeWhopButtonStyle(config?.button_style),
     environment: config?.environment ?? 'sandbox',
     notification_emails: config?.notification_emails ?? [],
     sandbox: {
@@ -159,7 +161,9 @@ export async function PUT(request: Request) {
 }
 
 /**
- * PATCH — turns Whop on or off for new payments. Its credentials stay saved.
+ * PATCH — turns Whop on or off for new payments (its credentials stay
+ * saved) and/or saves the pay button's design. Either applies to the
+ * public checkout from its next page load.
  */
 export async function PATCH(request: Request) {
   let ctx
@@ -169,16 +173,24 @@ export async function PATCH(request: Request) {
     return toErrorResponse(err)
   }
 
-  const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null
-  if (typeof body?.enabled !== 'boolean') {
-    return NextResponse.json({ error: 'enabled must be true or false' }, { status: 400 })
+  const body = (await request.json().catch(() => null)) as {
+    enabled?: unknown
+    button_style?: unknown
+  } | null
+  const update: Record<string, unknown> = {}
+  if (typeof body?.enabled === 'boolean') update.enabled = body.enabled
+  if (body?.button_style && typeof body.button_style === 'object') {
+    update.button_style = normalizeWhopButtonStyle(body.button_style)
+  }
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
 
   const { data, error } = await ctx.supabase
     .from('whop_gateway_credentials')
-    .update({ enabled: body.enabled })
+    .update(update)
     .eq('account_id', ctx.accountId)
-    .select('enabled')
+    .select('enabled, button_style')
     .maybeSingle()
   if (error) {
     console.error('[payments config PATCH] failed:', error)
@@ -187,7 +199,11 @@ export async function PATCH(request: Request) {
   if (!data) {
     return NextResponse.json({ error: 'Connect Whop first' }, { status: 400 })
   }
-  return NextResponse.json({ success: true, enabled: data.enabled })
+  return NextResponse.json({
+    success: true,
+    enabled: data.enabled,
+    button_style: normalizeWhopButtonStyle(data.button_style),
+  })
 }
 
 /** DELETE /api/payments/whop/config — disconnects Whop only; PayPal's credentials are a separate table. */

@@ -6,7 +6,7 @@ import { canPublishInCurrency } from './currency-gateways'
 vi.mock('./whop-gateway', () => ({ resolveWhopGateway: vi.fn() }))
 const whop = vi.mocked(resolveWhopGateway)
 
-const CONNECTED = { environment: 'live' as const, companyId: 'biz_1', apiKey: 'k', enabled: true }
+const CONNECTED = { environment: 'live' as const, companyId: 'biz_1', apiKey: 'k', enabled: true, buttonStyle: {} }
 
 beforeEach(() => whop.mockReset())
 
