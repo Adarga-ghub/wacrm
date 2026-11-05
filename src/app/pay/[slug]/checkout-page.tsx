@@ -1143,11 +1143,22 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
         {form.whop_enabled && (
           <div className="space-y-3">
             {whopCheckout ? (
-              <WhopEmbeddedCheckout
-                checkoutConfigurationId={whopCheckout.id}
-                returnUrl={whopCheckout.returnUrl}
-                locale={locale}
-              />
+              <>
+                <WhopEmbeddedCheckout
+                  checkoutConfigurationId={whopCheckout.id}
+                  returnUrl={whopCheckout.returnUrl}
+                  locale={locale}
+                />
+                <p className="flex items-center justify-center gap-1.5 pt-1 text-[13px] font-semibold tracking-wide text-slate-700">
+                  <LockKeyhole aria-hidden className="size-4 text-emerald-600" strokeWidth={2.4} />
+                  {t.securePayment}
+                </p>
+                <div className="-mt-2 flex items-center justify-center gap-1.5 text-center text-xs">
+                  <span className="italic text-muted-foreground">{t.securedByPrefix}</span>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- small local SVG, nothing to optimize */}
+                  <img src="/logos/whop.svg" alt="Whop" className="h-3.5 w-auto" />
+                </div>
+              </>
             ) : (
               <WhopPayButton
                 buttonStyle={form.whop_button_style}
