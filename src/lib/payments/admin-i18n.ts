@@ -601,7 +601,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       title: 'Billing & Payments',
       subtitle:
         'Build PayPal checkout forms and send files automatically when a payment is confirmed.',
-      configureGateway: 'Configure PayPal',
+      configureGateway: 'Configure payment gateways',
       transactions: 'Transactions',
       checkoutAnalytics: 'Checkout Analytics',
       skins: 'Payment Skins',
@@ -1151,7 +1151,7 @@ export const paymentsAdminStrings: Record<AdminLocale, PaymentsAdminNamespaces> 
       title: 'Facturación y Pagos',
       subtitle:
         'Crea formularios de pago con PayPal y envía archivos automáticamente cuando se confirme un pago.',
-      configureGateway: 'Configurar PayPal',
+      configureGateway: 'Configurar pasarelas de pago',
       transactions: 'Transacciones',
       checkoutAnalytics: 'Analíticas de Checkout',
       skins: 'Apariencias de pago',
