@@ -14,6 +14,10 @@ interface Props {
   locale: PayLocale
 }
 
+// The merchant doesn't want "I'm buying on behalf of a company" on the form.
+// It only collects tax registration details, so nothing else depends on it.
+const APPEARANCE = { classes: { "whop-CheckoutCompanyPurchase": { display: "none" } } }
+
 /**
  * Whop's checkout, inside our page. Loaded on demand (see the
  * `next/dynamic` import in the checkout page), so a buyer who pays with
@@ -54,7 +58,7 @@ export default function WhopEmbeddedCheckout({ checkoutConfigurationId, returnUr
 
   return (
     <div ref={containerRef} className="scroll-mt-2">
-      <WhopElements elements={loadWhop()} locale={locale}>
+      <WhopElements elements={loadWhop()} locale={locale} appearance={APPEARANCE}>
         <Checkout
           checkoutConfiguration={checkoutConfigurationId}
           returnUrl={returnUrl}
