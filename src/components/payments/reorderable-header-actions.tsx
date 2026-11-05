@@ -121,7 +121,7 @@ export function ReorderableHeaderActions({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={orderedIds} strategy={horizontalListSortingStrategy}>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {orderedActions.map((action) => (
             <SortableAction key={action.id} id={action.id}>
               {action.content}
