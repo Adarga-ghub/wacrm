@@ -1143,11 +1143,18 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
         {form.whop_enabled && (
           <div className="space-y-3">
             {whopCheckout ? (
+              <WhopEmbeddedCheckout
+                checkoutConfigurationId={whopCheckout.id}
+                returnUrl={whopCheckout.returnUrl}
+                locale={locale}
+              />
+            ) : (
               <>
-                <WhopEmbeddedCheckout
-                  checkoutConfigurationId={whopCheckout.id}
-                  returnUrl={whopCheckout.returnUrl}
-                  locale={locale}
+                <WhopPayButton
+                  buttonStyle={form.whop_button_style}
+                  label={t.whopPayButton}
+                  loading={whopStarting}
+                  onClick={startWhopCheckout}
                 />
                 <p className="flex items-center justify-center gap-1.5 pt-1 text-[13px] font-semibold tracking-wide text-slate-700">
                   <LockKeyhole aria-hidden className="size-4 text-emerald-600" strokeWidth={2.4} />
@@ -1159,13 +1166,6 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
                   <img src="/logos/whop.svg" alt="Whop" className="h-3.5 w-auto" />
                 </div>
               </>
-            ) : (
-              <WhopPayButton
-                buttonStyle={form.whop_button_style}
-                label={t.whopPayButton}
-                loading={whopStarting}
-                onClick={startWhopCheckout}
-              />
             )}
             {form.paypal_client_id && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
