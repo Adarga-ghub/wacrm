@@ -296,3 +296,12 @@ html[data-theme="rose"] {
 [data-checkout-font="whop"] .font-bold {
   font-weight: 600;
 }
+
+/* The font on PayPal's own buttons, loaded from PayPal at the merchant's request so
+   the Whop button matches. Only downloaded on pages that use it (the checkout). */
+@font-face {
+  font-family: "PayPal Open";
+  src: url("https://www.paypalobjects.com/paypal-ui/fonts/PayPalOpen-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}

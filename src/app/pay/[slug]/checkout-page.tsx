@@ -16,6 +16,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react"
 import dynamic from "next/dynamic"
+import { Figtree } from "next/font/google"
 import { useParams, useSearchParams } from "next/navigation"
 import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Lock, LockKeyhole } from "lucide-react"
 
@@ -47,12 +48,29 @@ declare global {
   }
 }
 
-/** Outline card, as on PayPal's "Debit or Credit Card" button, whose look the Whop button copies. */
-function CardOutlineIcon() {
+// Fallback if PayPal Open (see globals.css) can't load: the free font closest
+// to it, with the same width and similar letters.
+const whopButtonFont = Figtree({ subsets: ["latin"], weight: "600" })
+
+function MoneyBagIcon() {
   return (
-    <svg aria-hidden width="24" height="18" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="0.75" y="0.75" width="22.5" height="16.5" rx="1.5" />
-      <path d="M0.75 5.5h22.5" />
+    <svg aria-hidden width="36" height="30" viewBox="0 0 36 30" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+      <path d="M9.5 2c1.5 1 3 1 4 0s3-1 4 0 2.5 1 4 0L19 7h-7z" />
+      <path d="M12 7h7c4 3 7 7.500 7 12.500 0 5-4 8.500-11 8.500S3 24.500 3 19.500C3 14.500 7.500 10 12 7z" />
+      <path d="M17.500 15.500c-.6-1-1.500-1.500-2.700-1.500-1.500 0-2.600.8-2.600 2s1.100 1.700 2.600 2.100 2.800 1 2.800 2.200-1.200 2.100-2.800 2.100c-1.300 0-2.300-.5-2.900-1.600M14.900 12.500v1.500M14.900 23.400v1.500" />
+      <g fill="#fff">
+        <path d="M23 21.500v5c0 1.100 2.200 2 5 2s5-.9 5-2v-5z" />
+        <path d="M23 16.500v5c0 1.100 2.200 2 5 2s5-.9 5-2v-5z" />
+        <ellipse cx="28" cy="16.500" rx="5" ry="2" />
+      </g>
+    </svg>
+  )
+}
+
+function MenuLinesIcon() {
+  return (
+    <svg aria-hidden width="26" height="20" viewBox="0 0 26 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M2 3h22M2 10h22M2 17h22" />
     </svg>
   )
 }
@@ -1162,11 +1180,14 @@ function PublicPaymentFormPageInner({ initialForm }: CheckoutPageProps) {
                 type="button"
                 onClick={startWhopCheckout}
                 disabled={whopStarting}
-                className="flex h-[45px] w-full items-center justify-center gap-2 rounded bg-[#2C2E2F] text-base text-white transition-colors hover:bg-[#232425] disabled:opacity-70"
-                style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', fontWeight: 700 }}
+                className={cn(
+                  "flex h-[52px] w-full items-center justify-between gap-2 rounded-[10px] border-2 border-[#2b2b2b] bg-white px-3 text-[15px] font-bold text-[#2b2b2b] shadow-[0_3px_8px_rgba(0,0,0,0.18)] transition-colors hover:bg-slate-50 disabled:opacity-70",
+                )}
+                style={{ fontFamily: `"PayPal Open", ${whopButtonFont.style.fontFamily}` }}
               >
-                {whopStarting ? <Loader2 className="size-5 animate-spin" /> : <CardOutlineIcon />}
+                {whopStarting ? <Loader2 className="size-7 animate-spin" /> : <MoneyBagIcon />}
                 {t.whopPayButton}
+                <MenuLinesIcon />
               </button>
             )}
             {form.paypal_client_id && (
